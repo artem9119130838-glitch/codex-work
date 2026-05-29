@@ -12,3 +12,10 @@ candidates/
 .venv/
 node_modules/
 .env
+.tmp.driveupload/
+
+*.bak_*
+
+**/.codex/migration-report.md
+
+**/.codex/migration-manifest.csv
