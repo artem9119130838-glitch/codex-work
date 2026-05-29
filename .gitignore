@@ -1,0 +1,14 @@
+﻿# Workspace ignores
+
+data/raw_sample/
+legacy/
+archive/
+ARCHIVE/
+__pycache__/
+_cache_blocks/
+model_outputs/
+batches/
+candidates/
+.venv/
+node_modules/
+.env
