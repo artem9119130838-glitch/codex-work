@@ -144,3 +144,6 @@ Markdown-файлы являются Single Source of Truth. `marketing_db.knowl
 
 - Implemented minimal migration scaffold for 	ender-extraction-lab (structure + manifest-driven copy + smoke report). See E:\Codex_Work\projects\tender-extraction-lab.
 
+
+- 2026-05-30: laptop bootstrap завершён, рабочее дерево переведено в чистое tracked-состояние origin/master.
+- Старое содержимое сохранено обратимо в ARCHIVE\\bootstrap_snapshot_2026-05-30 (без удалений).
