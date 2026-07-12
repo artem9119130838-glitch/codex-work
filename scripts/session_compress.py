@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import os
 import time
 import subprocess
@@ -60,28 +60,32 @@ def run_git(args, desc, cwd_dir):
             print(result.stderr.strip())
         return False
 
-def create_summary(summary_path, completed_tasks, modified_files, open_issues, lessons_learned):
+def create_summary(summary_path, summary_paragraph, completed_tasks, modified_files, open_issues, lessons_learned):
     summary_path.parent.mkdir(exist_ok=True)
     current_dt = time.strftime('%Y-%m-%d %H:%M:%S')
     
-    # Динамический промпт без готовых указаний
+    # Краткий и сфокусированный промпт для продолжения именно текущей задачи
     prompt_txt = (
-        "Привет! Мы продолжаем работу над проектом.\n"
-        "Прочитай файл `.ai/SESSION_SUMMARY.md` и правила в репозитории для понимания контекста.\n\n"
-        f"Наша текущая задача / проблемы: {open_issues.replace('- ', '') if open_issues else 'Продолжить выполнение приоритетов проекта'}.\n\n"
-        "Проанализируй текущее состояние системы и предложи оптимальные следующие шаги. "
-        "Спланируй свои действия самостоятельно на основе данных в SESSION_SUMMARY.md."
+        f"Текущая сессия чата завершена. Итог работы:\n{summary_paragraph}\n\n"
+        f"Для продолжения этой задачи в новом чате:\n"
+        f"1. Ознакомься со сводкой в `.ai/SESSION_SUMMARY.md`.\n"
+        f"2. Выполни открытые задачи: {open_issues.strip() if open_issues else 'Продолжить выполнение приоритетов'}.\n"
+        f"3. Учти критические ошибки и извлеченные уроки: {lessons_learned.strip() if lessons_learned else 'Нет'}.\n"
+        "Начни работу строго с этих шагов, соблюдая правила репозитория."
     )
     
     content = f"""# SESSION SUMMARY — Итоги сессии и handoff-контекст
 
 **Дата и время сжатия (DT):** {current_dt}
 
-Этот файл содержит подробную техническую сводку изменений, анализ ошибок и инструкции для ИИ-ассистентов в последующих сессиях чата.
+---
+
+## 🔍 Итог сессии в один абзац
+{summary_paragraph}
 
 ---
 
-## 1. Выполненные задачи
+## 1. Выполненные задачи (Успехи)
 {completed_tasks}
 
 ---
@@ -91,7 +95,7 @@ def create_summary(summary_path, completed_tasks, modified_files, open_issues, l
 
 ---
 
-## 3. Анализ ошибок и уроки (Lessons Learned)
+## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
 {lessons_learned}
 
 ---
@@ -111,11 +115,13 @@ def create_summary(summary_path, completed_tasks, modified_files, open_issues, l
         f.write(content.strip() + '\n')
     print(f"\n[SESSION COMPRESS] Сводка создана: {summary_path}")
 
+
 def main():
     paths = get_paths()
     
     if len(sys.argv) > 1 and sys.argv[1] == '--interactive':
         print(f"=== Сжатие сессии чата ({paths['root'].name}) ===")
+        summary_paragraph = input("Краткий итог сессии в один абзац (задачи, финал, статус продолжения): ")
         completed = input("Что было сделано? (через запятую или списком): ")
         files = input("Какие файлы изменены? (через запятую или списком): ")
         issues = input("Какие открытые вопросы или следующие шаги?: ")
@@ -126,10 +132,11 @@ def main():
         issues_fmt = "\n".join(f"- {i.strip()}" for i in issues.split(',') if i.strip())
         lessons_fmt = "\n".join(f"- {l.strip()}" for l in lessons.split(',') if l.strip())
     else:
-        completed = sys.argv[1] if len(sys.argv) > 1 else "- Не указано"
-        files = sys.argv[2] if len(sys.argv) > 2 else "- Не указано"
-        issues = sys.argv[3] if len(sys.argv) > 3 else "- Не указано"
-        lessons = sys.argv[4] if len(sys.argv) > 4 else "- Нет зафиксированных ошибок"
+        summary_paragraph = sys.argv[1] if len(sys.argv) > 1 else "- Не указано"
+        completed = sys.argv[2] if len(sys.argv) > 2 else "- Не указано"
+        files = sys.argv[3] if len(sys.argv) > 3 else "- Не указано"
+        issues = sys.argv[4] if len(sys.argv) > 4 else "- Не указано"
+        lessons = sys.argv[5] if len(sys.argv) > 5 else "- Нет зафиксированных ошибок"
         
         if ',' in files:
             files_fmt = "\n".join(f"- `{f.strip()}`" for f in files.split(','))
@@ -152,7 +159,7 @@ def main():
             lessons_fmt = f"- {lessons}"
             
     # 1. Создаем сводку
-    create_summary(paths["summary"], completed_fmt, files_fmt, issues_fmt, lessons_fmt)
+    create_summary(paths["summary"], summary_paragraph, completed_fmt, files_fmt, issues_fmt, lessons_fmt)
     
     # 2. Очищаем scratch от мусора
     clean_scratch(paths["scratch"])
@@ -161,14 +168,13 @@ def main():
     git_root = paths["root"]
     if (git_root / ".git").exists():
         print("\n--- Синхронизация с Git ---")
-        run_git(["add", "-u"], "Добавление измененных файлов в индекс Git", git_root)
-        # Относительный путь к сводке для git add
-        rel_summary = os.path.relpath(paths["summary"], git_root)
-        run_git(["add", rel_summary], "Добавление SESSION_SUMMARY в индекс Git", git_root)
+        # Используем add . для прокидывания новых файлов в projects/ и scripts/
+        run_git(["add", "."], "Добавление измененных и новых файлов в индекс Git", git_root)
         run_git(["commit", "-m", "Auto-compress session: update summary, clean workspace"], "Создание коммита сжатия", git_root)
         run_git(["push", "origin", "master"], "Отправка коммитов в репозиторий GitHub", git_root)
     else:
         print(f"\n[INFO] Git не настроен в корне {git_root}. Изменения сохранены локально.")
+
 
 if __name__ == '__main__':
     main()
