@@ -1,4 +1,4 @@
-﻿# Projects Registry
+# Projects Registry
 
 Дата: 2026-05-30
 
@@ -12,5 +12,5 @@ Registry of active projects under `E:\Codex_Work\projects`.
 | n8n_bitrix | active | $projPath | $handoff | Review handoff + define next step |
 | n8n_email_ai | active | $projPath | $handoff | Review handoff + define next step |
 | server_ops | active | $projPath | $handoff | Review handoff + define next step |
-| tender-extraction-lab | active | $projPath | $handoff | Pilot normalized (docs + .codex scaffold). |
+| tender-extraction-lab | active | $projPath | $handoff | Resolve VPS deploy/memory blocker & test CRM nodes |
 | tenders_ast_goz | active | $projPath | $handoff | Review handoff + define next step |

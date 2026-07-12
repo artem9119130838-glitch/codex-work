@@ -1,4 +1,4 @@
-﻿# Workspace ignores
+# Workspace ignores
 
 data/raw_sample/
 legacy/
@@ -18,4 +18,7 @@ node_modules/
 
 **/.codex/migration-report.md
 
-**/.codex/migration-manifest.csv
+# Temporary and scratch files
+scratch/
+out.csv
+

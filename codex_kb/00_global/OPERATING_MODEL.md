@@ -1,4 +1,4 @@
-﻿# Operating Model
+# Operating Model
 
 ## Цель базы знаний
 
@@ -45,12 +45,22 @@ E:\Codex_Work\codex_kb
 
 ### 4. Отдельный чат
 
+<!-- ARCHIVED: OLD CHAT CONTEXT RULES (Sending raw domain files on start)
 В новый чат отправлять не всё, а только нужный набор:
-
 - общий старт: `CODEX_START_HERE.md`;
 - один или несколько доменных файлов;
 - проектный контекст;
 - конкретный файл/лог/скриншот задачи.
+-->
+
+<!-- ACTIVE: TOKEN-FIRST CONTEXT RULES (TOKEN-FIRST VIBE ENGINEERING 1.0) -->
+В новый чат отправляется минимальный стартовый контекст:
+- Сводка сессии: `.ai/SESSION_SUMMARY.md` (или `PROJECT_HANDOFF.md`);
+- Краткая архитектура: `.ai/architecture.md`;
+- Индекс файлов: `.ai/file_index.json`.
+
+Все остальные доменные и прогресс-файлы ИИ считывает прогрессивно, точечно и только при необходимости.
+
 
 ## Что считать неизменным
 

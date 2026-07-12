@@ -1,6 +1,6 @@
-﻿# Global Progress
+# Global Progress
 
-Дата обновления: 2026-05-29
+Дата обновления: 2026-06-13
 
 ## Current State
 
@@ -133,7 +133,7 @@ Markdown-файлы являются Single Source of Truth. `marketing_db.knowl
 
 - Для `RAG KB`-чата:
   - провести sanity/readability pass по `kb_leads_v1`;
-  - проверить и при необходимости исправить `96_articles_index.md` и `97_services_index.md`;
+  - проверить и при необходимости исправить `96_articles_index.md` and `97_services_index.md`;
   - подтвердить канонический набор файлов для генерации писем без обращения к сырью.
 
 - Для основного чата:
@@ -142,8 +142,22 @@ Markdown-файлы являются Single Source of Truth. `marketing_db.knowl
 
 ## Update (2026-05-29)
 
-- Implemented minimal migration scaffold for 	ender-extraction-lab (structure + manifest-driven copy + smoke report). See E:\Codex_Work\projects\tender-extraction-lab.
-
+- Implemented minimal migration scaffold for tender-extraction-lab (structure + manifest-driven copy + smoke report). See E:\Codex_Work\projects\tender-extraction-lab.
 
 - 2026-05-30: laptop bootstrap завершён, рабочее дерево переведено в чистое tracked-состояние origin/master.
-- Старое содержимое сохранено обратимо в ARCHIVE\\bootstrap_snapshot_2026-05-30 (без удалений).
+- Старое содержимое сохранено обратимо в ARCHIVE\bootstrap_snapshot_2026-05-30 (без удалений).
+
+## Update (2026-06-13)
+
+- Разработчик Михаил Денисов собрал прототип FastAPI микросервиса `Tender RAG API` (архив `tender-rag-api.zip` в каталоге `Engeneer employee`), использующий `MarkItDown` для парсинга, `langchain-text-splitters` для чанкинга и `sentence-transformers` с моделью `multilingual-e5-small` для локальной векторизации и In-Memory семантического поиска.
+- Выявлен конфликт требований к VPS: локальная модель векторизации требует ~1.5 ГБ RAM, что создает риск сбоев (OOM) на сервере с 1С и Postgres Pro, где свободно лишь 1 ГБ RAM.
+- Предложено альтернативное решение: переход на Gemini Embeddings API, позволяющее исключить локальные ML-модели и перегрузку ОЗУ сервера.
+
+## Update (2026-07-12)
+
+- Выполнен аудит дискового пространства и оперативной памяти боевого сервера VPS (109.248.170.181).
+- Проведена безопасная очистка дисков (удалено более 82 GB устаревших журналов 1С и старых бэкапов). Настроены лимиты journald (200MB).
+- Освобождено 10.6 GB на системном SSD-диске `/` путем безопасного переноса неактивных баз 1С (`unf_restored` и `moving`) на диск `/Storage` с помощью табличных пространств PostgreSQL (Tablespaces). Доступное место на `/` увеличено до 28 GB (65% использования).
+- Оптимизировано потребление RAM: остановлены и отключены из автозапуска неиспользуемые GUI-службы (`lightdm`, `xrdp`, `cups`, `avahi-daemon`, `whoopsie`), что снизило фоновую нагрузку и использование Swap.
+- Параметры и структура VPS-сервера задокументированы в каноническом файле [SERVER_VPS.md](file:///C:/Codex_Shared/SERVER_VPS.md) в общем контуре `C:\Codex_Shared`, а правила SSH-доступа внесены в [AGENTS.md](file:///C:/Codex_Shared/AGENTS.md).
+- Запущен автономный фоновый процесс создания полного бэкапа сервера (дампы всех СУБД, Docker n8n/3x-ui, лицензии 1С и конфиги) на VPS. Лог бэкапа пишется в `/Storage/backup.log`.

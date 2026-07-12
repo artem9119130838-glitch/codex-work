@@ -1,0 +1,40 @@
+Ajax URLs:
+/projects/get/getexpiredomains/
+Campaign URL:
+Email URL
+o utilice la URL de la página:
+URL do e-mail
+Website URL:
+Адрес рассылки:
+/projects/submit/
+/identity/submit/
+Kampagnen-URL:
+/projects/submit/transfer/
+https://sysstat.tildacdn.com/api/performance/?
+URL do site:
+URL da campanha:
+URL de campaña:
+ou use o URL da página:
+/page/submit/
+Website-URL:
+Ссылка на письмо
+/projects/submit/leads/
+E-Mail-URL
+Адрес сайта:
+URL de sitio web:
+URL del correo electrónico
+или используйте системный адрес страницы
+oder verwenden Sie die URL der Seite:
+or use the page URL:
+
+Paths:
+/projects/submit/leads/
+/page/unpublish/
+/projects/get/getexpiredomains/
+/page/publish/
+/projects/submit/
+/projects/get/getprojects/
+/projects/submit/transfer/
+/page/submit/
+/projects/get/getpagesettings/
+/projects/trash/

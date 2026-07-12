@@ -1,0 +1,95 @@
+[
+  {
+    "announcements": {
+      "oai/apps/hasSeenAdvancedVoice/2024-09-24": "2026-03-08T20:44:00.330578+00:00",
+      "oai/apps/hasSeenAgentModeAnnouncementBanner": "2026-03-03T18:32:40.868225+00:00",
+      "oai/apps/hasSeenArchiveConversationOnboarding": "2026-03-04T06:20:12.507711+00:00",
+      "oai/apps/hasSeenArtifactsLearnMoreModal": "2026-05-29T06:49:23.748412+00:00",
+      "oai/apps/hasSeenAutoSwitchNux": 11,
+      "oai/apps/hasSeenBigPasteCoachmark": "2026-05-29T19:21:21.990584+00:00",
+      "oai/apps/hasSeenCodexAppHomeBanner": "2026-04-04T18:42:45.701620+00:00",
+      "oai/apps/hasSeenFileLibraryUploadPersistenceToast": 3,
+      "oai/apps/hasSeenImage2026RevampNux": "2026-04-22T08:08:21.250615+00:00",
+      "oai/apps/hasSeenMaverick": "2026-02-12T08:02:55.467005+00:00",
+      "oai/apps/hasSeenMemoryOnboarding": "2026-02-28T07:57:26.790233+00:00",
+      "oai/apps/hasSeenMemoryUpdatedTooltip": "2026-03-01T10:23:37.860959+00:00",
+      "oai/apps/hasSeenMoonshineNuxV2": "2026-02-28T08:03:54.377015+00:00",
+      "oai/apps/hasSeenOnboarding": "2026-02-12T08:04:44.943394+00:00",
+      "oai/apps/hasSeenOnboardingFlow": "2026-02-12T08:04:35.225277+00:00",
+      "oai/apps/hasSeenPioneer": "2026-02-12T08:03:02.710036+00:00",
+      "oai/apps/hasSeenSeeker": "2026-02-12T08:03:02.708764+00:00",
+      "oai/apps/hasSeenStratos": "2026-02-12T08:03:02.710979+00:00",
+      "oai/apps/hasSeenTemporaryChatOnboarding": "2026-03-22T19:53:35.630426+00:00",
+      "oai/apps/hasSeenTrailBlazer": "2026-02-12T08:03:02.721646+00:00",
+      "oai/apps/hasSeenWayfinder": "2026-02-12T08:03:02.710800+00:00",
+      "oai/apps/hasSeenWhamCodexAppAnnouncement": "2026-04-04T18:42:45.567663+00:00",
+      "oai/apps/hasSeenWhamCodexAppFirstHero": 2,
+      "oai/apps/hasSeenWindowsAppOnboarding": "2026-03-01T09:08:13.501461+00:00",
+      "oai/apps/hasSeenWritingInlineEditCaretNux": "2026-02-28T09:41:22.380476+00:00",
+      "oai/apps/hasSeenWritingInlineEditNux": "2026-02-28T09:41:21.796445+00:00"
+    },
+    "beta_settings": {},
+    "habitat_object_version": 33659020,
+    "settings": {
+      "a8voRl0kxc_enabled": true,
+      "bH2sVuQ5TJ_enabled": true,
+      "calpico_who_can_message_me": "everyone",
+      "can_consume_personal_credits_chatgpt": false,
+      "citron_mode_enabled": false,
+      "codex_training_allowed": false,
+      "codex_training_allowed_v2": false,
+      "connector_search_enabled": true,
+      "enable_device_code_auth": false,
+      "first_party_project_pins_unmigrated": true,
+      "golden_hour": true,
+      "gxM2LY8iJn_enabled": false,
+      "h17180r_gmail": false,
+      "h17180r_google_calendar": false,
+      "h17180r_google_contacts": false,
+      "hive_referenced_in_internal_knowledge": false,
+      "last_used_model_config": {
+        "juices": {
+          "default": {
+            "gpt-5-2-thinking": "standard",
+            "gpt-5-5-thinking": "extended"
+          },
+          "web": {
+            "gpt-5-2-thinking": "standard",
+            "gpt-5-5-thinking": "extended"
+          }
+        },
+        "slugs": {
+          "android_app": "gpt-5-5",
+          "default": "gpt-5-5-thinking",
+          "ios_app": "gpt-5-5",
+          "web": "gpt-5-5-thinking",
+          "windows_app": "gpt-5-5"
+        }
+      },
+      "model_sticky_for_new_chats": false,
+      "moonshine": true,
+      "potion_enabled": false,
+      "precise_location_device_settings": {
+        "devices": {}
+      },
+      "precise_location_eligible": false,
+      "precise_location_enabled_for_device": false,
+      "project_pins_backfilled": true,
+      "rKAMeJfyrM_settings": {
+        "enabled": false,
+        "end_time": null,
+        "start_time": null
+      },
+      "record_meeting_on_calendar": false,
+      "show_expanded_code_view": false,
+      "sunshine": true,
+      "training_allowed": true,
+      "video_training_allowed": true,
+      "voice_background_enabled": true,
+      "voice_name": "fathom",
+      "voice_training_allowed": true,
+      "wF9qLt3XpB_enabled": true
+    },
+    "user_id": "user-3V26a3raXaQaa6Fzikk8C0Du"
+  }
+]
