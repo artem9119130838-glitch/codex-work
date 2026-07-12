@@ -4,13 +4,24 @@ import time
 import subprocess
 from pathlib import Path
 
-def clean_scratch():
-    scratch_dir = Path("C:/Codex_Personal/scratch")
+def get_paths():
+    # Определяем корневую директорию проекта на основе расположения скрипта
+    # скрипт лежит в <root>/scripts/session_compress.py
+    script_path = Path(__file__).resolve()
+    root_dir = script_path.parent.parent
+    
+    return {
+        "root": root_dir,
+        "summary": root_dir / ".ai" / "SESSION_SUMMARY.md",
+        "scratch": root_dir / "scratch"
+    }
+
+def clean_scratch(scratch_dir):
     if not scratch_dir.exists():
         return
     print("\n--- Очистка временных файлов (scratch) ---")
     # Удаляем только временные скрипты и отчеты ИИ (.py, .txt, .log)
-    # Сохраняем пользовательские файлы 1С (.erf) и папки с кодом
+    # Сохраняем пользовательские файлы (.erf, .xlsx) и другие форматы
     extensions_to_remove = ['.py', '.txt', '.log']
     for p in scratch_dir.iterdir():
         if p.is_file() and p.suffix.lower() in extensions_to_remove:
@@ -20,12 +31,15 @@ def clean_scratch():
             except Exception as e:
                 print(f"Не удалось удалить {p.name}: {e}")
 
-def run_git(args, desc):
+def run_git(args, desc, cwd_dir):
     git_path = r"C:\Program Files\Git\cmd\git.exe"
     ssh_key_path = r"C:/Users/Артем/.ssh/id_ed25519"
-    cwd = r"C:\Codex_Personal"
     
-    # Для push обходим хуки и подставляем ключ
+    # Проверяем, инициализирован ли Git в этой папке
+    if not (Path(cwd_dir) / ".git").exists():
+        print(f"Пропуск Git: директория {cwd_dir} не является Git-репозиторием.")
+        return False
+        
     env = os.environ.copy()
     env["ALLOW_EXTERNAL_PUSH"] = "1"
     
@@ -34,21 +48,20 @@ def run_git(args, desc):
         cmd = [git_path, "-c", f"core.sshCommand=ssh -i {ssh_key_path} -o IdentitiesOnly=yes"] + args
         
     print(f"Git command: {' '.join(cmd)}")
-    result = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True)
+    result = subprocess.run(cmd, cwd=str(cwd_dir), env=env, capture_output=True, text=True)
     if result.returncode == 0:
         print(f"SUCCESS: {desc}")
         if result.stdout:
             print(result.stdout.strip())
+        return True
     else:
         print(f"WARNING/FAILURE: {desc}")
         if result.stderr:
             print(result.stderr.strip())
-    return result.returncode == 0
+        return False
 
-def create_summary(completed_tasks, modified_files, open_issues, lessons_learned):
-    summary_path = Path('C:/Codex_Personal/.ai/SESSION_SUMMARY.md')
+def create_summary(summary_path, completed_tasks, modified_files, open_issues, lessons_learned):
     summary_path.parent.mkdir(exist_ok=True)
-    
     current_dt = time.strftime('%Y-%m-%d %H:%M:%S')
     
     # Динамический промпт без готовых указаний
@@ -99,8 +112,10 @@ def create_summary(completed_tasks, modified_files, open_issues, lessons_learned
     print(f"\n[SESSION COMPRESS] Сводка создана: {summary_path}")
 
 def main():
+    paths = get_paths()
+    
     if len(sys.argv) > 1 and sys.argv[1] == '--interactive':
-        print("=== Сжатие сессии чата (Интерактивно) ===")
+        print(f"=== Сжатие сессии чата ({paths['root'].name}) ===")
         completed = input("Что было сделано? (через запятую или списком): ")
         files = input("Какие файлы изменены? (через запятую или списком): ")
         issues = input("Какие открытые вопросы или следующие шаги?: ")
@@ -137,17 +152,23 @@ def main():
             lessons_fmt = f"- {lessons}"
             
     # 1. Создаем сводку
-    create_summary(completed_fmt, files_fmt, issues_fmt, lessons_fmt)
+    create_summary(paths["summary"], completed_fmt, files_fmt, issues_fmt, lessons_fmt)
     
     # 2. Очищаем scratch от мусора
-    clean_scratch()
+    clean_scratch(paths["scratch"])
     
-    # 3. Синхронизируем изменения с Git (добавляем только изменения в tracked-файлах)
-    print("\n--- Синхронизация с Git ---")
-    run_git(["add", "-u"], "Добавление измененных файлов в индекс Git")
-    run_git(["add", ".ai/SESSION_SUMMARY.md"], "Добавление SESSION_SUMMARY в индекс Git")
-    run_git(["commit", "-m", "Auto-compress session: update summary, clean workspace"], "Создание коммита сжатия")
-    run_git(["push", "origin", "master"], "Отправка коммитов в репозиторий GitHub")
+    # 3. Синхронизируем изменения с Git (если репозиторий существует)
+    git_root = paths["root"]
+    if (git_root / ".git").exists():
+        print("\n--- Синхронизация с Git ---")
+        run_git(["add", "-u"], "Добавление измененных файлов в индекс Git", git_root)
+        # Относительный путь к сводке для git add
+        rel_summary = os.path.relpath(paths["summary"], git_root)
+        run_git(["add", rel_summary], "Добавление SESSION_SUMMARY в индекс Git", git_root)
+        run_git(["commit", "-m", "Auto-compress session: update summary, clean workspace"], "Создание коммита сжатия", git_root)
+        run_git(["push", "origin", "master"], "Отправка коммитов в репозиторий GitHub", git_root)
+    else:
+        print(f"\n[INFO] Git не настроен в корне {git_root}. Изменения сохранены локально.")
 
 if __name__ == '__main__':
     main()
