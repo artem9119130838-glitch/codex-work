@@ -1,4 +1,4 @@
-﻿# Asset: Local Computer
+# Asset: Local Computer
 
 ## Workspace
 
@@ -81,3 +81,22 @@ They remain useful, but new global context should live in `codex_kb`.
 - Put reusable, stable facts into `codex_kb`.
 - Put active working files into `projects`.
 - Put one-off or superseded material into `Архив`.
+
+## Hardware Specs & Known GPU Issues
+
+* **Ноутбук**: HP Victus by HP Laptop 16-d1xxx (BIOS F.20)
+* **Процессор**: Intel Core 12th Gen
+* **Видеоадаптеры**:
+  * Встроенный: Intel(R) Iris(R) Xe Graphics
+  * Дискретный: NVIDIA GeForce RTX 3060 Laptop GPU
+* **Особенность портов**: Внешние выходы (HDMI, USB Type-C DisplayPort) разведены напрямую на дискретную графику NVIDIA. Если видеокарта NVIDIA отключена или находится в состоянии ошибки, внешние мониторы работать не будут.
+
+### ⚠️ Проблема с кодом ошибки 43 (CM_PROB_FAILED_POST_START)
+При фоновом обновлении драйверов через Windows Update (например, версия `32.0.15.9282`) видеокарта NVIDIA падает в ошибку Код 43, сопровождаемую аппаратным сбоем питания шины PCIe (`WHEA-Logger`).
+
+**Алгоритм восстановления**:
+1. Переключить видеокарту в Диспетчере устройств на драйвер **"Базовый видеоадаптер (Microsoft)"**.
+2. Заблокировать установку драйверов от Microsoft: открыть `sysdm.cpl` -> вкладка **Оборудование** -> **Параметры установки устройств** -> выбрать **Нет** -> Сохранить.
+3. Скачать официальный драйвер с сайта NVIDIA и запустить **чистую установку** (Clean Installation).
+4. Если ошибка сохраняется, сбросить контроллер питания (EC Reset): полностью выключить ноутбук, отключить все кабели и зарядное устройство, зажать кнопку питания на **40 секунд**. Подключить зарядку и включить ноутбук.
+
