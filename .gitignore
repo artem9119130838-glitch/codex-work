@@ -25,3 +25,10 @@ node_modules/
 scratch/
 out.csv
 
+# Infrastructure Registry (contains secrets)
+infrastructure_registry/
+
+# Router configurations and snapshots (contains VPN keys)
+projects/server_ops/clients configs/
+
+
