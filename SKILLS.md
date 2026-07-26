@@ -14,3 +14,7 @@
     *   *Когда вызывать:* OData API запросы, BSL стандарты программирования 1С, конфигурация портов 1С на сервере.
 5.  **[session_management](file:///C:/Users/Артем/.gemini/config/skills/session_management/SKILL.md) — Управление сессиями ИИ**
     *   *Когда вызывать:* Подготовка `SESSION_SUMMARY.md` для архивации контекста и перехода в новый чистый чат.
+6.  **[tender_automation](file:///C:/Users/Артем/.gemini/config/skills/tender_automation/SKILL.md) — Автоматизация тендеров и парсинг**
+    *   *Когда вызывать:* Написание роботов для АСТ ГОЗ, извлечение спецификаций из DOCX/PDF таблиц, троттлинг запросов к Gemini API, слияние Excel-лотов.
+7.  **[email_ai_pipelines](file:///C:/Users/Артем/.gemini/config/skills/email_ai_pipelines/SKILL.md) — ИИ-пайплайны почты**
+    *   *Когда вызывать:* Интеграция n8n с почтой/CRM, парсинг вложений (XLSX, PDF), очистка цитирования писем, проверка прав Google Drive, запросы OData 1С.
