@@ -10,6 +10,9 @@ model_outputs/
 batches/
 candidates/
 .venv/
+venv/
+**/venv/
+**/.venv/
 node_modules/
 .env
 .tmp.driveupload/
