@@ -1,0 +1,323 @@
+{
+	"time": "2026-08-02T14:14:08+03:00",
+	"id": "1e820793-eec8-4e0d-a194-07c9da2a28ad",
+	"clientInfo": {
+		"platformType": "Windows_x86_64",
+		"appVersion": "8.5.1.1150",
+		"appName": "1CV8C",
+		"systemInfo": {
+			"osVersion": "Microsoft Windows 11 version 10.0  (Build 26200)",
+			"fullRAM": 34008817664,
+			"freeRAM": 22852964352,
+			"processor": "GenuineIntel Intel64 Family 6 Model 154 Stepping 3 2688 MHz",
+			"clientID": "44088c44-b6b0-45f1-9be3-dd9456b3e3d5"
+		}
+	},
+	"sessionInfo": {
+		"userName": "Артем",
+		"dataSeparation": "+,+",
+		"platformInterfaceLanguageCode": "ru_RU",
+		"configurationInterfaceLanguageCode": "ru",
+		"localeCode": "ru_RU"
+	},
+	"infoBaseInfo": {
+		"localeCode": "ru_RU"
+	},
+	"serverInfo": {
+		"appVersion": "8.5.1.1150",
+		"type": "Linux_x86_64",
+		"dbms": "PostgreSQL"
+	},
+	"configInfo": {
+		"name": "УправлениеНебольшойФирмой",
+		"description": "Управление нашей фирмой, редакция 3.0 (3.0.13.374) (https:\/\/v8.1c.ru\/small.biz\/)\nCopyright © ООО \"1С-Софт\", 2009-2026. Все права защищены\n(https:\/\/1c.ru\/)",
+		"version": "3.0.13.374",
+		"compatibilityMode": "Version8_5_1",
+		"hash": "9832645dd5093a42a7e1341b49220f0400000000",
+		"changeEnabled": false,
+		"extentions": [
+			[
+				"EF_188",
+				"a1115c99c120cfb805abee3bf88bed1ad01ed844"
+			],
+			[
+				"EF_202",
+				"eed8a4a30629f4f97eb2fbce3533c4509ecf2859"
+			],
+			[
+				"EF_3845",
+				"4c5d77f4b61aefbc46b89c7129f33b08dab39513"
+			],
+			[
+				"EF_3843",
+				"51424b9cdb7f82f71a2a7216269ceb8b8bfbccc3"
+			],
+			[
+				"EF_3855",
+				"c15b355f11f8e66c1c8b72f757ca27fe15a0f6e9"
+			],
+			[
+				"EF_3812_2",
+				"de4ef825ee304bafaf3db2b5f213bebd74d8568d"
+			],
+			[
+				"EF_70145546 (1.0)\nCopyright (С) ООО \"1C-Софт\", 2009 - 2024. Все права защищены\n(http:\/\/www.1c.ru)",
+				"aeea15365f22a6d6eb87afa899a62a8509ad5b73"
+			],
+			[
+				"EF_3846",
+				"eb450e12bbd548f3c409ba2bd3120d3e1d9117db"
+			],
+			[
+				"EF_00_00864124",
+				"f387b5ac9e94aee6c94300381a4c77566ca4bf26"
+			],
+			[
+				"EF_00_00880498",
+				"a4f8b4bbc70cd37a3e166261ccde82189ab18e73"
+			],
+			[
+				"EF_3876",
+				"0932e85f1310d08834889f3267d9236c5ea7e087"
+			],
+			[
+				"EF_3899",
+				"5d18cbadd038b67d0aebc158e0335885320b6637"
+			],
+			[
+				"EF_00_00888235",
+				"1c83d15e8dd195be1baa19d097128a8ad557ac39"
+			],
+			[
+				"EF_00_00891890",
+				"e1bbdf60bb2715624690554e8fb15cd93248278e"
+			],
+			[
+				"EF_00_00893312",
+				"fc99d386137227830d5890ae9a45d1ec97c692c3"
+			],
+			[
+				"EF_00_00895763",
+				"95400c187706277fb98e23b17ae14c614d955d97"
+			],
+			[
+				"EF_00_00882153",
+				"fe4970b316241f24a3c7679d073e5c2492bed91b"
+			],
+			[
+				"EF_3911_2",
+				"5520112ae2f5acce55d838598ba0d09bf3f51f14"
+			],
+			[
+				"EF_00_00898410",
+				"ac8df883844473015a49f0f40327f8d15ce809d0"
+			],
+			[
+				"EF_00_00900871",
+				"d4684cecb93382654cb9aa3ed9430d5565d53c9e"
+			],
+			[
+				"EF_00_00900419",
+				"5d7657e494f5edbd7f82ae8bd6b35ed0684b8f7d"
+			],
+			[
+				"EF_00_00896573",
+				"9df6a9ad84fbccc14993c08d098e88b212a814e7"
+			],
+			[
+				"EF_00_00903896",
+				"127b0474af6fbd3a8700fcaf77c769720d67a129"
+			],
+			[
+				"EF_00_00900945",
+				"7252aeaa4dc6f78d6efc408c1827b449c1a7b915"
+			],
+			[
+				"EF_00_00836217",
+				"f185ea2ad4f627012460042aac7f3bacdea9f637"
+			],
+			[
+				"EF_00_00905752",
+				"d5259449a4d64190940df27a4baeb17612357012"
+			],
+			[
+				"EF_00_00906990",
+				"0117c5fdca42ef497eb0955e729671b3930a29d0"
+			],
+			[
+				"EF_00_00905207",
+				"5af6e727de537c03bc3ea9169fb5e73bb8bec925"
+			],
+			[
+				"EF_00_00904517",
+				"18b71f1bb52d11243429fbaeacb5c87b8b1935cd"
+			],
+			[
+				"EF_00_00902011",
+				"faa19ea9c4f4103c0c0284e8e43aafe0175964ba"
+			],
+			[
+				"EF_00_00902790",
+				"372bed236b8f79edd7078a1f1d0da7d6c07c213e"
+			],
+			[
+				"EF_00_00799083",
+				"5709c2f4a453e2927f1111d8e537edc5b4adae12"
+			],
+			[
+				"EF_00_00882865",
+				"0e96043307b4da32d9def8b3a2794df1d0e9933f"
+			],
+			[
+				"EF_00_00901190",
+				"8a642b9dce27624dc51f4c4f18f22678a88076e2"
+			],
+			[
+				"EF_00_00900460",
+				"3f66c9a4a434f56f206f6a1363e5e052f27f65ec"
+			],
+			[
+				"EF_00_00900327",
+				"610b935362610891a32c557ea1278b9ef9321a14"
+			],
+			[
+				"EF_УвеличениеТаймаутаВебРегистратор",
+				"1b43b10e572d34ff2637cb1921889c8026c534a5"
+			],
+			[
+				"EF_60032166",
+				"6518f5163d57a04e3ff4976f96bf6898200c1aba"
+			],
+			[
+				"EF_00_00896143",
+				"064fac6aac71de6439f47d535c219c0a87c5d2f6"
+			],
+			[
+				"EF_00_00882958_2",
+				"4ecf615d20ea92609ec506b8aafd90b7bf5a067e"
+			],
+			[
+				"EF_00_00843470",
+				"327cbc3b38dccb4834886d7e5d0ca3b3dc037d5d"
+			],
+			[
+				"EF_00_00870621",
+				"57bf44de09aab3fb4b5d8952ad6f29924a6a8e98"
+			],
+			[
+				"EF_00_00910617",
+				"94938126ce50ea18bc458302c02e8f3e1e38f7d1"
+			],
+			[
+				"EF_00_00904904",
+				"b916d2c1b9431f431ad065e4cbe44eab7eec8d95"
+			],
+			[
+				"EF_00_00912191",
+				"009f6cc727b817de4ec92f21692da02c5661214f"
+			],
+			[
+				"EF_00_00901494",
+				"38aa543cf2568e1558fa18cfbfce6ee0794cac10"
+			],
+			[
+				"EF_00_00899204",
+				"c17a8a24a7716c3d919b0d26f90434d561fe0b88"
+			],
+			[
+				"EF_00_00910739",
+				"2256f7faf1cad6bafddb11cabab5e4b9d77ee3c3"
+			],
+			[
+				"EF_00_00899387",
+				"a6878dec5a7040d72562aa1d5a61782b5ed209c9"
+			],
+			[
+				"EF_60033086_2",
+				"b339e8a3b3187cbdbc7fa624d58dd43b4f2ceee8"
+			],
+			[
+				"EF_00_00913871",
+				"46812b5794397de79f04026869d6154103905447"
+			],
+			[
+				"EF_47_000014318_2",
+				"5e110e4cb7a0190542b470e1b52a5d5682f95fd7"
+			],
+			[
+				"EF_CO_270",
+				"404788bdde5945fe06ee391080617bb16a2325ad"
+			],
+			[
+				"Битрикс24: Коннектор к 1С для УНФ (4.3.1.13)",
+				"03c01ee83df98a4702194b881bccc81e7061ca71"
+			],
+			[
+				"Авторасчет остатка в плане оплаты",
+				"0b129949b9af73a6f998d959c75111ab4b58ced7"
+			],
+			[
+				"mag1c для УНФ (3.0), РТ (3.0) (0.13.419.6) (https:\/\/mag1c.ru\/)\n1С\n(https:\/\/1c.ru\/)",
+				"c46f5ee67d69f784762f2808053f402d2dc2c09d"
+			]
+		],
+		"disabledExtentions": [
+			[
+				"Обмен с бухгалтерией",
+				"44e60aace4a8e4899d5d0260ab9ee29bcf270158"
+			]
+		]
+	},
+	"errorInfo": {
+		"systemErrorInfo": {
+			"clientStack": "core85.dll:0x0000000000088200 vrscore.dll:0x00000000000BA3A5 mngcln.dll:0x000000000004AD8C mngcln.dll:0x00000000000F4FA7 mngcln.dll:0x00000000000F542B mngcln.dll:0x00000000000F54AE frame.dll:0x00000000002071F8 frame.dll:0x00000000002088E4 frame.dll:0x0000000000B60BF0 VCRUNTIME140.dll:0x0000000000001030 VCRUNTIME140.dll:0x00000000000032E8 unknown:0x0000000000000000 frame.dll:0x0000000000A3FF17 frame.dll:0x0000000000A3F1D1 frame.dll:0x0000000000A3B5D5 frame.dll:0x0000000000A3D409 frame.dll:0x0000000000A6EEEA frame.dll:0x0000000000A5C2A3 frame.dll:0x00000000000FB579 frame.dll:0x00000000000FCF39 frame.dll:0x00000000000FBFBA frame.dll:0x0000000000100803 frame.dll:0x0000000000108946 frame.dll:0x00000000000FA2FE frame.dll:0x00000000000FAD9D wbase85.dll:0x000000000002EFB1 wbase85.dll:0x00000000000229B7 wbase85.dll:0x0000000000022410 wbase85.dll:0x0000000000021D21 wbase85.dll:0x000000000002154E wbase85.dll:0x0000000000015D24 wbase85.dll:0x0000000000015FA3 frame.dll:0x0000000000A266CD frame.dll:0x0000000000A23FD1 mngcln.dll:0x00000000000B50D3 mngcln.dll:0x00000000000B4774 1cv8c.exe:0x000000000000E894 1cv8c.exe:0x000000000000988E 1cv8c.exe:0x000000000001265E core85.dll:0x00000000002E8570 core85.dll:0x00000000002EAAE8 1cv8c.exe:0x0000000000012212 1cv8c.exe:0x00000000000DB31A KERNEL32.DLL:0x0000000000000000 unknown:0x0000000000000000 ",
+			"clientStackHash": "E5F4D45C12AA6B7414ADC9C603E41D26",
+			"serverStack": "xdto:0x00000000002B8580 xdto:0x00000000002BA180 xdto:0x00000000002BD703 dcs:0x00000000013CF954 dcs:0x00000000014C2D12 dcs:0x00000000014C2B58 xdto:0x00000000002A5EC2 dcs:0x00000000013C8C5E dcs:0x00000000014BF122 dcs:0x00000000014BEF68 xdto:0x00000000002A5EC2 dcs:0x00000000013F9943 dcs:0x0000000001401009 dcs:0x0000000001400D80 dcs:0x00000000013F1933 dcs:0x00000000013F8837 dcs:0x00000000013EF467 backend:0x000000000345A468 backend:0x0000000004C7F4AE backend:0x0000000004C7F51D backend:0x00000000042331F1 backend:0x0000000004322513 backend:0x00000000042375C0 backend:0x00000000042373D8 backend:0x000000000423895D backend:0x000000000423E899 backend:0x00000000042388F4 basic:0x0000000001D4AEBC basic:0x0000000001D4AA74 basic:0x0000000001D4AB1D basic:0x0000000001D49DA2 basic:0x0000000001D475C2 basic:0x0000000001D4654F basic:0x0000000001D4410B backend:0x0000000003B6FA72 vrsbase:0x0000000000742349 vrsbase:0x0000000000768CDB vrsbase:0x00000000006D7779 rserver:0x00000000013437FA rserver:0x0000000001513C76 vrsbase:0x00000000006D2A9C rserver:0x0000000001514CB3 rserver:0x0000000001516F01 rtrsrvc:0x0000000001B2A168 rtrsrvc:0x0000000001C8D0B9 rtrsrvc:0x0000000001C9108E rtrsrvc:0x0000000001C8F09C rtrsrvc:0x0000000001C8E9D1 rtrsrvc:0x0000000001C7E97C rscalls:0x000000000003DF48 rscalls:0x000000000003ED0F core85:0x00000000008D4E3F core85:0x00000000006B231C libpthread.so:0x0000000000000000 libc.so:0x0000000000000000 ",
+			"serverStackHash": "CBAAC20F24A3CB22B9CEA1567F0A0A3C"
+		},
+		"applicationErrorInfo": {
+			"errors": [
+				[
+					"Ошибка загрузки документа.",
+					[],
+					"",
+					""
+				],
+				[
+					"Ошибка преобразования данных XDTO:\nНачалоСвойства: dataSet\u0009Форма: Элемент\u0009Тип: {http:\/\/v8.1c.ru\/8.1\/data-composition-system\/schema}DataSet",
+					[],
+					"",
+					""
+				],
+				[
+					"Ошибка преобразования данных XDTO:\nНачалоСвойства: field\u0009Форма: Элемент\u0009Тип: {http:\/\/v8.1c.ru\/8.1\/data-composition-system\/schema}DataSetField",
+					[],
+					"",
+					""
+				],
+				[
+					"Ошибка преобразования данных XDTO:\nЧтение объекта типа: {http:\/\/v8.1c.ru\/8.1\/data-composition-system\/schema}DataSetFieldField - [23,15]\nПроверка свойства \u0027title\u0027:\n\u0009форма: Элемент\n\u0009имя: {http:\/\/v8.1c.ru\/8.1\/data-composition-system\/schema}title\n\u0009тип: {http:\/\/www.w3.org\/2001\/XMLSchema}anyType",
+					[],
+					"",
+					""
+				],
+				[
+					"Тип свойства неопределен\nКвалифицированное имя типа: \u0027d5p1:LocalStringType\u0027",
+					[],
+					"",
+					""
+				],
+				[
+					"Ошибка отображения пространства имен\nОтсутствует отображение для префикса: \u0027d5p1\u0027",
+					[],
+					"",
+					""
+				]
+			]
+		}
+	},
+	"screenshot": {
+		"file": "screenshot.png"
+	},
+	"additionalInfo": "{\"guid\":\"c73fc671-c803-49ac-9142-48df6f43c633\",\"region\":0}"
+}
