@@ -1,7 +1,7 @@
 # Конфигурация
 $VpsIp = "109.248.170.181"
 $VpsUser = "root"
-$SshKey = "C:\Users\Артем\.ssh\id_ed25519_wlisses"
+$SshKey = "$env:USERPROFILE\.ssh\id_ed25519_wlisses"
 $LocalBackupDir = "D:\server-backups"
 $RemoteStorageDir = "/Storage"
 $RetentionDays = 30
@@ -35,7 +35,8 @@ if (Test-Path $localDestPath) {
     Write-Host "Бэкап $backupFolderName уже скачан локально. Пропуск." -ForegroundColor Green
 } else {
     Write-Host "Запуск скачивания бэкапа $backupFolderName ($latestRemotePath)..." -ForegroundColor Yellow
-    $scpCmd = "scp -r -i `"$SshKey`" $VpsUser@$VpsIp:`"$latestRemotePath`" `"$LocalBackupDir`""
+    $remoteTarget = "${VpsUser}@${VpsIp}:${latestRemotePath}"
+    $scpCmd = "scp -r -i `"$SshKey`" `"$remoteTarget`" `"$LocalBackupDir`""
     
     $startTime = Get-Date
     Invoke-Expression $scpCmd
