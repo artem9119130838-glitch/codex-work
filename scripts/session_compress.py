@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import os
 import time
 import subprocess
@@ -33,7 +33,7 @@ def clean_scratch(scratch_dir):
 
 def run_git(args, desc, cwd_dir):
     git_path = r"C:\Program Files\Git\cmd\git.exe"
-    ssh_key_path = r"C:/Users/Артем/.ssh/id_ed25519"
+    ssh_key_path = r"C:/Users/Artem/.ssh/id_ed25519"
     
     # Проверяем, инициализирован ли Git в этой папке
     if not (Path(cwd_dir) / ".git").exists():
