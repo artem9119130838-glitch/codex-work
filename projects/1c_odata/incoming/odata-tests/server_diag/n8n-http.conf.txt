@@ -1,0 +1,13 @@
+﻿<VirtualHost *:80>
+    ServerName n8n.3develop.ru
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:5678/
+    ProxyPassReverse / http://127.0.0.1:5678/
+
+    ErrorLog ${APACHE_LOG_DIR}/n8n_error.log
+    CustomLog ${APACHE_LOG_DIR}/n8n_access.log combined
+RewriteEngine on
+RewriteCond %{SERVER_NAME} =n8n.3develop.ru
+RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
+</VirtualHost>

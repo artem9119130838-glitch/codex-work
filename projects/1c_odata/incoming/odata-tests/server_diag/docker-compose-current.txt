@@ -1,0 +1,23 @@
+﻿version: "2.4"
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - N8N_HOST=n8n.3develop.ru
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://n8n.3develop.ru/
+      - N8N_PROXY_HOPS=1
+      - N8N_PUSH_BACKEND=sse
+      - N8N_EDITOR_BASE_URL=https://n8n.3develop.ru/
+      - GENERIC_TIMEZONE=Europe/Moscow
+      - TZ=Europe/Moscow
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    mem_limit: 512m

@@ -1,0 +1,101 @@
+root@server:/Storage/docker/n8n# docker-compose config
+services:
+  n8n:
+    container_name: n8n
+    environment:
+      GENERIC_TIMEZONE: Europe/Moscow
+      N8N_EDITOR_BASE_URL: https://n8n.3develop.ru/
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_HOST: n8n.3develop.ru
+      N8N_PORT: '5678'
+      N8N_PROTOCOL: https
+      N8N_PROXY_HOPS: '1'
+      N8N_PUSH_BACKEND: sse
+      TZ: Europe/Moscow
+      WEBHOOK_URL: https://n8n.3develop.ru/
+    image: n8nio/n8n:latest
+    mem_limit: 512m
+    ports:
+    - 127.0.0.1:5678:5678/tcp
+    restart: unless-stopped
+    volumes:
+    - /Storage/docker/n8n/n8n_data:/home/node/.n8n:rw
+version: '2.4'
+
+root@server:/Storage/docker/n8n# docker-compose up -d
+Recreating n8n ... done
+root@server:/Storage/docker/n8n# apachectl configtest
+Syntax OK
+root@server:/Storage/docker/n8n# systemctl reload apache2
+root@server:/Storage/docker/n8n# docker logs --since 2m n8n
+Initializing n8n process
+n8n ready on ::, port 5678
+n8n Task Broker ready on 127.0.0.1, port 5679
+Failed to start Python task runner in internal mode. because Python 3 is missing from this system. Launching a Python runner in internal mode is intended only for debugging and is not recommended for production. Users are encouraged to deploy in external mode. See: https://docs.n8n.io/hosting/configuration/task-runners/#setting-up-external-mode
+[license SDK] Skipping renewal on init: license cert is not due for renewal
+Registered runner "JS Task Runner" (juollA1_7xl_0djIvTEMt)
+Collaboration features are disabled because push is configured unidirectional. Use N8N_PUSH_BACKEND=websocket environment variable to enable them.
+Version: 2.18.5
+Building workflow dependency index...
+Finished building workflow dependency index. Processed 0 draft workflows, 0 published workflows.
+
+Editor is now accessible via:
+https://n8n.3develop.ru
+root@server:/Storage/docker/n8n# tail -n 60 /var/log/apache2/n8n_error.log
+[Sun May 10 13:22:43.003261 2026] [proxy_http:error] [pid 505476] (104)Connection reset by peer: [client 46.146.89.197:49922] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:22:43.003385 2026] [proxy:error] [pid 505476] [client 46.146.89.197:49922] AH00898: Error reading from remote server returned by /healthz
+[Sun May 10 13:22:45.992859 2026] [proxy:error] [pid 536922] (111)Connection refused: AH00957: HTTP: attempt to connect to 127.0.0.1:5678 (127.0.0.1) failed
+[Sun May 10 13:22:45.993001 2026] [proxy_http:error] [pid 536922] [client 46.146.89.197:63098] AH01114: HTTP: failed to make connection to backend: 127.0.0.1
+[Sun May 10 13:23:01.966241 2026] [proxy_http:error] [pid 536923] (104)Connection reset by peer: [client 46.146.89.197:64380] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:01.966340 2026] [proxy:error] [pid 536923] [client 46.146.89.197:64380] AH00898: Error reading from remote server returned by /rest/push
+[Sun May 10 13:23:17.975669 2026] [proxy_http:error] [pid 536921] (104)Connection reset by peer: [client 46.146.89.197:55223] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:17.975809 2026] [proxy:error] [pid 536921] [client 46.146.89.197:55223] AH00898: Error reading from remote server returned by /rest/push
+[Sun May 10 13:23:33.975840 2026] [proxy_http:error] [pid 535596] (104)Connection reset by peer: [client 46.146.89.197:54134] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:33.975945 2026] [proxy:error] [pid 535596] [client 46.146.89.197:54134] AH00898: Error reading from remote server returned by /rest/push
+[Sun May 10 13:23:42.977877 2026] [proxy_http:error] [pid 501141] (104)Connection reset by peer: [client 46.146.89.197:60129] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:42.979042 2026] [proxy:error] [pid 501141] [client 46.146.89.197:60129] AH00898: Error reading from remote server returned by /healthz
+[Sun May 10 13:23:49.972970 2026] [proxy_http:error] [pid 501272] (104)Connection reset by peer: [client 46.146.89.197:52294] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:49.973095 2026] [proxy:error] [pid 501272] [client 46.146.89.197:52294] AH00898: Error reading from remote server returned by /rest/push
+[Sun May 10 13:23:57.317153 2026] [proxy_http:error] [pid 528463] (104)Connection reset by peer: [client 46.146.89.197:56651] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:57.317218 2026] [proxy:error] [pid 528463] [client 46.146.89.197:56651] AH00898: Error reading from remote server returned by /healthz
+[Sun May 10 13:23:59.210708 2026] [proxy_http:error] [pid 528463] (104)Connection reset by peer: [client 46.146.89.197:56651] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:59.387146 2026] [proxy_http:error] [pid 536881] (104)Connection reset by peer: [client 46.146.89.197:55623] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:59.387293 2026] [proxy:error] [pid 536881] [client 46.146.89.197:55623] AH00898: Error reading from remote server returned by /workflow/zNTKv43UQs5VHVK3
+[Sun May 10 13:23:59.533935 2026] [proxy_http:error] [pid 536881] (104)Connection reset by peer: [client 46.146.89.197:55623] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:59.748526 2026] [proxy_http:error] [pid 536922] (104)Connection reset by peer: [client 46.146.89.197:58981] AH01102: error reading status line from remote server 127.0.0.1:5678, referer: https://n8n.3develop.ru/workflow/zNTKv43UQs5VHVK3?projectId=QJD6CdOtDcOeoxgk
+[Sun May 10 13:23:59.748608 2026] [proxy:error] [pid 536922] [client 46.146.89.197:58981] AH00898: Error reading from remote server returned by /favicon.ico, referer: https://n8n.3develop.ru/workflow/zNTKv43UQs5VHVK3?projectId=QJD6CdOtDcOeoxgk
+[Sun May 10 13:23:59.760010 2026] [proxy_http:error] [pid 501144] (104)Connection reset by peer: [client 46.146.89.197:65262] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:23:59.760791 2026] [proxy:error] [pid 501144] [client 46.146.89.197:65262] AH00898: Error reading from remote server returned by /rest/ph/i/v0/e/
+[Sun May 10 13:24:13.011188 2026] [proxy_http:error] [pid 536923] (104)Connection reset by peer: [client 46.146.89.197:59968] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:24:13.011268 2026] [proxy:error] [pid 536923] [client 46.146.89.197:59968] AH00898: Error reading from remote server returned by /workflow/
+[Sun May 10 13:24:13.154007 2026] [proxy_http:error] [pid 536923] (104)Connection reset by peer: [client 46.146.89.197:59968] AH01102: error reading status line from remote server 127.0.0.1:5678, referer: https://n8n.3develop.ru/workflow/
+[Sun May 10 13:24:13.223933 2026] [proxy_http:error] [pid 505476] (104)Connection reset by peer: [client 46.146.89.197:52634] AH01102: error reading status line from remote server 127.0.0.1:5678, referer: https://n8n.3develop.ru/workflow/
+[Sun May 10 13:24:13.224011 2026] [proxy:error] [pid 505476] [client 46.146.89.197:52634] AH00898: Error reading from remote server returned by /favicon.ico, referer: https://n8n.3develop.ru/workflow/
+[Sun May 10 13:24:20.146080 2026] [proxy_http:error] [pid 535596] (104)Connection reset by peer: [client 46.146.89.197:60735] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:24:20.146137 2026] [proxy:error] [pid 535596] [client 46.146.89.197:60735] AH00898: Error reading from remote server returned by /
+[Sun May 10 13:24:20.319102 2026] [proxy_http:error] [pid 535596] (104)Connection reset by peer: [client 46.146.89.197:60735] AH01102: error reading status line from remote server 127.0.0.1:5678, referer: https://n8n.3develop.ru/
+[Sun May 10 13:24:20.393324 2026] [proxy_http:error] [pid 536921] (104)Connection reset by peer: [client 46.146.89.197:59220] AH01102: error reading status line from remote server 127.0.0.1:5678, referer: https://n8n.3develop.ru/
+[Sun May 10 13:24:20.393385 2026] [proxy:error] [pid 536921] [client 46.146.89.197:59220] AH00898: Error reading from remote server returned by /favicon.ico, referer: https://n8n.3develop.ru/
+[Sun May 10 13:32:56.993033 2026] [proxy_http:error] [pid 536923] (104)Connection reset by peer: [client 46.146.89.197:58821] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:32:56.993100 2026] [proxy:error] [pid 536923] [client 46.146.89.197:58821] AH00898: Error reading from remote server returned by /rest/push
+[Sun May 10 13:32:58.813001 2026] [proxy_http:error] [pid 505476] (104)Connection reset by peer: [client 46.146.89.197:57037] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:32:58.813064 2026] [proxy:error] [pid 505476] [client 46.146.89.197:57037] AH00898: Error reading from remote server returned by /healthz
+[Sun May 10 13:33:02.379580 2026] [proxy_http:error] [pid 505476] (104)Connection reset by peer: [client 46.146.89.197:57037] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:02.626084 2026] [proxy_http:error] [pid 538290] (104)Connection reset by peer: [client 46.146.89.197:62459] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:02.626179 2026] [proxy:error] [pid 538290] [client 46.146.89.197:62459] AH00898: Error reading from remote server returned by /healthz
+[Sun May 10 13:33:02.713648 2026] [proxy_http:error] [pid 538290] (104)Connection reset by peer: [client 46.146.89.197:62459] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:02.867646 2026] [proxy_http:error] [pid 528463] (104)Connection reset by peer: [client 46.146.89.197:54935] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:02.867684 2026] [proxy:error] [pid 528463] [client 46.146.89.197:54935] AH00898: Error reading from remote server returned by /rest/telemetry/proxy/v1/page
+[Sun May 10 13:33:02.885294 2026] [proxy_http:error] [pid 536922] (104)Connection reset by peer: [client 46.146.89.197:53010] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:02.885339 2026] [proxy:error] [pid 536922] [client 46.146.89.197:53010] AH00898: Error reading from remote server returned by /rest/telemetry/proxy/v1/track
+[Sun May 10 13:33:03.822827 2026] [proxy_http:error] [pid 536922] (104)Connection reset by peer: [client 46.146.89.197:53010] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:03.899872 2026] [proxy_http:error] [pid 528463] (104)Connection reset by peer: [client 46.146.89.197:54935] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:03.971438 2026] [proxy_http:error] [pid 501144] (104)Connection reset by peer: [client 46.146.89.197:51254] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:03.971474 2026] [proxy:error] [pid 501144] [client 46.146.89.197:51254] AH00898: Error reading from remote server returned by /workflow/zNTKv43UQs5VHVK3
+[Sun May 10 13:33:04.100131 2026] [proxy_http:error] [pid 501144] (104)Connection reset by peer: [client 46.146.89.197:51254] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:04.287127 2026] [proxy_http:error] [pid 535596] (104)Connection reset by peer: [client 46.146.89.197:64762] AH01102: error reading status line from remote server 127.0.0.1:5678, referer: https://n8n.3develop.ru/workflow/zNTKv43UQs5VHVK3
+[Sun May 10 13:33:04.287182 2026] [proxy:error] [pid 535596] [client 46.146.89.197:64762] AH00898: Error reading from remote server returned by /favicon.ico, referer: https://n8n.3develop.ru/workflow/zNTKv43UQs5VHVK3
+[Sun May 10 13:33:04.339324 2026] [proxy_http:error] [pid 536881] (104)Connection reset by peer: [client 46.146.89.197:54369] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:04.339375 2026] [proxy:error] [pid 536881] [client 46.146.89.197:54369] AH00898: Error reading from remote server returned by /rest/ph/i/v0/e/
+[Sun May 10 13:47:49.076296 2026] [proxy:warn] [pid 539859] [client 46.146.89.197:60573] AH01144: No protocol handler was valid for the URL /rest/push (scheme 'ws'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.
+root@server:/Storage/docker/n8n#

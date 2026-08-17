@@ -1,0 +1,1265 @@
+{
+  "name": "marketing_db_ingestion_v2_2_master_CANONICAL_2026-05-11",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "*/30 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "44a35569-1035-40e8-a7e9-2a9bc437cdec",
+      "name": "Cron backfill (30m)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        9600,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 3,
+              "minute": 10
+            }
+          ]
+        }
+      },
+      "id": "39738f1e-65eb-46b6-807f-afd0e4bd6a4f",
+      "name": "Cron daily",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        9600,
+        1168
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "bdc036ee-ce57-49c1-8240-9005bb210081",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        9600,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "07372122-4dba-45fa-8576-d1dfed27333f",
+      "name": "Ingestion config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        9776,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select current_database() as database_name, current_user as db_user, now() as checked_at;",
+        "options": {}
+      },
+      "id": "c6c15374-7237-484f-a935-00424e8e409c",
+      "name": "PostgreSQL test query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        10016,
+        1168
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p1l7cWTyIAETbfni",
+          "name": "marketing_db / n8n_marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select cursor_kind, cursor_value from ingestion_cursors where source = $1 and entity = $2 and cursor_kind in ('leads_backfill_created_at','leads_backfill_done','leads_daily_last_run_at');",
+        "options": {
+          "queryReplacement": "={{ [ 'ingestion', 'Catalog_Лиды' ] }}"
+        }
+      },
+      "id": "1d38dd4d-b1c4-4188-ad83-b3a5ecda7d52",
+      "name": "Load cursors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        10016,
+        1312
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p1l7cWTyIAETbfni",
+          "name": "marketing_db / n8n_marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $items('Ingestion config', 0, 0)[0].json;\nconst rows = Array.isArray($json) ? $json : [];\n\nconst cursorMap = {};\nfor (const row of rows) {\n  if (row && row.cursor_kind) {\n    cursorMap[row.cursor_kind] = row.cursor_value;\n  }\n}\n\nconst backfillStart = cfg.backfill_start_at || '2022-09-01T00:00:00Z';\nconst backfillCreatedAt = cursorMap.leads_backfill_created_at || backfillStart;\nconst backfillDoneRaw = cursorMap.leads_backfill_done || '0';\nconst backfillDone =\n  backfillDoneRaw === '1' || String(backfillDoneRaw).toLowerCase() === 'true';\n\nconst dailyLastRunAt = cursorMap.leads_daily_last_run_at || backfillStart;\nconst mode = backfillDone ? 'daily' : 'backfill';\n\nreturn [{\n  json: {\n    mode,\n    source: cfg.source || 'ingestion',\n    entity: cfg.entity || 'Catalog_Лиды',\n    backfill_created_at: backfillCreatedAt,\n    daily_last_run_at: dailyLastRunAt,\n    batch_size: Number(cfg.batch_size || 200),\n    lookback_days: Number(cfg.daily_lookback_days || 3),\n  },\n}];\n"
+      },
+      "id": "adb3b128-f39f-48d7-9044-722f1f9b5055",
+      "name": "Decide mode",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10192,
+        1328
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "1e5e9d5c-25b7-47b1-bf65-b69350170316",
+              "leftValue": "={{ $json.alert }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "01792be4-3c95-40f9-8ca7-09277136c058",
+      "name": "IF alert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        11104,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.ingestion_event_log(workflow_name,mode,event_type,severity,message,details) values ($1,$2,'alert','error',$3,$4::jsonb);",
+        "options": {
+          "queryReplacement": "={{ [ $workflow.name, $items('Decide mode',0,0)[0].json.mode, $json.alert_message, JSON.stringify($json) ] }}"
+        }
+      },
+      "id": "b3703e48-a84e-4144-851e-ca004749c505",
+      "name": "Log alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        11328,
+        1248
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p1l7cWTyIAETbfni",
+          "name": "marketing_db / n8n_marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "throw new Error($json.alert_message || 'ALERT');"
+      },
+      "id": "b9cec6d8-f5bb-4ffd-bf35-b86ad7a552da",
+      "name": "Throw alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11552,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.mode}}",
+              "operation": "equals",
+              "value2": "backfill"
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "a285a67e-9fcc-4dd3-89b6-221e12a6ba9c",
+      "name": "IF mode=backfill",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        10464,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ (() => { const p = $items('Decide mode',0,0)[0].json; const since = String(p.backfill_created_at || '2022-09-01T00:00:00Z').replace(/Z$/, ''); const top = Number(p.batch_size || 200); return `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/Catalog_%D0%9B%D0%B8%D0%B4%D1%8B?$filter=IsFolder%20eq%20false%20and%20DeletionMark%20eq%20false%20and%20%D0%94%D0%B0%D1%82%D0%B0%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D1%8F%20ge%20datetime'${since}'&$orderby=%D0%94%D0%B0%D1%82%D0%B0%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D1%8F%20asc&$top=${top}&$format=json`; })() }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "2c659a9f-9e47-4f94-bef5-7c9fc89cf110",
+      "name": "Fetch leads batch (backfill)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10688,
+        1136
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "P7kB4qsvNd07cbgR",
+          "name": "1C OData / odata.user"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\nconst rows = Array.isArray(payload?.value) ? payload.value : [];\nconst mode = $items('Decide mode', 0, 0)[0].json.mode;\n\nreturn [{\n  json: {\n    ...payload,\n    alert: rows.length === 0,\n    alert_type: 'odata_zero_rows',\n    alert_message: rows.length === 0\n      ? `ALERT: OData returned 0 leads for ${mode} run`\n      : null,\n    rows_count: rows.length,\n    mode,\n  },\n}];\n"
+      },
+      "id": "2032cbd4-dd01-44cc-90f4-8eaa3b60ae92",
+      "name": "Validate backfill non-empty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10896,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ (() => { const p = $items('Decide mode',0,0)[0].json; const lookbackDays = Number(p.lookback_days || 3); const lastRunAt = p.daily_last_run_at || p.backfill_created_at || '2022-09-01T00:00:00Z'; const since = new Date(Date.parse(lastRunAt) - lookbackDays * 24 * 3600 * 1000).toISOString().replace(/Z$/, ''); const top = Number(p.batch_size || 200); return `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/Catalog_%D0%9B%D0%B8%D0%B4%D1%8B?$filter=IsFolder%20eq%20false%20and%20DeletionMark%20eq%20false%20and%20%D0%94%D0%B0%D1%82%D0%B0%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D1%8F%20ge%20datetime'${since}'&$orderby=%D0%94%D0%B0%D1%82%D0%B0%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D1%8F%20asc&$top=${top}&$format=json`; })() }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "d8be267d-f219-402e-b4ec-653d6dcb15ae",
+      "name": "Fetch leads batch (daily)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10688,
+        1376
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "P7kB4qsvNd07cbgR",
+          "name": "1C OData / odata.user"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\nconst rows = Array.isArray(payload?.value) ? payload.value : [];\nconst mode = $items('Decide mode', 0, 0)[0].json.mode;\n\nreturn [{\n  json: {\n    ...payload,\n    alert: rows.length === 0,\n    alert_type: 'odata_zero_rows',\n    alert_message: rows.length === 0\n      ? `ALERT: OData returned 0 leads for ${mode} run`\n      : null,\n    rows_count: rows.length,\n    mode,\n  },\n}];\n"
+      },
+      "id": "947881cb-a65c-45e0-bbd0-a5b451166b42",
+      "name": "Validate daily non-empty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10912,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://artem.medianasoft.spb.ru/unf/odata/standard.odata/Catalog_%D0%9B%D0%B8%D0%B4%D1%8B?$filter=IsFolder%20eq%20true&$top=500&$format=json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "0198e984-a7d6-4af2-bed8-3b49c74b4527",
+      "name": "Fetch lead folders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10096,
+        1792
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "P7kB4qsvNd07cbgR",
+          "name": "1C OData / odata.user"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://artem.medianasoft.spb.ru/unf/odata/standard.odata/Catalog_%D0%A2%D0%B5%D0%B3%D0%B8?$top=1000&$format=json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "b9df154e-bc9d-494b-bf18-666990a07b0f",
+      "name": "Fetch tags catalog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        10352,
+        1664
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "P7kB4qsvNd07cbgR",
+          "name": "1C OData / odata.user"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\nconst rows = Array.isArray(payload.value) ? payload.value : [];\nif (rows.length === 0) {\n  return [{ json: { skipped: true, reason: '1C OData returned no rows', raw_payload: payload } }];\n}\n\n// --- БЕЗОПАСНОЕ ПОЛУЧЕНИЕ СПРАВОЧНИКОВ ---\nconst getItemsSafe = (nodeName) => {\n  try {\n    const data = $items(nodeName, 0, 0);\n    return (data && data[0] && data[0].json && Array.isArray(data[0].json.value)) ? data[0].json.value : [];\n  } catch (e) {\n    return []; // Возвращаем пустой список, если нода еще не выполнилась или пуста\n  }\n};\n\nconst folderRows = getItemsSafe('Fetch lead folders');\nconst tagRows = getItemsSafe('Fetch tags catalog');\n// ------------------------------------------\n\nconst tagsKey = '\\u0422\\u0435\\u0433\\u0438';\nconst notesKey = '\\u041a\\u043e\\u043c\\u043c\\u0435\\u043d\\u0442\\u0430\\u0440\\u0438\\u0439';\nconst detailsKey = '\\u041e\\u0441\\u043d\\u043e\\u0432\\u043d\\u044b\\u0435\\u0421\\u0432\\u0435\\u0434\\u0435\\u043d\\u0438\\u044f';\nconst finishNotesKey = '\\u0417\\u0430\\u043c\\u0435\\u0442\\u043a\\u0438\\u0417\\u0430\\u0432\\u0435\\u0440\\u0448\\u0435\\u043d\\u0438\\u044f\\u0420\\u0430\\u0431\\u043e\\u0442\\u044b';\nconst companyKey = '\\u041d\\u0430\\u0438\\u043c\\u0435\\u043d\\u043e\\u0432\\u0430\\u043d\\u0438\\u0435\\u041a\\u043e\\u043c\\u043f\\u0430\\u043d\\u0438\\u0438';\nconst subjectKey = '\\u0422\\u0435\\u043c\\u0430';\nconst emailSearchKey = '\\u0410\\u0434\\u0440\\u0435\\u0441\\u042d\\u041f\\u0414\\u043b\\u044f\\u041f\\u043e\\u0438\\u0441\\u043a\\u0430';\nconst phoneSearchKey = '\\u041d\\u043e\\u043c\\u0435\\u0440\\u0422\\u0435\\u043b\\u0435\\u0444\\u043e\\u043d\\u0430\\u0414\\u043b\\u044f\\u041f\\u043e\\u0438\\u0441\\u043a\\u0430';\nconst contactInfoKey = '\\u041a\\u043e\\u043d\\u0442\\u0430\\u043a\\u0442\\u043d\\u0430\\u044f\\u0418\\u043d\\u0444\\u043e\\u0440\\u043c\\u0430\\u0446\\u0438\\u044f';\nconst emailKey = '\\u0410\\u0434\\u0440\\u0435\\u0441\\u042d\\u041f';\nconst phoneKey = '\\u041d\\u043e\\u043c\\u0435\\u0440\\u0422\\u0435\\u043b\\u0435\\u0444\\u043e\\u043d\\u0430';\nconst phoneShortKey = '\\u041d\\u043e\\u043c\\u0435\\u0440\\u0422\\u0435\\u043b\\u0435\\u0444\\u043e\\u043d\\u0430\\u0411\\u0435\\u0437\\u041a\\u043e\\u0434\\u043e\\u0432';\nconst displayKey = '\\u041f\\u0440\\u0435\\u0434\\u0441\\u0442\\u0430\\u0432\\u043b\\u0435\\u043d\\u0438\\u0435';\nconst typeKey = '\\u0422\\u0438\\u043f';\nconst serverDomainKey = '\\u0414\\u043e\\u043c\\u0435\\u043d\\u043d\\u043e\\u0435\\u0418\\u043c\\u044f\\u0421\\u0435\\u0440\\u0432\\u0435\\u0440\\u0430';\nconst finishVariantKey = '\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442\\u0417\\u0430\\u0432\\u0435\\u0440\\u0448\\u0435\\u043d\\u0438\\u044f';\nconst finishDateKey = '\\u0414\\u0430\\u0442\\u0430\\u0417\\u0430\\u0432\\u0435\\u0440\\u0448\\u0435\\u043d\\u0438\\u044f\\u0420\\u0430\\u0431\\u043e\\u0442\\u044b';\nconst transferredKey = '\\u041a\\u043e\\u043d\\u0442\\u0430\\u043a\\u0442\\u044b\\u041f\\u0435\\u0440\\u0435\\u043d\\u0435\\u0441\\u0435\\u043d\\u044b';\nconst kindKey = '\\u0412\\u0438\\u0434';\nconst extraAttrsKey = '\\u0414\\u043e\\u043f\\u043e\\u043b\\u043d\\u0438\\u0442\\u0435\\u043b\\u044c\\u043d\\u044b\\u0435\\u0420\\u0435\\u043a\\u0432\\u0438\\u0437\\u0438\\u0442\\u044b';\nconst tagRefKey = '\\u0422\\u0435\\u0433_Key';\n\nconst dedupe = (arr) => [...new Set((arr || []).filter(Boolean))];\nconst normalizeEmail = (value) => typeof value === 'string' ? value.trim().toLowerCase() : '';\nconst normalizePhone = (value) => typeof value === 'string' ? value.replace(/\\D/g, '') : '';\nconst looksLikeEmail = (value) => typeof value === 'string' && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/i.test(value.trim());\nconst looksLikeSite = (value) => typeof value === 'string' && !!value.trim() && !/@/.test(value) && (/(https?:\\/\\/|www\\.|[a-z0-9-]+\\.[a-z]{2,})/i.test(value));\nconst looksLikePhoneDisplay = (value) => {\n  if (typeof value !== 'string') return false;\n  const digits = value.replace(/\\D/g, '');\n  return digits.length >= 10 && digits.length <= 15;\n};\nconst splitMultiValue = (value) => {\n  if (typeof value !== 'string') return [];\n  return value\n    .split(/[,;\\n\\r]+/)\n    .map((x) => x.trim())\n    .filter(Boolean);\n};\nconst normalizeTags = (value, tagMap) => {\n  const arr = Array.isArray(value) ? value : [];\n  return dedupe(arr.map((item) => {\n    if (typeof item === 'string') return item.trim();\n    if (!item || typeof item !== 'object') return '';\n    const key = typeof item[tagRefKey] === 'string' ? item[tagRefKey] : '';\n    if (key && tagMap.has(key)) return tagMap.get(key);\n    for (const prop of ['Description', 'Name', 'Code', '\\u041f\\u0440\\u0435\\u0434\\u0441\\u0442\\u0430\\u0432\\u043b\\u0435\\u043d\\u0438\\u0435']) {\n      if (typeof item[prop] === 'string' && item[prop].trim()) return item[prop].trim();\n    }\n    return '';\n  }).filter(Boolean));\n};\nconst collectExtraTextValues = (value) => {\n  const arr = Array.isArray(value) ? value : [];\n  return dedupe(arr.map((item) => {\n    if (!item || typeof item !== 'object') return '';\n    for (const prop of ['\\u0422\\u0435\\u043a\\u0441\\u0442\\u043e\\u0432\\u0430\\u044f\\u0421\\u0442\\u0440\\u043e\\u043a\\u0430', '\\u0417\\u043d\\u0430\\u0447\\u0435\\u043d\\u0438\\u0435', 'Description', 'Name']) {\n      if (typeof item[prop] === 'string' && item[prop].trim() && !/^[0-9a-f-]{36}$/i.test(item[prop].trim())) return item[prop].trim();\n    }\n    return '';\n  }).filter(Boolean));\n};\n\nconst folderMap = new Map();\nfor (const row of [...folderRows, ...rows]) {\n  if (row && row.Ref_Key && row.Description && row.IsFolder) folderMap.set(row.Ref_Key, row.Description);\n}\nconst tagMap = new Map();\nfor (const row of tagRows) {\n  if (row && row.Ref_Key && typeof row.Description === 'string' && row.Description.trim()) {\n    tagMap.set(row.Ref_Key, row.Description.trim());\n  }\n}\n\nconst extractChannels = (items) => {\n  const rows = Array.isArray(items) ? items : [];\n  const emails = [];\n  const phones = [];\n  const sites = [];\n  const addresses = [];\n  const channels = [];\n  for (const item of rows) {\n    if (!item || typeof item !== 'object') continue;\n    const rawType = typeof item[typeKey] === 'string' ? item[typeKey].trim() : '';\n    const type = rawType.toLowerCase();\n    const display = typeof item[displayKey] === 'string' ? item[displayKey].trim() : '';\n    const isPhoneType = type.includes('\\u0442\\u0435\\u043b\\u0435\\u0444\\u043e\\u043d') || type.includes('\\u0444\\u0430\\u043a\\u0441');\n    const isEmailType = type.includes('\\u044d\\u043b\\u0435\\u043a\\u0442\\u0440\\u043e\\u043d') || type.includes('mail');\n    const isSiteType = type.includes('\\u0432\\u0435\\u0431') || type.includes('\\u0441\\u0430\\u0439\\u0442');\n    const isAddressType = type === '\\u0430\\u0434\\u0440\\u0435\\u0441' || (type.includes('\\u0430\\u0434\\u0440\\u0435\\u0441') && !type.includes('\\u044d\\u043b\\u0435\\u043a\\u0442\\u0440'));\n\n    const email = normalizeEmail(item[emailKey] || (isEmailType && looksLikeEmail(display) ? display : ''));\n    if (email && looksLikeEmail(email)) {\n      emails.push(email);\n      channels.push({ type: 'email', raw_type: rawType || null, value: email, display: display || null });\n    }\n\n    const phoneCandidates = [item[phoneKey], item[phoneShortKey]];\n    if (isPhoneType && looksLikePhoneDisplay(display)) phoneCandidates.push(display);\n    for (const candidate of phoneCandidates) {\n      const phone = normalizePhone(candidate);\n      if (!phone || phone.length < 10 || phone.length > 15) continue;\n      phones.push(phone);\n      channels.push({ type: 'phone', raw_type: rawType || null, value: phone, display: display || null });\n    }\n\n    const domain = typeof item[serverDomainKey] === 'string' ? item[serverDomainKey].trim() : '';\n    const siteCandidate = isSiteType ? ((looksLikeSite(display) ? display : '') || domain) : '';\n    if (siteCandidate) {\n      sites.push(siteCandidate);\n      channels.push({ type: 'site', raw_type: rawType || null, value: siteCandidate, display: display || null });\n    }\n\n    if (isAddressType && display) {\n      addresses.push({ type: rawType || null, value: display });\n      channels.push({ type: 'address', raw_type: rawType || null, value: display, display: display });\n    }\n  }\n  return {\n    emails: dedupe(emails),\n    phones: dedupe(phones),\n    sites: dedupe(sites),\n    addresses,\n    channels,\n  };\n};\n\nreturn rows.map((row) => {\n  const ownerName = row.Description || row[companyKey] || null;\n  const isFolder = Boolean(row.IsFolder);\n  const deleted = Boolean(row.DeletionMark);\n  const channels = extractChannels(row[contactInfoKey]);\n  const ownerSearchEmails = dedupe([\n    ...splitMultiValue(row[emailSearchKey]).map(normalizeEmail).filter(looksLikeEmail),\n    ...channels.emails,\n  ]);\n  const ownerSearchPhones = dedupe([\n    ...splitMultiValue(row[phoneSearchKey]).map(normalizePhone).filter((x) => x && x.length >= 10 && x.length <= 15),\n    ...channels.phones,\n  ]);\n  const notesParts = [row[notesKey], row[detailsKey], row[finishNotesKey]].filter((x) => typeof x === 'string' && x.trim());\n  const ownerNotes = notesParts.join('\\n').trim() || null;\n  const ownerGroupPath = folderMap.get(row.Parent_Key) || null;\n  const ownerTagsText = normalizeTags(row[tagsKey], tagMap);\n  const extraAttrText = collectExtraTextValues(row[extraAttrsKey]);\n  const textBlob = [ownerName, ownerNotes, row[finishVariantKey], row[kindKey], ownerGroupPath, ownerTagsText.join(' '), extraAttrText.join(' ')].filter(Boolean).join(' ').toLowerCase();\n  const completed = Boolean((typeof row[finishDateKey] === 'string' && row[finishDateKey] && row[finishDateKey] !== '0001-01-01T00:00:00') || row[finishVariantKey] || textBlob.includes('\\u0437\\u0430\\u0432\\u0435\\u0440\\u0448'));\n  const converted = Boolean(row[transferredKey]) || textBlob.includes('\\u043f\\u0435\\u0440\\u0435\\u0432\\u0435\\u0434\\u0435\\u043d \\u0432 \\u043f\\u043e\\u043a\\u0443\\u043f\\u0430\\u0442\\u0435\\u043b\\u044f') || textBlob.includes('\\u043b\\u0438\\u0434 \\u043f\\u043e\\u043a\\u0443\\u043f\\u0430\\u0442\\u0435\\u043b\\u044f');\n  const junk = textBlob.includes('\\u0441\\u043f\\u0430\\u043c') || textBlob.includes('\\u043c\\u0443\\u0441\\u043e\\u0440') || textBlob.includes('\\u043d\\u0435\\u0430\\u043a\\u0442\\u0443\\u0430\\u043b');\n  const digitsInSubject = String(row[subjectKey] || '').replace(/\\D/g, '');\n  const ownerInn = digitsInSubject.length >= 8 ? digitsInSubject : null;\n  let importanceScore = 0;\n  const reasons = [];\n  if (ownerGroupPath && ownerGroupPath.toLowerCase().includes('\\u0431\\u0440\\u0435\\u043d\\u0434')) { importanceScore += 50; reasons.push('group=\\u0411\\u0440\\u0435\\u043d\\u0434\\u044b'); }\n  if (extraAttrText.some((x) => x.toLowerCase().includes('\\u043a\\u0440\\u0443\\u043f\\u043d'))) { importanceScore += 25; reasons.push('extra=\\u041a\\u0440\\u0443\\u043f\\u043d\\u044b\\u0439'); }\n  if (ownerTagsText.length > 0) { importanceScore += 10; reasons.push('tags resolved'); }\n  const ownerGroupPriorityHits = [\n    '\\u0434\\u043e\\u0441\\u0442\\u0430\\u0432\\u043a',\n    '\\u043f\\u043e\\u0434 \\u043a\\u043b\\u044e\\u0447',\n    '\\u043f\\u0440\\u043e\\u0432\\u0435\\u0440'\n  ].filter((needle) => ownerGroupPath && ownerGroupPath.toLowerCase().includes(needle));\n  const ownerTagPriorityHits = ownerTagsText.filter((tag) => [\n    '\\u043a\\u0440\\u0443\\u043f\\u043d',\n    '\\u043f\\u0440\\u043e\\u0438\\u0437\\u0432\\u043e\\u0434\\u0441\\u0442\\u0432',\n    '\\u043c\\u0430\\u0440\\u043a\\u0435\\u0442\\u043f\\u043b\\u0435\\u0439\\u0441',\n    '\\u043a\\u043e\\u043d\\u0435\\u0447\\u043d\\u044b\\u0439 \\u043f\\u043e\\u043a\\u0443\\u043f\\u0430\\u0442\\u0435\\u043b',\n    '\\u0434\\u043e\\u0431\\u0438\\u0432'\n  ].some((needle) => String(tag).toLowerCase().includes(needle)));\n  const ownerTagDeprioritizeHits = ownerTagsText.filter((tag) => [\n    '\\u043c\\u0435\\u043b\\u043e\\u0447',\n    '\\u0442\\u0435\\u043d\\u0434\\u0435\\u0440',\n    '\\u043f\\u0435\\u0440\\u0435\\u043f\\u0440\\u043e\\u0434\\u0430\\u0436'\n  ].some((needle) => String(tag).toLowerCase().includes(needle)));\n  if (ownerGroupPriorityHits.length > 0) { importanceScore += 35; reasons.push('group=priority'); }\n  if (ownerTagPriorityHits.length > 0) { importanceScore += 25; reasons.push(`tag=priority:${ownerTagPriorityHits.slice(0, 3).join(', ')}`); }\n  if (ownerTagDeprioritizeHits.length > 0) { importanceScore -= 30; reasons.push(`tag=deprioritized:${ownerTagDeprioritizeHits.slice(0, 3).join(', ')}`); }\n  if (ownerNotes && ownerNotes.length >= 80) { importanceScore += 20; reasons.push('rich notes'); }\n  if (channels.sites.length > 0) { importanceScore += 10; reasons.push('site present'); }\n  if (ownerSearchEmails.length + ownerSearchPhones.length >= 2) { importanceScore += 5; reasons.push('multiple owner channels'); }\n\n  const fixRequired = (ownerSearchEmails.length === 0 || ownerSearchPhones.length === 0);\n  if (fixRequired && !ownerTagsText.includes('fix_required')) ownerTagsText.push('fix_required');\n\n  const skipped = !row.Ref_Key || !ownerName || deleted || isFolder;\n  return {\n    json: {\n      skipped,\n      owner_entity: 'Catalog_\\u041b\\u0438\\u0434\\u044b',\n      owner_ref_key: row.Ref_Key,\n      owner_name: ownerName,\n      owner_display_name: row.Description || ownerName,\n      owner_company_name: row[companyKey] || ownerName,\n      owner_topic: row[subjectKey] || null,\n      owner_source_key: row.Ref_Key,\n      owner_inn: ownerInn,\n      owner_group: row[kindKey] || null,\n      owner_group_path: ownerGroupPath,\n      owner_tags: Array.isArray(row[tagsKey]) ? row[tagsKey] : [],\n      owner_tags_text: ownerTagsText,\n      owner_notes: ownerNotes,\n      owner_notes_compiled: ownerNotes,\n      owner_address: channels.addresses.length ? channels.addresses[0].value : null,\n      owner_site: channels.sites[0] || null,\n      owner_sites: channels.sites,\n      owner_addresses: channels.addresses,\n      raw_payload: row,\n      owner_source_entity: 'Catalog_\\u041b\\u0438\\u0434\\u044b',\n      owner_status: converted ? 'converted' : (completed ? 'completed' : 'active'),\n      owner_is_folder: isFolder,\n      owner_is_buyer: null,\n      owner_is_supplier: null,\n      owner_classification: junk ? 'junk_candidate' : (converted ? 'converted_to_customer' : (completed ? 'completed_lead' : 'active_lead')),\n      owner_is_junk: junk,\n      owner_junk_reason: junk ? 'keyword in notes or name' : null,\n      owner_converted_to_customer: converted,\n      owner_search_emails: ownerSearchEmails,\n      owner_search_phones: ownerSearchPhones,\n      owner_contact_names: [],\n      owner_contact_count: 0,\n      owner_contact_emails: [],\n      owner_contact_phones: [],\n      owner_all_emails: ownerSearchEmails,\n      owner_all_phones: ownerSearchPhones,\n      owner_is_important: importanceScore >= 40,\n      owner_importance_score: importanceScore,\n      owner_importance_reason: reasons.length ? reasons.join('; ') : null\n    }\n  };\n});"
+      },
+      "id": "f946ed34-29cd-473a-bb43-b870f7cb30ce",
+      "name": "Normalize owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11344,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f7f47b0b-97d1-4f67-9a62-70d92d19908f",
+              "leftValue": "={{ $json.skipped }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "68ee3279-6269-488d-ab49-6b7af2a3ccb4",
+      "name": "IF owner skipped=false",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        11584,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into onec_owners (\n  owner_entity,\n  owner_ref_key,\n  owner_name,\n  owner_inn,\n  owner_group,\n  owner_tags,\n  owner_notes,\n  owner_address,\n  owner_site,\n  raw_payload,\n  owner_source_entity,\n  owner_status,\n  owner_is_folder,\n  owner_is_buyer,\n  owner_is_supplier,\n  owner_classification,\n  owner_is_junk,\n  owner_junk_reason,\n  owner_converted_to_customer,\n  owner_search_emails,\n  owner_search_phones,\n  owner_display_name,\n  owner_company_name,\n  owner_topic,\n  owner_source_key,\n  owner_group_path,\n  owner_tags_text,\n  owner_sites,\n  owner_addresses,\n  owner_contact_names,\n  owner_contact_count,\n  owner_contact_emails,\n  owner_contact_phones,\n  owner_all_emails,\n  owner_all_phones,\n  owner_notes_compiled,\n  owner_is_important,\n  owner_importance_score,\n  owner_importance_reason,\n  fetched_at\n) values (\n  $1,\n  $2::uuid,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  $7,\n  $8,\n  $9,\n  $10::jsonb,\n  $11,\n  $12,\n  $13::boolean,\n  $14::boolean,\n  $15::boolean,\n  $16,\n  $17::boolean,\n  $18,\n  $19::boolean,\n  coalesce(array(select jsonb_array_elements_text($20::jsonb)), array[]::text[]),\n  coalesce(array(select jsonb_array_elements_text($21::jsonb)), array[]::text[]),\n  $22,\n  $23,\n  $24,\n  $25::uuid,\n  $26,\n  coalesce(array(select jsonb_array_elements_text($27::jsonb)), array[]::text[]),\n  coalesce(array(select jsonb_array_elements_text($28::jsonb)), array[]::text[]),\n  $29::jsonb,\n  coalesce(array(select jsonb_array_elements_text($30::jsonb)), array[]::text[]),\n  $31::integer,\n  coalesce(array(select jsonb_array_elements_text($32::jsonb)), array[]::text[]),\n  coalesce(array(select jsonb_array_elements_text($33::jsonb)), array[]::text[]),\n  coalesce(array(select jsonb_array_elements_text($34::jsonb)), array[]::text[]),\n  coalesce(array(select jsonb_array_elements_text($35::jsonb)), array[]::text[]),\n  $36,\n  $37::boolean,\n  $38::integer,\n  $39,\n  now()\n)\non conflict (owner_entity, owner_ref_key)\ndo update set\n  owner_name = excluded.owner_name,\n  owner_inn = excluded.owner_inn,\n  owner_group = excluded.owner_group,\n  owner_tags = excluded.owner_tags,\n  owner_notes = excluded.owner_notes,\n  owner_address = excluded.owner_address,\n  owner_site = excluded.owner_site,\n  raw_payload = excluded.raw_payload,\n  owner_source_entity = excluded.owner_source_entity,\n  owner_status = excluded.owner_status,\n  owner_is_folder = excluded.owner_is_folder,\n  owner_is_buyer = excluded.owner_is_buyer,\n  owner_is_supplier = excluded.owner_is_supplier,\n  owner_classification = excluded.owner_classification,\n  owner_is_junk = excluded.owner_is_junk,\n  owner_junk_reason = excluded.owner_junk_reason,\n  owner_converted_to_customer = excluded.owner_converted_to_customer,\n  owner_search_emails = excluded.owner_search_emails,\n  owner_search_phones = excluded.owner_search_phones,\n  owner_display_name = excluded.owner_display_name,\n  owner_company_name = excluded.owner_company_name,\n  owner_topic = excluded.owner_topic,\n  owner_source_key = excluded.owner_source_key,\n  owner_group_path = excluded.owner_group_path,\n  owner_tags_text = excluded.owner_tags_text,\n  owner_sites = excluded.owner_sites,\n  owner_addresses = excluded.owner_addresses,\n  owner_contact_names = excluded.owner_contact_names,\n  owner_contact_count = excluded.owner_contact_count,\n  owner_contact_emails = excluded.owner_contact_emails,\n  owner_contact_phones = excluded.owner_contact_phones,\n  owner_all_emails = excluded.owner_all_emails,\n  owner_all_phones = excluded.owner_all_phones,\n  owner_notes_compiled = excluded.owner_notes_compiled,\n  owner_is_important = excluded.owner_is_important,\n  owner_importance_score = excluded.owner_importance_score,\n  owner_importance_reason = excluded.owner_importance_reason,\n  fetched_at = now()\nreturning owner_entity, owner_ref_key, owner_name, owner_group_path, owner_status, owner_classification, owner_is_important, owner_importance_score, owner_search_emails, owner_search_phones, owner_sites, owner_tags_text, raw_payload->>'ДатаСоздания' as owner_created_at, fetched_at;",
+        "options": {
+          "queryReplacement": "={{ [\n  $json.owner_entity,\n  $json.owner_ref_key,\n  $json.owner_name,\n  $json.owner_inn,\n  $json.owner_group,\n  JSON.stringify($json.owner_tags || []),\n  $json.owner_notes,\n  $json.owner_address,\n  $json.owner_site,\n  JSON.stringify($json.raw_payload || {}),\n  $json.owner_source_entity,\n  $json.owner_status,\n  $json.owner_is_folder,\n  $json.owner_is_buyer,\n  $json.owner_is_supplier,\n  $json.owner_classification,\n  $json.owner_is_junk,\n  $json.owner_junk_reason,\n  $json.owner_converted_to_customer,\n  JSON.stringify($json.owner_search_emails || []),\n  JSON.stringify($json.owner_search_phones || []),\n  $json.owner_display_name,\n  $json.owner_company_name,\n  $json.owner_topic,\n  $json.owner_source_key,\n  $json.owner_group_path,\n  JSON.stringify($json.owner_tags_text || []),\n  JSON.stringify($json.owner_sites || []),\n  JSON.stringify($json.owner_addresses || []),\n  JSON.stringify($json.owner_contact_names || []),\n  $json.owner_contact_count,\n  JSON.stringify($json.owner_contact_emails || []),\n  JSON.stringify($json.owner_contact_phones || []),\n  JSON.stringify($json.owner_all_emails || []),\n  JSON.stringify($json.owner_all_phones || []),\n  $json.owner_notes_compiled,\n  $json.owner_is_important,\n  $json.owner_importance_score,\n  $json.owner_importance_reason\n] }}"
+        }
+      },
+      "id": "ebe7fe22-3906-4328-a1ae-25348ccc9e8e",
+      "name": "Upsert onec_owners",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        11744,
+        1408
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p1l7cWTyIAETbfni",
+          "name": "marketing_db / n8n_marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const decide = $items('Decide mode', 0, 0)[0].json;\nconst mode = decide.mode;\nconst batchSize = Number(decide.batch_size || 200);\nconst source = decide.source;\nconst entity = decide.entity;\nconst backfillPrev = decide.backfill_created_at;\n\nconst items = $input.all();\nconst createdValues = items\n  .map((item) => item.json.owner_created_at)\n  .filter((value) => typeof value === 'string' && value.length > 0)\n  .map((value) => Date.parse(value))\n  .filter((ms) => Number.isFinite(ms));\n\nconst maxCreatedAt = createdValues.length\n  ? new Date(Math.max(...createdValues)).toISOString()\n  : backfillPrev;\n\nconst ownersLoaded = items.length;\n\nconst fixRequiredIds = items\n  .filter((item) => Array.isArray(item.json.owner_tags_text) && item.json.owner_tags_text.includes('fix_required'))\n  .map((item) => item.json.owner_ref_key);\n\nconst backfillDone = mode === 'backfill' && ownersLoaded < batchSize;\n\nreturn [{\n  json: {\n    mode,\n    source,\n    entity,\n    owners_loaded: ownersLoaded,\n    max_created_at: maxCreatedAt,\n    backfill_done: backfillDone,\n    fix_required_owner_ids: fixRequiredIds,\n    run_finished_at: new Date().toISOString(),\n  }\n}];\n"
+      },
+      "id": "5e7583ec-399a-4937-8b90-2736012f3877",
+      "name": "Compute cursor next",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11888,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ (() => {\n  const esc = (value) => String(value ?? '').replace(/'/g, \"''\");\n  const source = esc($json.source);\n  const entity = esc($json.entity);\n  const runFinishedAt = esc($json.run_finished_at || new Date().toISOString());\n  const backfillCreatedAt = esc($json.max_created_at || $json.backfill_created_at || '2022-09-01T00:00:00Z');\n  const backfillDone = $json.mode === 'backfill'\n    ? ($json.backfill_done ? '1' : '0')\n    : '1';\n\n  return `\nWITH incoming(source, entity, cursor_kind, cursor_value, cursor_meta) AS (\n  VALUES\n    ('${source}', '${entity}', 'leads_daily_last_run_at', '${runFinishedAt}', '{}'::jsonb),\n    ('${source}', '${entity}', 'leads_backfill_created_at', '${backfillCreatedAt}', '{}'::jsonb),\n    ('${source}', '${entity}', 'leads_backfill_done', '${backfillDone}', '{}'::jsonb)\n)\nINSERT INTO ingestion_cursors(source, entity, cursor_kind, cursor_value, cursor_meta)\nSELECT source, entity, cursor_kind, cursor_value, cursor_meta\nFROM incoming\nON CONFLICT (source, entity, cursor_kind)\nDO UPDATE SET\n  cursor_value = EXCLUDED.cursor_value,\n  cursor_meta = EXCLUDED.cursor_meta;\n`;\n})() }}\n",
+        "options": {
+          "queryReplacement": "="
+        }
+      },
+      "id": "0f02077b-3877-4d32-8df6-ec01c8794f3a",
+      "name": "Update cursors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        12048,
+        1520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p1l7cWTyIAETbfni",
+          "name": "marketing_db / n8n_marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ (() => {\n  const ownerRefKey =\n    $json.owner_ref_key ||\n    $items('Normalize owner', 0, 0)?.[0]?.json?.owner_ref_key ||\n    $items('Upsert onec_owners', 0, 0)?.[0]?.json?.owner_ref_key;\n\n  if (!ownerRefKey) {\n    throw new Error('owner_ref_key is missing');\n  }\n\n  return `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/Catalog_%D0%9A%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D1%8B%D0%9B%D0%B8%D0%B4%D0%BE%D0%B2?$filter=Owner_Key%20eq%20guid'${ownerRefKey}'&$top=200&$format=json`;\n})() }}\n",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "a5eaba37-6851-4f7d-9298-d50f573a5eb7",
+      "name": "Fetch lead contacts for owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        12288,
+        1488
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "P7kB4qsvNd07cbgR",
+          "name": "1C OData / odata.user"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\nconst rows = Array.isArray(payload.value) ? payload.value : [];\n\nif (rows.length === 0) {\n  const ownerRef =\n    $items('Upsert onec_owners', 0, 0)?.[0]?.json?.owner_ref_key ||\n    $items('Normalize owner', 0, 0)?.[0]?.json?.owner_ref_key ||\n    null;\n\n  return [{\n    json: {\n      skipped: true,\n      reason: '0 contacts for owner',\n      inspector_zero_contacts: true,\n      owner_ref_key: ownerRef,\n      raw_payload: payload,\n    },\n  }];\n}\n\nconst contactInfoKey = '\\u041a\\u043e\\u043d\\u0442\\u0430\\u043a\\u0442\\u043d\\u0430\\u044f\\u0418\\u043d\\u0444\\u043e\\u0440\\u043c\\u0430\\u0446\\u0438\\u044f';\nconst emailKey = '\\u0410\\u0434\\u0440\\u0435\\u0441\\u042d\\u041f';\nconst phoneKey = '\\u041d\\u043e\\u043c\\u0435\\u0440\\u0422\\u0435\\u043b\\u0435\\u0444\\u043e\\u043d\\u0430';\nconst phoneShortKey = '\\u041d\\u043e\\u043c\\u0435\\u0440\\u0422\\u0435\\u043b\\u0435\\u0444\\u043e\\u043d\\u0430\\u0411\\u0435\\u0437\\u041a\\u043e\\u0434\\u043e\\u0432';\nconst displayKey = '\\u041f\\u0440\\u0435\\u0434\\u0441\\u0442\\u0430\\u0432\\u043b\\u0435\\u043d\\u0438\\u0435';\nconst typeKey = '\\u0422\\u0438\\u043f';\nconst serverDomainKey = '\\u0414\\u043e\\u043c\\u0435\\u043d\\u043d\\u043e\\u0435\\u0418\\u043c\\u044f\\u0421\\u0435\\u0440\\u0432\\u0435\\u0440\\u0430';\nconst notesKey = '\\u041a\\u043e\\u043c\\u043c\\u0435\\u043d\\u0442\\u0430\\u0440\\u0438\\u0439';\nconst detailsKey = '\\u041e\\u0441\\u043d\\u043e\\u0432\\u043d\\u044b\\u0435\\u0421\\u0432\\u0435\\u0434\\u0435\\u043d\\u0438\\u044f';\n\nconst dedupe = (arr) => [...new Set((arr || []).filter(Boolean))];\nconst normalizeEmail = (value) => typeof value === 'string' ? value.trim().toLowerCase() : '';\nconst normalizePhone = (value) => typeof value === 'string' ? value.replace(/\\D/g, '') : '';\nconst looksLikeEmail = (value) => typeof value === 'string' && /@/.test(value);\nconst looksLikeSite = (value) => typeof value === 'string' && !!value.trim() && !/@/.test(value) && (/(https?:\\/\\/|www\\.|[a-z0-9-]+\\.[a-z]{2,})/i.test(value));\nconst looksLikePhoneDisplay = (value) => {\n  if (typeof value !== 'string') return false;\n  const digits = value.replace(/\\D/g, '');\n  return digits.length >= 10 && digits.length <= 15;\n};\nconst splitMultiValue = (value) => {\n  if (typeof value !== 'string') return [];\n  return value\n    .split(/[\\n,;]+/g)\n    .map((x) => x.trim())\n    .filter(Boolean);\n};\nconst extractEmails = (value) => {\n  const found = [];\n  for (const part of splitMultiValue(value)) {\n    const matches = part.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig) || [];\n    for (const match of matches) {\n      const email = normalizeEmail(match);\n      if (email && looksLikeEmail(email)) found.push(email);\n    }\n  }\n  return dedupe(found);\n};\nconst extractChannels = (items) => {\n  const rows = Array.isArray(items) ? items : [];\n  const emails = [];\n  const phones = [];\n  const sites = [];\n  const addresses = [];\n  const channels = [];\n\n  for (const item of rows) {\n    if (!item || typeof item !== 'object') continue;\n\n    const rawType = typeof item[typeKey] === 'string' ? item[typeKey].trim() : '';\n    const type = rawType.toLowerCase();\n    const display = typeof item[displayKey] === 'string' ? item[displayKey].trim() : '';\n    const isPhoneType = type.includes('\\u0442\\u0435\\u043b\\u0435\\u0444\\u043e\\u043d') || type.includes('\\u0444\\u0430\\u043a\\u0441');\n\n    const emailCandidates = dedupe([\n      ...extractEmails(item[emailKey]),\n      ...extractEmails(looksLikeEmail(display) ? display : ''),\n    ]);\n    for (const email of emailCandidates) {\n      emails.push(email);\n      channels.push({ type: 'email', raw_type: rawType || null, value: email, display: display || null });\n    }\n\n    const phoneCandidates = [item[phoneKey], item[phoneShortKey]];\n    if (isPhoneType && looksLikePhoneDisplay(display)) phoneCandidates.push(display);\n    for (const phone of phoneCandidates) {\n      const normalizedPhone = normalizePhone(phone);\n      if (!normalizedPhone || normalizedPhone.length < 10 || normalizedPhone.length > 15) continue;\n      phones.push(normalizedPhone);\n      channels.push({ type: 'phone', raw_type: rawType || null, value: normalizedPhone, display: display || null });\n    }\n\n    const domain = typeof item[serverDomainKey] === 'string' ? item[serverDomainKey].trim() : '';\n    const siteCandidate = domain || (looksLikeSite(display) ? display : '');\n    if (siteCandidate) {\n      sites.push(siteCandidate);\n      channels.push({ type: 'site', raw_type: rawType || null, value: siteCandidate, display: display || null });\n    }\n\n    if (type.includes('\\u0430\\u0434\\u0440\\u0435\\u0441') && display) {\n      addresses.push(display);\n      channels.push({ type: 'address', raw_type: rawType || null, value: display, display: display });\n    }\n  }\n\n  return {\n    emails: dedupe(emails),\n    phones: dedupe(phones),\n    sites: dedupe(sites),\n    addresses: dedupe(addresses),\n    channels,\n  };\n};\n\nreturn rows.map((row) => {\n  const channels = extractChannels(row[contactInfoKey]);\n  const notes = [row[notesKey], row[detailsKey]]\n    .filter((x) => typeof x === 'string' && x.trim())\n    .join('\\n')\n    .trim() || null;\n\n  const skipped = Boolean(row.DeletionMark) || !row.Ref_Key || !row.Owner_Key || (!row.Description && channels.emails.length === 0 && channels.phones.length === 0);\n\n  return {\n    json: {\n      skipped,\n      contact_entity: 'Catalog_\\u041a\\u043e\\u043d\\u0442\\u0430\\u043a\\u0442\\u044b\\u041b\\u0438\\u0434\\u043e\\u0432',\n      contact_ref_key: row.Ref_Key,\n      owner_entity: 'Catalog_\\u041b\\u0438\\u0434\\u044b',\n      owner_ref_key: row.Owner_Key,\n      contact_name: row.Description || channels.emails[0] || channels.phones[0] || null,\n      emails: channels.emails,\n      phones: channels.phones,\n      raw_payload: row,\n      contact_tags: [],\n      contact_notes: notes,\n      contact_is_primary: null,\n      contact_is_junk: false,\n      contact_junk_reason: null,\n      contact_role: null,\n      contact_channels: channels.channels,\n      contact_site: channels.sites[0] || null,\n      contact_address: channels.addresses[0] || null,\n      contact_importance_note: channels.sites.length > 0 ? 'site/domain on contact' : null,\n    },\n  };\n});\n"
+      },
+      "id": "6ed93405-7b6e-4be8-9fb2-02b64a6def31",
+      "name": "Normalize contact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12720,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "operation": "isTrue",
+              "value1": "={{$json.inspector_zero_contacts}}"
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "5ff4661e-567b-4e4a-a7cd-073ab176901e",
+      "name": "IF zero contacts",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        13120,
+        1504
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into public.ingestion_event_log(workflow_name,mode,event_type,severity,owner_ref_key,message,details) values ($1,$2,'zero_contacts','info',$3::uuid,$4,$5::jsonb);",
+        "options": {
+          "queryReplacement": "={{ [ $workflow.name, $items('Decide mode',0,0)[0].json.mode, $json.owner_ref_key, $json.reason, JSON.stringify({ owner_ref_key: $json.owner_ref_key, note: '0 contacts for owner' }) ] }}"
+        }
+      },
+      "id": "81608e19-006f-47a7-bc19-40c419d6bd2e",
+      "name": "Log zero contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        13296,
+        1568
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p1l7cWTyIAETbfni",
+          "name": "marketing_db / n8n_marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "contact-skipped-check",
+              "leftValue": "={{ $json.skipped }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ea3a1b33-6109-470c-90db-eb78313904be",
+      "name": "IF contact skipped=false",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        13120,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into onec_contacts (\n  contact_entity,\n  contact_ref_key,\n  owner_entity,\n  owner_ref_key,\n  contact_name,\n  emails,\n  phones,\n  raw_payload,\n  contact_tags,\n  contact_notes,\n  contact_is_primary,\n  contact_is_junk,\n  contact_junk_reason,\n  contact_role,\n  contact_channels,\n  contact_site,\n  contact_address,\n  contact_importance_note,\n  fetched_at\n) values (\n  $1,\n  $2::uuid,\n  $3,\n  $4::uuid,\n  $5,\n  coalesce(array(select jsonb_array_elements_text($6::jsonb)), array[]::text[]),\n  coalesce(array(select jsonb_array_elements_text($7::jsonb)), array[]::text[]),\n  $8::jsonb,\n  $9::jsonb,\n  $10,\n  $11::boolean,\n  $12::boolean,\n  $13,\n  $14,\n  $15::jsonb,\n  $16,\n  $17,\n  $18,\n  now()\n)\non conflict (contact_entity, contact_ref_key)\ndo update set\n  owner_entity = excluded.owner_entity,\n  owner_ref_key = excluded.owner_ref_key,\n  contact_name = excluded.contact_name,\n  emails = excluded.emails,\n  phones = excluded.phones,\n  raw_payload = excluded.raw_payload,\n  contact_tags = excluded.contact_tags,\n  contact_notes = excluded.contact_notes,\n  contact_is_primary = excluded.contact_is_primary,\n  contact_is_junk = excluded.contact_is_junk,\n  contact_junk_reason = excluded.contact_junk_reason,\n  contact_role = excluded.contact_role,\n  contact_channels = excluded.contact_channels,\n  contact_site = excluded.contact_site,\n  contact_address = excluded.contact_address,\n  contact_importance_note = excluded.contact_importance_note,\n  fetched_at = now()\nreturning contact_entity, contact_ref_key, owner_entity, owner_ref_key, contact_name, emails, phones, contact_site, contact_address, contact_is_junk, fetched_at;",
+        "options": {
+          "queryReplacement": "={{ [\n  $json.contact_entity,\n  $json.contact_ref_key,\n  $json.owner_entity,\n  $json.owner_ref_key,\n  $json.contact_name,\n  JSON.stringify($json.emails || []),\n  JSON.stringify($json.phones || []),\n  JSON.stringify($json.raw_payload || {}),\n  JSON.stringify($json.contact_tags || []),\n  $json.contact_notes,\n  $json.contact_is_primary,\n  $json.contact_is_junk,\n  $json.contact_junk_reason,\n  $json.contact_role,\n  JSON.stringify($json.contact_channels || []),\n  $json.contact_site,\n  $json.contact_address,\n  $json.contact_importance_note\n] }}"
+        }
+      },
+      "id": "c1fa9f9a-c391-489f-95ac-f18d25c3d1f0",
+      "name": "Upsert onec_contacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        13280,
+        1168
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p1l7cWTyIAETbfni",
+          "name": "marketing_db / n8n_marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "22fa3b31-d3b1-4bfc-b62a-cf74b17e5c2b",
+      "name": "Trigger meta (manual)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        9776,
+        1168
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1aa83cc9-42c4-4ca4-af1d-99045d76c7b8",
+      "name": "Trigger meta (daily)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        9776,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "c8dc2317-2377-4ef8-b1d2-fa935d5cfb27",
+      "name": "Trigger meta (backfill)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        9776,
+        1328
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mode = $items('Decide mode',0,0)[0].json.mode;\nconst readTriggerKind = (nodeName) => {\n  try {\n    return $items(nodeName,0,0)?.[0]?.json?.trigger_kind || null;\n  } catch (error) {\n    return null;\n  }\n};\nconst triggerKind = readTriggerKind('Trigger meta (manual)') || readTriggerKind('Trigger meta (daily)') || readTriggerKind('Trigger meta (backfill)') || 'manual';\nconst allowed = triggerKind === 'manual' || (mode === 'backfill' && triggerKind === 'cron_backfill_30m') || (mode === 'daily' && triggerKind === 'cron_daily');\nreturn allowed ? [{ json: { ok: true, mode, trigger_kind: triggerKind } }] : [];\n"
+      },
+      "id": "6a1f7282-6f3f-4a4c-b521-7c77da2216f3",
+      "name": "Gate schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10112,
+        1536
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b6daa4a2-98d8-4f4c-9b3c-45c0da84f629",
+              "leftValue": "={{ $json.owner_converted_to_customer }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        12160,
+        1264
+      ],
+      "id": "eb3b6dc1-ff9c-46fd-975d-f1bc9dc95b8e",
+      "name": "IF owner converted_to_customer"
+    },
+    {
+      "parameters": {
+        "url": "={{ (() => {\n  const leadRef = $json.owner_ref_key;\n  return `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/Document_%D0%97%D0%B0%D0%BA%D0%B0%D0%B7%D0%9F%D0%BE%D0%BA%D1%83%D0%BF%D0%B0%D1%82%D0%B5%D0%BB%D1%8F?$filter=%D0%9B%D0%B8%D0%B4_Key%20eq%20guid'${leadRef}'&$orderby=Date%20desc&$top=1&$format=json`;\n})() }}\n",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        12384,
+        1248
+      ],
+      "id": "b786a4e1-151e-4f9b-9fc7-60fbd6152cfa",
+      "name": "Fetch buyer order for owner",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "P7kB4qsvNd07cbgR",
+          "name": "1C OData / odata.user"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\nconst rows = Array.isArray(payload.value) ? payload.value : [];\n\nconst ownerRefKey = $items('Normalize owner', 0, 0)?.[0]?.json?.owner_ref_key || null;\n\nif (rows.length === 0) {\n  return [{\n    json: {\n      skipped: true,\n      reason: 'no buyer order for converted lead',\n      inspector_no_buyer_order: true,\n      owner_ref_key: ownerRefKey,\n      raw_payload: payload,\n    },\n  }];\n}\n\nconst row = rows[0];\nconst buyerRefKey = row.Контрагент_Key || row['Контрагент_Key'] || null;\n\nreturn [{\n  json: {\n    skipped: false,\n    owner_ref_key: ownerRefKey,\n    buyer_order_ref_key: row.Ref_Key || null,\n    buyer_ref_key: buyerRefKey,\n    buyer_name: row.Контрагент || row.Description || null,\n    raw_payload: row,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12544,
+        1248
+      ],
+      "id": "978c174c-c31f-4048-b199-cccac5de66d3",
+      "name": "Normalize buyer order"
+    },
+    {
+      "parameters": {
+        "url": "={{ (() => {   const buyerRef = $json.buyer_ref_key;   return `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/Catalog_%D0%9A%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D0%BD%D1%8B%D0%B5%D0%9B%D0%B8%D1%86%D0%B0?$filter=Parent_Key%20eq%20guid'${buyerRef}'%20and%20IsFolder%20eq%20false%20and%20DeletionMark%20eq%20false&$top=200&$format=json`; })() }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        12672,
+        1248
+      ],
+      "id": "47076349-0f00-4d0c-800b-b8371db4e2ce",
+      "name": "Fetch buyer contacts for owner",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "P7kB4qsvNd07cbgR",
+          "name": "1C OData / odata.user"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\nconst rows = Array.isArray(payload.value) ? payload.value : [];\n\nconst readNodeJson = (nodeName) => {\n  try {\n    return $items(nodeName, 0, 0)?.[0]?.json || null;\n  } catch (error) {\n    return null;\n  }\n};\n\nconst buyerOrder = readNodeJson('Normalize buyer order');\nconst ownerRow = readNodeJson('Normalize owner');\n\nconst contactInfoKey = 'КонтактнаяИнформация';\nconst emailKey = 'АдресЭП';\nconst phoneKey = 'НомерТелефона';\nconst phoneShortKey = 'НомерТелефонаБезКодов';\nconst displayKey = 'Представление';\nconst typeKey = 'Тип';\nconst serverDomainKey = 'ДоменноеИмяСервера';\nconst notesKey = 'Комментарий';\nconst detailsKey = 'ОсновныеСведения';\n\nconst dedupe = (arr) => [...new Set((arr || []).filter(Boolean))];\nconst normalizeEmail = (value) => typeof value === 'string' ? value.trim().toLowerCase() : '';\nconst normalizePhone = (value) => typeof value === 'string' ? value.replace(/\\D/g, '') : '';\nconst looksLikeEmail = (value) => typeof value === 'string' && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/i.test(value.trim());\nconst looksLikeSite = (value) => typeof value === 'string' && !!value.trim() && !/@/.test(value) && (/(https?:\\/\\/|www\\.|[a-z0-9-]+\\.[a-z]{2,})/i.test(value));\nconst looksLikePhoneDisplay = (value) => {\n  if (typeof value !== 'string') return false;\n  const digits = value.replace(/\\D/g, '');\n  return digits.length >= 10 && digits.length <= 15;\n};\nconst splitMultiValue = (value) => {\n  if (typeof value !== 'string') return [];\n  return value\n    .split(/[\\n,;]+/g)\n    .map((x) => x.trim())\n    .filter(Boolean);\n};\nconst extractEmails = (value) => {\n  const found = [];\n  for (const part of splitMultiValue(value)) {\n    const matches = part.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/ig) || [];\n    for (const match of matches) {\n      const email = normalizeEmail(match);\n      if (email && looksLikeEmail(email)) found.push(email);\n    }\n  }\n  return dedupe(found);\n};\n\nconst extractChannels = (items) => {\n  const sourceRows = Array.isArray(items) ? items : [];\n  const emails = [];\n  const phones = [];\n  const sites = [];\n  const addresses = [];\n  const channels = [];\n\n  for (const item of sourceRows) {\n    if (!item || typeof item !== 'object') continue;\n\n    const rawType = typeof item[typeKey] === 'string' ? item[typeKey].trim() : '';\n    const type = rawType.toLowerCase();\n    const display = typeof item[displayKey] === 'string' ? item[displayKey].trim() : '';\n    const isPhoneType = type.includes('телефон') || type.includes('факс');\n    const isEmailType = type.includes('электрон') || type.includes('mail');\n    const isSiteType = type.includes('веб') || type.includes('сайт');\n    const isAddressType = type === 'адрес' || (type.includes('адрес') && !type.includes('электрон'));\n\n    const emailCandidates = dedupe([\n      ...extractEmails(item[emailKey]),\n      ...extractEmails(isEmailType && looksLikeEmail(display) ? display : ''),\n    ]);\n    for (const email of emailCandidates) {\n      emails.push(email);\n      channels.push({ type: 'email', raw_type: rawType || null, value: email, display: display || null });\n    }\n\n    const phoneCandidates = [item[phoneKey], item[phoneShortKey]];\n    if (isPhoneType && looksLikePhoneDisplay(display)) phoneCandidates.push(display);\n    for (const phone of phoneCandidates) {\n      const normalizedPhone = normalizePhone(phone);\n      if (!normalizedPhone || normalizedPhone.length < 10 || normalizedPhone.length > 15) continue;\n      phones.push(normalizedPhone);\n      channels.push({ type: 'phone', raw_type: rawType || null, value: normalizedPhone, display: display || null });\n    }\n\n    const domain = typeof item[serverDomainKey] === 'string' ? item[serverDomainKey].trim() : '';\n    const siteCandidate = domain || (isSiteType && looksLikeSite(display) ? display : '');\n    if (siteCandidate) {\n      sites.push(siteCandidate);\n      channels.push({ type: 'site', raw_type: rawType || null, value: siteCandidate, display: display || null });\n    }\n\n    if (isAddressType && display) {\n      addresses.push(display);\n      channels.push({ type: 'address', raw_type: rawType || null, value: display, display: display });\n    }\n  }\n\n  return {\n    emails: dedupe(emails),\n    phones: dedupe(phones),\n    sites: dedupe(sites),\n    addresses: dedupe(addresses),\n    channels,\n  };\n};\n\nif (rows.length === 0) {\n  const ownerRef = buyerOrder?.buyer_ref_key || ownerRow?.owner_ref_key || null;\n\n  return [{\n    json: {\n      skipped: true,\n      reason: '0 contacts for owner',\n      inspector_zero_contacts: true,\n      owner_ref_key: ownerRef,\n      owner_entity: buyerOrder?.buyer_ref_key ? 'Catalog_Контрагенты' : 'Catalog_Лиды',\n      raw_payload: payload,\n    },\n  }];\n}\n\nconst row = rows[0];\nconst channels = extractChannels(row[contactInfoKey]);\nconst notes = [row[notesKey], row[detailsKey]]\n  .filter((x) => typeof x === 'string' && x.trim())\n  .join('\\n')\n  .trim() || null;\n\nconst isBuyerContact = Boolean(row.Parent_Key) && !row.Owner_Key;\nconst ownerRefKey = row.Owner_Key || row.Parent_Key || buyerOrder?.buyer_ref_key || ownerRow?.owner_ref_key || null;\nconst ownerEntity = row.Owner_Key ? 'Catalog_Лиды' : 'Catalog_Контрагенты';\n\nconst skipped = Boolean(row.DeletionMark) || !row.Ref_Key || !ownerRefKey || (!row.Description && channels.emails.length === 0 && channels.phones.length === 0);\n\nreturn [{\n  json: {\n    skipped,\n    contact_entity: isBuyerContact ? 'Catalog_КонтактныеЛица' : 'Catalog_КонтактыЛидов',\n    contact_ref_key: row.Ref_Key,\n    owner_entity: ownerEntity,\n    owner_ref_key: ownerRefKey,\n    contact_name: row.Description || channels.emails[0] || channels.phones[0] || null,\n    emails: channels.emails,\n    phones: channels.phones,\n    raw_payload: row,\n    contact_tags: [],\n    contact_notes: notes,\n    contact_is_primary: null,\n    contact_is_junk: false,\n    contact_junk_reason: null,\n    contact_role: null,\n    contact_channels: channels.channels,\n    contact_site: channels.sites[0] || null,\n    contact_address: channels.addresses[0] || null,\n    contact_importance_note: channels.sites.length > 0 ? 'site/domain on contact' : null,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        12864,
+        1248
+      ],
+      "id": "8c5cbb61-6a74-4ad5-82c8-4674b4deb555",
+      "name": "Normalize contact buyer"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IF owner skipped=false": {
+      "main": [
+        [
+          {
+            "node": "Upsert onec_owners",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Load cursors": {
+      "main": [
+        [
+          {
+            "node": "Decide mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF mode=backfill": {
+      "main": [
+        [
+          {
+            "node": "Fetch leads batch (backfill)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch leads batch (daily)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF contact skipped=false": {
+      "main": [
+        [
+          {
+            "node": "Upsert onec_contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch leads batch (daily)": {
+      "main": [
+        [
+          {
+            "node": "Validate daily non-empty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch tags catalog": {
+      "main": [
+        [
+          {
+            "node": "IF mode=backfill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate daily non-empty": {
+      "main": [
+        [
+          {
+            "node": "IF alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize contact": {
+      "main": [
+        [
+          {
+            "node": "IF contact skipped=false",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF zero contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch lead contacts for owner": {
+      "main": [
+        [
+          {
+            "node": "Normalize contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch lead folders": {
+      "main": [
+        [
+          {
+            "node": "Fetch tags catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron daily": {
+      "main": [
+        [
+          {
+            "node": "Trigger meta (daily)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log alert": {
+      "main": [
+        [
+          {
+            "node": "Throw alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update cursors": {
+      "main": [
+        [
+          {
+            "node": "IF owner converted_to_customer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch lead contacts for owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide mode": {
+      "main": [
+        [
+          {
+            "node": "Gate schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Trigger meta (manual)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert onec_owners": {
+      "main": [
+        [
+          {
+            "node": "Compute cursor next",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion config": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL test query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL test query": {
+      "main": [
+        [
+          {
+            "node": "Load cursors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF zero contacts": {
+      "main": [
+        [
+          {
+            "node": "Log zero contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute cursor next": {
+      "main": [
+        [
+          {
+            "node": "Update cursors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch leads batch (backfill)": {
+      "main": [
+        [
+          {
+            "node": "Validate backfill non-empty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize owner": {
+      "main": [
+        [
+          {
+            "node": "IF owner skipped=false",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate backfill non-empty": {
+      "main": [
+        [
+          {
+            "node": "IF alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF alert": {
+      "main": [
+        [
+          {
+            "node": "Log alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalize owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron backfill (30m)": {
+      "main": [
+        [
+          {
+            "node": "Trigger meta (backfill)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger meta (manual)": {
+      "main": [
+        [
+          {
+            "node": "Ingestion config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger meta (daily)": {
+      "main": [
+        [
+          {
+            "node": "Ingestion config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger meta (backfill)": {
+      "main": [
+        [
+          {
+            "node": "Ingestion config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch lead folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF owner converted_to_customer": {
+      "main": [
+        [
+          {
+            "node": "Fetch buyer order for owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Fetch buyer order for owner": {
+      "main": [
+        [
+          {
+            "node": "Normalize buyer order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize buyer order": {
+      "main": [
+        [
+          {
+            "node": "Fetch buyer contacts for owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch buyer contacts for owner": {
+      "main": [
+        [
+          {
+            "node": "Normalize contact buyer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize contact buyer": {
+      "main": [
+        [
+          {
+            "node": "IF contact skipped=false",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF zero contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "05d7c457-22c7-418d-bc89-ea1618dfc8a9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f29714f5e87e289d2760a53ac30fc7077d8e7bbd42bf63ebbb55421f29ffbd82"
+  },
+  "id": "LV7cpL4S7J4wq9VO",
+  "tags": [
+    {
+      "updatedAt": "2026-05-10T13:07:21.218Z",
+      "createdAt": "2026-05-10T13:07:21.218Z",
+      "id": "65MjRGbaa10C4XMn",
+      "name": "1c-read-only"
+    },
+    {
+      "updatedAt": "2026-05-11T18:27:55.912Z",
+      "createdAt": "2026-05-11T18:27:55.912Z",
+      "id": "ni2HWdrWtS9W7RFT",
+      "name": "v2.2"
+    },
+    {
+      "updatedAt": "2026-05-10T13:07:20.687Z",
+      "createdAt": "2026-05-10T13:07:20.687Z",
+      "id": "ybYTduB6VdOBei32",
+      "name": "marketing_db"
+    },
+    {
+      "updatedAt": "2026-05-11T18:27:55.455Z",
+      "createdAt": "2026-05-11T18:27:55.455Z",
+      "id": "zpqIG8cfOfiHRtT4",
+      "name": "ingestion"
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+﻿root@server:/# watch -n 5 'free -h; echo; ps -eo pid,comm,%cpu,%mem,rss --sort=-rss | head -n 12'
+root@server:/# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+udev            4,9G     0  4,9G   0% /dev
+tmpfs           995M  1,2M  994M   1% /run
+/dev/vda1        78G   62G   17G  80% /
+tmpfs           4,9G   48K  4,9G   1% /dev/shm
+tmpfs           5,0M     0  5,0M   0% /run/lock
+tmpfs           4,9G     0  4,9G   0% /sys/fs/cgroup
+/dev/sda        246G  169G   65G  73% /Storage
+/dev/vda15      105M  6,1M   99M   6% /boot/efi
+tmpfs           995M  4,0K  995M   1% /run/user/129
+/dev/sr0        364K  364K     0 100% /media/root/CONTEXT
+tmpfs           995M     0  995M   0% /run/user/1001
+tmpfs           995M   64K  995M   1% /run/user/0
+root@server:/# free -h
+              total        used        free      shared  buff/cache   available
+Mem:          9,7Gi       3,4Gi       210Mi       2,0Gi       6,1Gi       4,0Gi
+Swap:           9Gi       450Mi       9,6Gi
+root@server:/# sudo ss -tulpn
+Netid             State              Recv-Q             Send-Q                          Local Address:Port                          Peer Address:Port            Process
+udp               UNCONN             0                  0                                     0.0.0.0:1540                               0.0.0.0:*                users:(("rmngr",pid=1406695,fd=91))
+udp               UNCONN             0                  0                                     0.0.0.0:1540                               0.0.0.0:*                users:(("rphost",pid=1425447,fd=32))
+udp               UNCONN             0                  0                                     0.0.0.0:1541                               0.0.0.0:*                users:(("rmngr",pid=1406695,fd=14))
+udp               UNCONN             0                  0                                     0.0.0.0:1560                               0.0.0.0:*                users:(("rphost",pid=1425447,fd=30))
+udp               UNCONN             0                  0                                     0.0.0.0:51820                              0.0.0.0:*               
+udp               UNCONN             0                  0                                     0.0.0.0:52323                              0.0.0.0:*                users:(("rmngr",pid=1406695,fd=62))
+udp               UNCONN             0                  0                                     0.0.0.0:5353                               0.0.0.0:*                users:(("avahi-daemon",pid=759,fd=12))
+udp               UNCONN             0                  0                                     0.0.0.0:55048                              0.0.0.0:*                users:(("rphost",pid=1425447,fd=37),("dbda",pid=1407061,fd=37))
+udp               UNCONN             0                  0                                     0.0.0.0:47139                              0.0.0.0:*                users:(("rphost",pid=1425447,fd=9),("dbda",pid=1407061,fd=9),("java",pid=1406794,fd=9),("ragent",pid=1406659,fd=9))
+udp               UNCONN             0                  0                                     0.0.0.0:55896                              0.0.0.0:*                users:(("avahi-daemon",pid=759,fd=14))
+udp               UNCONN             0                  0                                   10.10.0.1:53                                 0.0.0.0:*                users:(("unbound",pid=1189433,fd=3))
+udp               UNCONN             0                  0                                    10.0.3.1:53                                 0.0.0.0:*                users:(("dnsmasq",pid=1646,fd=6))
+udp               UNCONN             0                  0                               127.0.0.53%lo:53                                 0.0.0.0:*                users:(("systemd-resolve",pid=1369,fd=12))
+udp               UNCONN             0                  0                              0.0.0.0%lxcbr0:67                                 0.0.0.0:*                users:(("dnsmasq",pid=1646,fd=4))
+udp               UNCONN             0                  0                                     0.0.0.0:49313                              0.0.0.0:*                users:(("ragent",pid=1406659,fd=19))
+udp               UNCONN             0                  0                                     0.0.0.0:49823                              0.0.0.0:*                users:(("rphost",pid=1425447,fd=6))
+udp               UNCONN             0                  0                                     0.0.0.0:1194                               0.0.0.0:*                users:(("openvpn",pid=1562,fd=6))
+udp               UNCONN             0                  0                                        [::]:1541                                  [::]:*                users:(("rmngr",pid=1406695,fd=13))
+udp               UNCONN             0                  0                                        [::]:1560                                  [::]:*                users:(("rphost",pid=1425447,fd=29))
+udp               UNCONN             0                  0                                        [::]:51820                                 [::]:*               
+udp               UNCONN             0                  0                                        [::]:5353                                  [::]:*                users:(("avahi-daemon",pid=759,fd=13))
+udp               UNCONN             0                  0                                        [::]:46476                                 [::]:*                users:(("avahi-daemon",pid=759,fd=15))
+tcp               LISTEN             0                  128                                   0.0.0.0:1545                               0.0.0.0:*                users:(("ras",pid=1113363,fd=17))
+tcp               LISTEN             0                  511                               172.16.33.1:8080                               0.0.0.0:*                users:(("apache2",pid=1439937,fd=5),("apache2",pid=1436944,fd=5),("apache2",pid=1436748,fd=5),("apache2",pid=1436747,fd=5),("apache2",pid=1436746,fd=5),("apache2",pid=1436745,fd=5),("apache2",pid=1436716,fd=5),("apache2",pid=1655,fd=5))
+tcp               LISTEN             0                  256                                 10.10.0.1:53                                 0.0.0.0:*                users:(("unbound",pid=1189433,fd=4))
+tcp               LISTEN             0                  32                                   10.0.3.1:53                                 0.0.0.0:*                users:(("dnsmasq",pid=1646,fd=7))
+tcp               LISTEN             0                  4096                            127.0.0.53%lo:53                                 0.0.0.0:*                users:(("systemd-resolve",pid=1369,fd=13))
+tcp               LISTEN             0                  128                                   0.0.0.0:22                                 0.0.0.0:*                users:(("sshd",pid=1595,fd=3))
+tcp               LISTEN             0                  5                                   127.0.0.1:631                                0.0.0.0:*                users:(("cupsd",pid=1436749,fd=7))
+tcp               LISTEN             0                  128                                   0.0.0.0:1560                               0.0.0.0:*                users:(("rphost",pid=1425447,fd=28))
+tcp               LISTEN             0                  440                                  10.0.3.1:5432                               0.0.0.0:*                users:(("postgres",pid=1569,fd=7))
+tcp               LISTEN             0                  440                                 127.0.0.1:5432                               0.0.0.0:*                users:(("postgres",pid=1569,fd=6))
+tcp               LISTEN             0                  10                                    0.0.0.0:1561                               0.0.0.0:*                users:(("dbda",pid=1407061,fd=13))
+tcp               LISTEN             0                  128                                 127.0.0.1:6010                               0.0.0.0:*                users:(("sshd",pid=1455827,fd=10))
+tcp               LISTEN             0                  128                                   0.0.0.0:1562                               0.0.0.0:*                users:(("dbda",pid=1407061,fd=10))
+tcp               LISTEN             0                  128                                   0.0.0.0:1563                               0.0.0.0:*                users:(("dbda",pid=1407061,fd=18))
+tcp               LISTEN             0                  128                                   0.0.0.0:1540                               0.0.0.0:*                users:(("ragent",pid=1406659,fd=29))
+tcp               LISTEN             0                  128                                   0.0.0.0:1541                               0.0.0.0:*                users:(("rmngr",pid=1406695,fd=12))
+tcp               LISTEN             0                  50                                          *:1576                                     *:*                users:(("java",pid=1406794,fd=37))
+tcp               LISTEN             0                  511                                         *:80                                       *:*                users:(("apache2",pid=1439937,fd=4),("apache2",pid=1436944,fd=4),("apache2",pid=1436748,fd=4),("apache2",pid=1436747,fd=4),("apache2",pid=1436746,fd=4),("apache2",pid=1436745,fd=4),("apache2",pid=1436716,fd=4),("apache2",pid=1655,fd=4))
+tcp               LISTEN             0                  128                                      [::]:22                                    [::]:*                users:(("sshd",pid=1595,fd=4))
+tcp               LISTEN             0                  5                                       [::1]:631                                   [::]:*                users:(("cupsd",pid=1436749,fd=6))
+tcp               LISTEN             0                  128                                      [::]:1560                                  [::]:*                users:(("rphost",pid=1425447,fd=27))
+tcp               LISTEN             0                  128                                     [::1]:6010                                  [::]:*                users:(("sshd",pid=1455827,fd=9))
+tcp               LISTEN             0                  511                                         *:443                                      *:*                users:(("apache2",pid=1439937,fd=7),("apache2",pid=1436944,fd=7),("apache2",pid=1436748,fd=7),("apache2",pid=1436747,fd=7),("apache2",pid=1436746,fd=7),("apache2",pid=1436745,fd=7),("apache2",pid=1436716,fd=7),("apache2",pid=1655,fd=7))
+tcp               LISTEN             0                  128                                      [::]:1540                                  [::]:*                users:(("ragent",pid=1406659,fd=28))
+tcp               LISTEN             0                  128                                      [::]:1541                                  [::]:*                users:(("rmngr",pid=1406695,fd=11))
+root@server:/# sudo systemctl status apache2 --no-pager
+● apache2.service - The Apache HTTP Server
+     Loaded: loaded (/lib/systemd/system/apache2.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2026-04-13 16:08:52 UTC; 2 weeks 3 days ago
+       Docs: https://httpd.apache.org/docs/2.4/
+   Main PID: 1655 (apache2)
+      Tasks: 52 (limit: 11892)
+     Memory: 109.2M
+     CGroup: /system.slice/apache2.service
+             ├─   1655 /usr/sbin/apache2 -k start
+             ├─1436715 /usr/sbin/apache2 -k start
+             ├─1436716 /usr/sbin/apache2 -k start
+             ├─1436745 /usr/sbin/apache2 -k start
+             ├─1436746 /usr/sbin/apache2 -k start
+             ├─1436747 /usr/sbin/apache2 -k start
+             ├─1436748 /usr/sbin/apache2 -k start
+             ├─1436944 /usr/sbin/apache2 -k start
+             └─1439937 /usr/sbin/apache2 -k start
+
+апр 27 00:00:01 server systemd[1]: Reloading The Apache HTTP Server.
+апр 27 00:00:02 server systemd[1]: Reloaded The Apache HTTP Server.
+апр 28 00:00:01 server systemd[1]: Reloading The Apache HTTP Server.
+апр 28 00:00:02 server systemd[1]: Reloaded The Apache HTTP Server.
+апр 29 00:00:03 server systemd[1]: Reloading The Apache HTTP Server.
+апр 29 00:00:04 server systemd[1]: Reloaded The Apache HTTP Server.
+апр 30 00:00:02 server systemd[1]: Reloading The Apache HTTP Server.
+апр 30 00:00:02 server systemd[1]: Reloaded The Apache HTTP Server.
+мая 01 00:00:02 server systemd[1]: Reloading The Apache HTTP Server.
+мая 01 00:00:03 server systemd[1]: Reloaded The Apache HTTP Server.
+root@server:/# sudo systemctl status docker --no-pager
+Unit docker.service could not be found.
+root@server:/# sudo apachectl -S
+VirtualHost configuration:
+*:80                   artem.medianasoft.spb.ru (/etc/apache2/sites-enabled/000-default.conf:1)
+*:443                  artem.medianasoft.spb.ru (/etc/apache2/sites-enabled/default-ssl.conf:3)
+*:8080                 server (/etc/apache2/sites-enabled/nextcloud.conf:13)
+ServerRoot: "/etc/apache2"
+Main DocumentRoot: "/var/www/html"
+Main ErrorLog: "/var/log/apache2/error.log"
+Mutex watchdog-callback: using_defaults
+Mutex ssl-stapling-refresh: using_defaults
+Mutex ssl-stapling: using_defaults
+Mutex ssl-cache: using_defaults
+Mutex default: dir="/var/run/apache2/" mechanism=default
+Mutex mpm-accept: using_defaults
+PidFile: "/var/run/apache2/apache2.pid"
+Define: DUMP_VHOSTS
+Define: DUMP_RUN_CFG
+User: name="www-data" id=33
+Group: name="www-data" id=33
+root@server:/#

@@ -1,0 +1,35 @@
+﻿Initializing n8n process
+n8n ready on ::, port 5678
+n8n Task Broker ready on 127.0.0.1, port 5679
+Failed to start Python task runner in internal mode. because Python 3 is missing from this system. Launching a Python runner in internal mode is intended only for debugging and is not recommended for production. Users are encouraged to deploy in external mode. See: https://docs.n8n.io/hosting/configuration/task-runners/#setting-up-external-mode
+[license SDK] Skipping renewal on init: license cert is not due for renewal
+Registered runner "JS Task Runner" (kp7voe-oPLPU0TpeII_dS) 
+Collaboration features are disabled because push is configured unidirectional. Use N8N_PUSH_BACKEND=websocket environment variable to enable them.
+Version: 2.18.5
+Building workflow dependency index...
+Finished building workflow dependency index. Processed 0 draft workflows, 0 published workflows.
+
+Editor is now accessible via:
+https://n8n.3develop.ru
+(node:6) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Origin header does NOT match the expected origin. (Origin: "undefined" -> "N/A", Expected: "undefined" -> "undefined", Protocol: "undefined")
+ResponseError: Invalid origin!
+    at Push.handleRequest (/usr/local/lib/node_modules/n8n/src/push/index.ts:143:10)
+    at /usr/local/lib/node_modules/n8n/src/push/index.ts:99:10
+    at Layer.handleRequest (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:342:13)
+    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9
+    at processParams (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)
+    at next (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)
+    at /usr/local/lib/node_modules/n8n/src/auth/auth.service.ts:158:18
+Origin header does NOT match the expected origin. (Origin: "undefined" -> "N/A", Expected: "undefined" -> "undefined", Protocol: "undefined")
+ResponseError: Invalid origin!
+    at Push.handleRequest (/usr/local/lib/node_modules/n8n/src/push/index.ts:143:10)
+    at /usr/local/lib/node_modules/n8n/src/push/index.ts:99:10
+    at Layer.handleRequest (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:342:13)
+    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9
+    at processParams (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)
+    at next (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)
+    at /usr/local/lib/node_modules/n8n/src/auth/auth.service.ts:158:18
