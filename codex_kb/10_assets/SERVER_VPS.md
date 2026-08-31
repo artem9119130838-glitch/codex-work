@@ -102,7 +102,18 @@ sudo systemctl reload apache2
 
 
 
+## Docker / Metabase
+
+- **Статус**: Активен. Запущен в Docker (порт 3000).
+- **URL**: `http://109.248.170.181:3000/auth/login`
+- **Путь к данным**: `/Storage/docker/metabase_data`
+- **База данных H2**: `/Storage/docker/metabase_data/metabase.db/metabase.db.mv.db`
+- **Учетные записи**:
+  - `admin@tender-rag.local` / `Artem12345` (Администратор)
+  - `manager@tender-rag.local` / `manager12345` (Менеджер)
+
 ## Storage
+
 
 Do not delete casually:
 
