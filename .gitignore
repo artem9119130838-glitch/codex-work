@@ -24,6 +24,9 @@ node_modules/
 # Temporary and scratch files
 scratch/
 out.csv
+*.ffs_lock
+*.ffs_tmp
+sync.ffs_lock
 
 # Infrastructure Registry (contains secrets)
 infrastructure_registry/
