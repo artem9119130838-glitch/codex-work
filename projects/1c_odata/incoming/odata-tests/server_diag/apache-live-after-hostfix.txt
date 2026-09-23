@@ -1,0 +1,10 @@
+﻿[Sun May 10 13:33:03.822827 2026] [proxy_http:error] [pid 536922] (104)Connection reset by peer: [client 46.146.89.197:53010] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:03.899872 2026] [proxy_http:error] [pid 528463] (104)Connection reset by peer: [client 46.146.89.197:54935] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:03.971438 2026] [proxy_http:error] [pid 501144] (104)Connection reset by peer: [client 46.146.89.197:51254] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:03.971474 2026] [proxy:error] [pid 501144] [client 46.146.89.197:51254] AH00898: Error reading from remote server returned by /workflow/zNTKv43UQs5VHVK3
+[Sun May 10 13:33:04.100131 2026] [proxy_http:error] [pid 501144] (104)Connection reset by peer: [client 46.146.89.197:51254] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:04.287127 2026] [proxy_http:error] [pid 535596] (104)Connection reset by peer: [client 46.146.89.197:64762] AH01102: error reading status line from remote server 127.0.0.1:5678, referer: https://n8n.3develop.ru/workflow/zNTKv43UQs5VHVK3
+[Sun May 10 13:33:04.287182 2026] [proxy:error] [pid 535596] [client 46.146.89.197:64762] AH00898: Error reading from remote server returned by /favicon.ico, referer: https://n8n.3develop.ru/workflow/zNTKv43UQs5VHVK3
+[Sun May 10 13:33:04.339324 2026] [proxy_http:error] [pid 536881] (104)Connection reset by peer: [client 46.146.89.197:54369] AH01102: error reading status line from remote server 127.0.0.1:5678
+[Sun May 10 13:33:04.339375 2026] [proxy:error] [pid 536881] [client 46.146.89.197:54369] AH00898: Error reading from remote server returned by /rest/ph/i/v0/e/
+[Sun May 10 13:47:49.076296 2026] [proxy:warn] [pid 539859] [client 46.146.89.197:60573] AH01144: No protocol handler was valid for the URL /rest/push (scheme 'ws'). If you are using a DSO version of mod_proxy, make sure the proxy submodules are included in the configuration using LoadModule.

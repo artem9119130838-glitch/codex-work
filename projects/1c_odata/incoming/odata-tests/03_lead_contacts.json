@@ -1,0 +1,32 @@
+{
+"odata.metadata": "http://artem.medianasoft.spb.ru/unf/odata/standard.odata/$metadata#Catalog_КонтактыЛидов",
+"value": [{
+"Ref_Key": "13669238-81a2-11f0-9402-02006df8aab5",
+"DataVersion": "AAAAAAAAAAA=",
+"DeletionMark": false,
+"Owner_Key": "132e93d8-81a2-11f0-9402-02006df8aab5",
+"Code": "000000697",
+"Description": " Ольга Матвеевна Семенова",
+"КонтактнаяИнформация": [
+{
+"Ref_Key": "13669238-81a2-11f0-9402-02006df8aab5",
+"LineNumber": "1",
+"Тип": "Телефон",
+"Вид_Key": "5c0dc756-23c6-11ed-91a8-a068f8f3337c",
+"Представление": "+79061854770",
+"ЗначенияПолей": "<КонтактнаяИнформация xmlns=\"http://www.v8.1c.ru/ssl/contactinfo\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" Представление=\"+79061854770\"><Состав xsi:type=\"НомерТелефона\" КодСтраны=\"\" КодГорода=\"\" Номер=\"+79061854770\" Добавочный=\"\"/></КонтактнаяИнформация>",
+"Страна": "",
+"Регион": "",
+"Город": "",
+"АдресЭП": "",
+"ДоменноеИмяСервера": "",
+"НомерТелефона": "79061854770",
+"НомерТелефонаБезКодов": "79061854770",
+"Значение": "{\n\"version\": 4,\n\"value\": \"+79061854770\",\n\"type\": \"Телефон\",\n\"number\": \"+79061854770\"\n}"
+}
+],
+"Predefined": false,
+"PredefinedDataName": "",
+"Owner@navigationLinkUrl": "Catalog_КонтактыЛидов(guid'13669238-81a2-11f0-9402-02006df8aab5')/Owner"
+}]
+}

@@ -1,0 +1,2 @@
+﻿16:    RequestHeader set X-Forwarded-Proto "https"
+17:    RequestHeader set X-Forwarded-Port "443"
