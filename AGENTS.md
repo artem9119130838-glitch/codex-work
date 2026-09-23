@@ -1,46 +1,30 @@
-﻿# Workspace Instructions for Codex
+## Language Policy
+- Всегда общайся со мной и выводи результаты (планы задач, размышления, документацию) только на русском языке.
+- Комментарии к коду оставляй на английском или русском.
 
-This workspace is the long-term operational memory for Artem's Codex work.
+# Workspace AI Contract
 
-Before starting non-trivial work, read:
+Этот файл является точкой входа (контрактом) для ИИ-ассистента в личном контуре (`C:\Codex_Personal`).
 
-1. `E:\Codex_Work\CODEX_START_HERE.md`
-2. `E:\Codex_Work\PROGRESS.md`
-3. `E:\Codex_Work\CHAT_DISPATCHER.md`
-4. `E:\Codex_Work\ГДЕ_ЧТО_ЛЕЖИТ.md`
-5. `E:\Codex_Work\codex_kb\00_global\SECURITY_POLICY.md`
-6. `E:\Codex_Work\codex_kb\00_global\BUSINESS_RULES.md`
-7. The relevant domain file under `E:\Codex_Work\codex_kb\20_domains`
-8. The relevant progress file under `E:\Codex_Work\codex_kb\progress`
+## 1. Системные правила и регламенты
+Перед началом работы ассистент обязан прочесть эти документы для правильного принятия решений:
+1. [MANIFEST.md](file:///C:/Codex_Personal/MANIFEST.md) — Манифест проекта и архитектура правил.
+2. [AI_RULES.md](file:///C:/Codex_Personal/AI_RULES.md) — Общие правила, экономия токенов и стандарты.
+3. [SECURITY.md](file:///C:/Codex_Personal/SECURITY.md) — Матрица рисков Decision Policy (L0-L6) и подтверждения.
+4. [SKILLS.md](file:///C:/Codex_Personal/SKILLS.md) — Индекс доступных навыков.
 
-Do not treat old chat exports as the first source of truth unless the current KB points there for detail. The old exports are preserved under `E:\Codex_Work\ARCHIVE`.
+## 2. Локальный контекст контура (Специфика)
+- `C:\Codex_Personal` — единый репозиторий Git, привязанный к вашему личному GitHub (`artem9119130838-glitch/codex-work.git`).
+- Основные активы личного контура (сервер VPS, 1С, VPN, Keenetic) описаны в базе знаний `codex_kb/10_assets/` и `codex_kb/20_domains/`.
+- Выполняемые задачи фиксируются в локальном логе: [todo.md](file:///C:/Codex_Personal/todo.md).
+- **SSH-доступ к VPS**: Авторизация только по ключу `C:/Users/Artem/.ssh/id_ed25519_wlisses` под root. Вход по паролю отключен.
+- **Сжатие сессии (/compress)**: Для завершения чата запускайте скрипт `py scripts/session_compress.py`. Он создает сводный файл `.ai/SESSION_SUMMARY.md` (в один абзац), сохраняет новые assets в `codex_kb/10_assets/`, очищает `scratch/` и делает git push.
+- **Группировка команд и оптимизация SSH (Anti-Ban & Token Economy)**:
+  * Объединять последовательные или диагностические команды (например, `df`, `ls`, `du`, чтение конфигов) в одну цепочку (через `&&` или `;`) или в один скрипт.
+  * Ограничивать частоту SSH-подключений (не более 3 в минуту). Упаковывать рабочие скрипты в один файл и переносить за один вызов `scp`, выполняя за один вызов `ssh`.
+- **Экономия лимитов платформы (Token & Turn Economy)**:
+  * **Запрет опроса фоновых задач**: Категорически запрещено использовать `command_status` в цикле. Платформа работает в режиме реактивного пробуждения (Reactive Wakeup) и сама вернет управление при завершении задачи. Сразу завершайте ход.
+  * **Вызов Python**: На хосте Windows вызывать интерпретатор только через лаунчер `py` (например, `py scripts/session_compress.py`). Вызов через `python` падает с ошибкой.
+- **Координация задач**: Если часть задачи передана внешнему разработчику (например, Михаилу) или описана в Downloads, фиксировать в `todo.md` и `.ai/SESSION_SUMMARY.md` исполнителя и список задач. Перед работой проверять Git-лог на предмет выполнения этих задач.
+- **Проверка восстановления после сбоев (Post-Failure Verification):** После ликвидации ошибок переполнения диска или иных системных сбоев на VPS, ИИ-ассистент обязан проверить статус всех связанных контейнеров Docker, портов и системных служб. Категорически запрещено завершать сессию, не убедившись, что все необходимые сервисы (включая n8n, n8n-eng, Metabase, 3x-ui и API) перезапущены, успешно слушают свои порты и отдают корректные HTTP-ответы.
 
-## Standing Rules
-
-- `E:\Codex_Work` is the single source of truth for Codex operational memory.
-- Markdown files are primary knowledge; PostgreSQL/RAG indexes are derived data.
-- Live secrets may be provided in chat for one-time setup or troubleshooting, but never write secrets, passwords, private keys, Bitrix webhook URLs, OAuth secrets, or WireGuard private keys into markdown, workflow JSON, prompts, progress files, or other permanent workspace artifacts.
-- Use placeholders such as `${ONEC_ODATA_PASSWORD}` or `${BITRIX_WEBHOOK_BASE_URL}` in commands, n8n snippets, and docs.
-- The Ubuntu VPS is production-like. Be careful with Apache, Docker, 1C, PostgreSQL/Postgres Pro, WireGuard, OpenVPN, and firewall changes.
-- Do not restart 1C or PostgreSQL unless the user explicitly approves or a maintenance window is confirmed.
-- Prefer Apache `reload` after config tests; use `restart` only when necessary.
-- Do not delete `/var/1C/licenses`, `/Storage/docker-data`, `/Storage/home`, or `/Storage/data` without explicit confirmation and a rollback plan.
-- Keep project-specific experiments in project folders; keep stable facts in `codex_kb`.
-- Put new working files under `E:\Codex_Work\projects` according to `ГДЕ_ЧТО_ЛЕЖИТ.md`.
-- Put old one-off files under `E:\Codex_Work\ARCHIVE`.
-- Save markdown files that contain Cyrillic as UTF-8 with BOM.
-- After changing `00_global` or `20_domains`, check whether `RAG_SYNC_RUNBOOK.md` applies.
-- After code or docs changes, run the local checklist in `codex_kb\skills\verification\SELF_CHECK.md`.
-
-## Stable Knowledge Areas
-
-- Server and infrastructure: `codex_kb\10_assets\SERVER_VPS.md`
-- 1C: `codex_kb\20_domains\1c\README.md`
-- n8n automation: `codex_kb\20_domains\n8n\README.md`
-- Bitrix: `codex_kb\20_domains\bitrix\README.md`
-- Tenders and AST GOZ: `codex_kb\20_domains\tenders\README.md`
-- Email and client correspondence: `codex_kb\20_domains\email_client_comms\README.md`
-- Local computer and inventory: `codex_kb\10_assets\LOCAL_COMPUTER.md`
-- Router/VPN: `codex_kb\10_assets\ROUTER_AND_VPN.md`
-- Phone/voice capture: `codex_kb\10_assets\PHONE_ONEPLUS.md`
-- AI/RAG marketing memory: `codex_kb\20_domains\ai_rag_marketing\README.md`

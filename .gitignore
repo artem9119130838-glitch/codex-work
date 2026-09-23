@@ -1,4 +1,4 @@
-﻿# Workspace ignores
+# Workspace ignores
 
 data/raw_sample/
 legacy/
@@ -10,6 +10,9 @@ model_outputs/
 batches/
 candidates/
 .venv/
+venv/
+**/venv/
+**/.venv/
 node_modules/
 .env
 .tmp.driveupload/
@@ -18,4 +21,17 @@ node_modules/
 
 **/.codex/migration-report.md
 
-**/.codex/migration-manifest.csv
+# Temporary and scratch files
+scratch/
+out.csv
+*.ffs_lock
+*.ffs_tmp
+sync.ffs_lock
+
+# Infrastructure Registry (contains secrets)
+infrastructure_registry/
+
+# Router configurations and snapshots (contains VPN keys)
+projects/server_ops/clients configs/
+
+

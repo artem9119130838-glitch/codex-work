@@ -1,0 +1,84 @@
+Порядок команд
+1. Открыть запрос документов
+(async () => {
+  const row = [...document.querySelectorAll('table tbody tr')][0];
+  if (!row) throw new Error('Нет строк');
+
+  const requestLink = [...row.querySelectorAll('a')].find(a =>
+    (a.textContent || '').includes('Запрос документации')
+  );
+
+  const prepareLink = [...row.querySelectorAll('a')].find(a =>
+    (a.textContent || '').includes('Подготовить документы')
+  );
+
+  console.log('REQUEST =', requestLink?.href);
+  console.log('PREPARE =', prepareLink?.href);
+
+  if (!requestLink?.href) throw new Error('Не найдена ссылка Запрос документации');
+
+  location.href = requestLink.href;
+})();
+2. Поставить галочку
+(() => {
+  const input = [...document.querySelectorAll('input[type="checkbox"]')][0];
+  if (!input) throw new Error('checkbox not found');
+  input.checked = true;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  console.log('checked =', input.checked);
+})();
+3. Нажать "подписать и отправить"
+(() => {
+  const btn = [...document.querySelectorAll('button, a')]
+    .find(el => (el.innerText || '').includes('Подписать и отправить'));
+  if (!btn) throw new Error('submit button not found');
+  btn.click();
+  return btn;
+})();
+4. В модалке нажать "Согласие"
+(() => {
+  const modal = document.querySelector('#modal') || document;
+  const btn = [...modal.querySelectorAll('button, a')]
+    .find(el => (el.innerText || '').includes('Подписать и отправить'));
+
+  if (!btn) throw new Error('modal submit not found');
+  btn.click();
+})();
+5. Нажать "выгрузить"
+(() => {
+  const btn = [...document.querySelectorAll('a, button')]
+    .find(el => (el.innerText || '').includes('Выгрузить'));
+
+  if (!btn) throw new Error('unload button not found');
+  btn.click();
+})();
+6. Вернуться назад
+history.back();
+7. Еще раз назад
+history.back();
+8. Поставить метку "Подготовить документы"
+(() => {
+  const row = [...document.querySelectorAll('table tbody tr, table tr')]
+    .find(tr => /\d{8,}/.test(tr.innerText || ''));
+
+  if (!row) return console.log('ROW_NOT_FOUND');
+
+  const link = row.querySelector('a[href*="action=set_documents"]');
+  if (!link) return console.log('PREPARE_LINK_NOT_FOUND');
+
+  console.log('USING_PREPARE_LINK', link.href);
+  location.href = link.href;
+})();
+9. Вернуться назад
+history.back()
+10. Обновить страницу меток с галкой "Интересно"
+(() => {
+  const apply = [...document.querySelectorAll('button,input[type="submit"],a')]
+    .find(el => ((el.innerText || el.textContent || el.value || '').trim() === 'Применить фильтры'));
+
+  if (!apply) return console.log('APPLY_NOT_FOUND');
+
+  sessionStorage.setItem('astgoz_reopen_marks_tab', '1');
+  apply.click();
+})();

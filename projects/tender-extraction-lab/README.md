@@ -1,28 +1,16 @@
-# tender-extraction-lab
+# tender-extraction-lab (Tender RAG API)
 
-Clean lab project for tender extraction experiments:
+Этот каталог в Личном контуре предназначен для координации задач, хранения переписок и планов внешнего разработчика (папка `Engeneer employee/`).
 
-- `data/gold/`: human-validated benchmark datasets (tracked).
-- `scripts/eval/`: regression/evaluation scripts (tracked).
-- `scripts/batch/`: batch runners/orchestrators (tracked).
-- `legacy/old_project/`: copied reference-only code and evidence from the old `GOZ` project (tracked, but not modified).
-- `data/raw_sample/`: optional local-only tender samples (**ignored by git**).
+## Важное примечание по локации кода
+* **Основной рабочий код, Docker-конфигурации и n8n-воркфлоу** находятся исключительно в Общем контуре:
+  [C:\Codex_Shared\projects\tender-extraction-lab](file:///C:/Codex_Shared/projects/tender-extraction-lab)
+* **Репозиторий проекта**: `git@github.com:artem9119130838-glitch/tender-rag-api.git` (Shared-версия использует репозиторий со своим набором коммитов).
+* В Личном контуре исходный код проекта **не отслеживается** монорепозиторием во избежание дублирования и конфликтов с Git-настройками разработчика Михаила.
 
-## Migration
+## Содержимое каталога в Личном контуре
+* `Engeneer employee/` — переписка с Михаилом, резюме, исходные ТЗ, присланные им zip-архивы и промежуточные файлы.
+* `PROJECT_HANDOFF.md` — handoff-документ по передаче задач и контролю.
+* Сверяйтесь со сводками в `C:\Codex_Shared` при работе с кодом микросервиса.
 
-The migration source of truth is `.codex/migration-manifest.csv`.
-
-To copy only the minimal needed subset (gold + eval/batch + legacy evidence):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\migration\copy_from_manifest.ps1
-```
-
-## Smoke test
-
-After migration copy, try:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke\run_smoke_eval.ps1
-```
 

@@ -1,0 +1,13 @@
+﻿# Orchestrator configuration (TOML)
+# Date: 2026-05-30
+
+[project]
+name = "server_ops"
+root = "E:/Codex_Work/projects/server_ops"
+
+[policy]
+streams_table_for = "medium_or_complex_only"
+subagents_fallback = "manual_decomposition"
+
+[paths]
+streams_table_template = "E:/Codex_Work/_templates/streams_table_template.md"

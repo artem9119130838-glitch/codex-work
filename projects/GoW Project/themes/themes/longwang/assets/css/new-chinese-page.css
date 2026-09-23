@@ -1,0 +1,76 @@
+.china-vs {
+  padding: 40px 0 20px;
+}
+
+.china-vs__title {
+  margin: 0 auto 32px;
+  max-width: 980px;
+  text-align: center;
+}
+
+.china-vs__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.china-vs__card {
+  margin: 0;
+  padding: 0;
+}
+
+.china-vs__card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 28px;
+  box-shadow: 0 20px 45px rgba(29, 41, 81, 0.12);
+}
+
+.china-vs__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: #1d2951;
+  color: #fff;
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  box-shadow: 0 16px 32px rgba(29, 41, 81, 0.16);
+}
+
+.china-vs__subtitle {
+  max-width: 920px;
+  margin: 28px auto 0;
+  text-align: center;
+  font-size: 22px;
+  line-height: 1.45;
+  color: #1d2951;
+}
+
+.china-vs__actions {
+  margin-top: 28px;
+  text-align: center;
+}
+
+@media (max-width: 991.98px) {
+  .china-vs__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .china-vs__divider {
+    margin: 0 auto;
+    width: 76px;
+    height: 76px;
+    font-size: 28px;
+  }
+
+  .china-vs__subtitle {
+    font-size: 18px;
+  }
+}

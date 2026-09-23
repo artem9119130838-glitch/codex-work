@@ -1,0 +1,22 @@
+[
+  {
+    "content": "{}",
+    "conversation_id": "69bad960-a06c-8388-baee-216c6b500585",
+    "create_time": "2026-03-23T17:33:00.165511Z",
+    "id": "a305a2e2-4aaa-4649-9f3e-0a36309f1c33",
+    "rating": "thumbs_up",
+    "update_time": "2026-03-23T17:33:00.311620Z",
+    "user_id": "user-3V26a3raXaQaa6Fzikk8C0Du",
+    "workspace_id": null
+  },
+  {
+    "content": "{}",
+    "conversation_id": "69c5f367-4270-8392-a110-f63f2f7fa1a5",
+    "create_time": "2026-06-02T06:04:01.954136Z",
+    "id": "a109c2af-5b53-450c-806a-51ba56d1e333",
+    "rating": "thumbs_up",
+    "update_time": "2026-06-02T06:04:02.093467Z",
+    "user_id": "user-3V26a3raXaQaa6Fzikk8C0Du",
+    "workspace_id": null
+  }
+]

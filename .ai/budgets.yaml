@@ -1,0 +1,9 @@
+daily:
+  flash: 5.0      # лимит в USD для моделей Flash (1.5 Flash, 2.0 Flash)
+  pro: 1.0        # лимит в USD для Gemini 1.5 Pro
+  flash_8b: 0.5   # лимит в USD для Gemini 1.5 Flash-8B
+session:
+  max_cost: 0.50  # максимальная стоимость одной сессии в USD
+request:
+  max_cost: 0.01  # максимальная стоимость одного запроса в USD
+  max_tokens: 10000 # максимальный размер контекста одного запроса без предупреждения

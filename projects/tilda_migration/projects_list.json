@@ -1,0 +1,57 @@
+{
+  "lang": "RU",
+  "username": "SelfAqua",
+  "userplan": "2",
+  "usertrialstarted": "1657271810",
+  "userwithus": 125444276,
+  "useruploadkey": "30653133-6236-4564-b938-323234323932",
+  "usercountry": "RU",
+  "userreflink": "-",
+  "plan": {
+    "plan": 2,
+    "maxprojects": 5,
+    "maxprojects_email": 5,
+    "maxprojects_docs": 1,
+    "maxpages": 1000,
+    "maxfolders": 200,
+    "title": "Tilda Business"
+  },
+  "subscribeexpired": "yes",
+  "total": {
+    "projects": 3,
+    "projects_email": 0,
+    "projects_docs": 0,
+    "projects_intrash": 0
+  },
+  "menu__showcoursestab": "yes",
+  "we_are_now_in": "myprojects",
+  "projects": [
+    {
+      "id": "5807910",
+      "title": "Self Aqua",
+      "descr": "",
+      "trash": "",
+      "kind": "",
+      "url": "http://selfaqua.ru"
+    },
+    {
+      "id": "6462927",
+      "title": "CNBearings",
+      "descr": "Официальный агрегатор китайских подшипников в РФ.",
+      "trash": "",
+      "kind": "",
+      "url": "http://china-bearings.ru"
+    },
+    {
+      "id": "8151446",
+      "title": "Импорт из Китая",
+      "descr": "",
+      "trash": "",
+      "kind": "",
+      "url": "https://xn--80aaagi1aieb9a7amg.xn--p1ai"
+    }
+  ],
+  "userid": 5435781,
+  "errors_jwtsign": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOjU0MzU3ODEsInRpbWUiOjE3ODI3MTIyMzd9.U6m-7Y0k7HuaLV4m6XHMxeG3SqdW1p9e87fIUroqvIc",
+  "csrf": "pL7wq945462af1355c6b4fbf70210151d0010"
+}

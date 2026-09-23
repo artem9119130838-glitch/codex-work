@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.git/
+.cache/
+.ai/
+__pycache__/
+*.log
+*.tmp
+*.pyc
+*.docx
+ARCHIVE/
+Normaliztion Codex - Chat Operator/

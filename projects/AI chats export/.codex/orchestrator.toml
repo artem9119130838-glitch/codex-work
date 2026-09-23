@@ -1,0 +1,25 @@
+[project]
+name = "AI chats export"
+version = "1.0.0"
+description = "Автоматическая очистка и кластеризация архивов чатов ChatGPT/Gemini для NotebookLM"
+
+[orchestration]
+current_phase = "Phase 1: Сортировка и очистка логов"
+status = "in-progress"
+allowed_write_zones = [
+    "src/",
+    "data/done/",
+    ".codex/",
+    "PROJECT_HANDOFF.md",
+    "AGENTS.md",
+    "README.md"
+]
+forbidden_zones = [
+    "data/raw/"
+]
+
+[engine]
+model = "gemini-2.5-flash"
+api_rpm_limit = 15
+min_request_delay_seconds = 12
+target_batch_size_chars = 300000

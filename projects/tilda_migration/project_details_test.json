@@ -1,0 +1,114 @@
+{
+  "projectid": "5807910",
+  "lang": "RU",
+  "username": "SelfAqua",
+  "userplan": "2",
+  "usertrialstarted": "1657271810",
+  "userwithus": 125444329,
+  "useruploadkey": "30653133-6236-4564-b938-323234323932",
+  "usercountry": "RU",
+  "plan": {
+    "plan": 2,
+    "maxprojects": 5,
+    "maxprojects_email": 5,
+    "maxprojects_docs": 1,
+    "maxpages": 1000,
+    "maxfolders": 200,
+    "title": "Tilda Business"
+  },
+  "subscribeexpired": "yes",
+  "total": {
+    "projects": 3,
+    "projects_email": 0,
+    "projects_docs": 0,
+    "projects_intrash": 0,
+    "pages": 2
+  },
+  "menu__showcoursestab": "yes",
+  "we_are_now_in": "myprojects",
+  "projects": [
+    {
+      "id": "5807910",
+      "title": "Self Aqua",
+      "descr": "",
+      "trash": "",
+      "kind": "",
+      "url": "http://selfaqua.ru"
+    },
+    {
+      "id": "6462927",
+      "title": "CNBearings",
+      "descr": "Официальный агрегатор китайских подшипников в РФ.",
+      "trash": "",
+      "kind": "",
+      "url": "http://china-bearings.ru"
+    },
+    {
+      "id": "8151446",
+      "title": "Импорт из Китая",
+      "descr": "",
+      "trash": "",
+      "kind": "",
+      "url": "https://xn--80aaagi1aieb9a7amg.xn--p1ai"
+    }
+  ],
+  "project": {
+    "id": "5807910",
+    "title": "Self Aqua",
+    "descr": "",
+    "indexpageid": "28914714",
+    "headerpageid": "0",
+    "footerpageid": "28946367",
+    "headlinefont": "Inter",
+    "textfont": "Inter",
+    "customdomain": "selfaqua.ru",
+    "url": "http://selfaqua.ru",
+    "page404id": "0",
+    "kind": "",
+    "trash": "",
+    "globalstyles_json": [],
+    "pages_count": 2,
+    "pages_intrash_count": 0,
+    "indexpagenotpublished": "yes",
+    "specialpages": []
+  },
+  "pages": [
+    {
+      "id": "28914714",
+      "projectid": "5807910",
+      "title": "Self Aqua",
+      "img": "",
+      "published": "",
+      "changed": "1658051303",
+      "url": "page28914714.html",
+      "alias": "",
+      "thumb": "https://static.tildacdn.com/tild3234-6134-4131-a563-663537613766/photo.svg",
+      "label": "",
+      "comment": "",
+      "trash": "",
+      "folderid": "0",
+      "viewpassword": "",
+      "viewhash": ""
+    },
+    {
+      "id": "28946367",
+      "projectid": "5807910",
+      "title": "Footer",
+      "img": "",
+      "published": "",
+      "changed": "1658051340",
+      "url": "footer",
+      "alias": "footer",
+      "thumb": "",
+      "label": "",
+      "comment": "",
+      "trash": "",
+      "folderid": "0",
+      "viewpassword": "",
+      "viewhash": ""
+    }
+  ],
+  "userid": 5435781,
+  "errors_jwtsign": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOjU0MzU3ODEsInRpbWUiOjE3ODI3MTIyOTB9.sbCnL-smIXmeVjJIl2XwnfeLBYOJO6GPjOlvY5v7m_w",
+  "csrf": "mShVd23cc8f1e92c91584185b11554863627b"
+}
