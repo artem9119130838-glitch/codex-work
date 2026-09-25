@@ -2,7 +2,18 @@
 
 - [x] Временный перенос проектов, документов и ИИ-окружения с Victus на новый ноутбук MateBook 14 (выполнен 13.08.2026).
 - [x] Подготовка обратного переноса на Victus: создание конфигураций FreeFileSync (`1_MateBook_to_External.ffs_gui`, `2_External_to_Victus.ffs_gui`), скрипта адаптации путей Antigravity `fix_paths_for_victus.py` и инструкций по проверке.
-- [/] Синхронизация данных с MateBook на внешний диск `E:\Mirror_E_Home` и последующее развертывание на Victus.
+- [x] Синхронизация данных с MateBook на внешний диск `E:\Mirror_E_Home` и развертывание на Victus:
+  * Ветка `master` репозитория `C:\Codex_Personal` синхронизирована без конфликтов;
+  * Настроен и валидирован профиль `E:\Mirror_E_Home\2_External_to_Victus.ffs_gui` (все 24 пары исправлены под фактические диски Victus);
+  * В фильтр FreeFileSync добавлены исключения: `SAVE` (`Архив Бизнесов`, `iMac`, `Архивы Сайтов` — экономия ~125 ГБ) и `SOFT_D` (`Huawei Service`, `8.5.1.1150`, `Telegram Desktop`, `DigiKam`, `qBittorrent`, `DupeGuru` — экономия ~3.1 ГБ);
+  * Проведен полный комплекс верификации (Python 8 библиотек OK, Git, SSH GitHub/VPS, 9/9 локальных путей, профили Edge, Punto Switcher, MobaXterm).
+- [x] Внедрена политика разграничения доступов (Strict Change Policy):
+  * Личный Git (`artem9119130838-glitch/codex-work.git`) — запись разрешена;
+  * Рабочий Git (`wlissespanchame370-cyber/*`, включая `tender-rag-api`) — строго Read-Only;
+  * VPS (`109.248.170.181`) — строго после предварительного согласования.
+- [x] Проведен комплексный технический аудит наработок Михаила в ветке `main-test` (`wlissespanchame370-cyber/tender-rag-api`):
+  * Изучены `daily_schedule_phase2.md`, логика каскадного отсева и принятие гипотез руководителя;
+  * Выявлены критические ошибки: сломанный импорт `get_rabbitmq_channel` в `document.py`, отсутствие векторов эмбеддингов в `white_base_init.sql` (все NULL) + синтаксическая ошибка SQL на строке 17, хардкод путей MacOS в `import_white_base.py`, синхронный опрос Gemini в цикле без использования пула ключей.
 - [x] Выполнение задачи Михаила по созданию карты архитектуры сети docs/ARCHITECTURE_MAP.md на VPS. Безопасность окружения проверена, доступы Михаила (WireGuard, туннель Bore, Git) полностью сохранены.
 - [x] Решить проблему приведения типов параметров периода (`&НачалоПериода` и `&КонецПериода` в СКД) и задвоения себестоимости при интеграции пакетного SQL-запроса в отчет `KPIМенеджеров.erf`.
 - [x] Добавлена иконка MAX со ссылкой на бота и адрес почты прописью в шапку сайта [longwang.ru](http://longwang.ru) (исправлена верстка иконки в [custom.css](file:///C:/Codex_Personal/projects/GoW%20Project/themes/themes/longwang/custom.css)).
