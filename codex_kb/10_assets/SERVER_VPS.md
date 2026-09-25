@@ -111,6 +111,17 @@ sudo systemctl reload apache2
 - **Учетные записи**:
   - `admin@tender-rag.local` / `Artem12345` (Администратор)
   - `manager@tender-rag.local` / `manager12345` (Менеджер)
+- **Потребление RAM**: ~3.5 ГБ. При сборке тяжелых образов Docker (например, `tender-rag-api`) временно останавливать (`docker stop metabase`), чтобы избежать ошибки OOM 137.
+
+## Docker / Tender RAG API
+
+- **Статус**: Активен. Путь: `/root/tender-rag-api`
+- **Порт**: `8000` (FastAPI uvicorn).
+- **Туннель**: `tender-rag-tunnel` (`ekzhang/bore`), проксирует порт на `bore.pub` для внешней интеграции/отладки без VPN.
+- **Хелсчек**: `http://127.0.0.1:8000/health` -> `{"status":"ok"}`.
+- **Сетевая документация**: `docs/ARCHITECTURE_MAP.md`.
+- **Конфигурация**: Переменные загружаются из `.env` через директиву `env_file: - .env` в `docker-compose.yml`.
+
 
 ## Storage
 
