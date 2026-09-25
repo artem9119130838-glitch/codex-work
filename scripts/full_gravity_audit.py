@@ -57,7 +57,7 @@ DOMAINS = [
     {
         "id": "sprint_mikhail",
         "title": "6. Спринты Михаила, RAG ГОЗ и Архитектура сети VPS",
-        "keywords": ["mikhail", "михаил", "bore", "wireguard", "architecture_map", "tender-rag-api"]
+        "keywords": ["mikhail", "михаил", "bore", "wireguard", "architecture_map", "tender-rag-api", "deploy-tender", "tender_webhook", "deploy_tender"]
     },
     {
         "id": "windows_diagnostics",
@@ -97,7 +97,7 @@ DOMAINS = [
     {
         "id": "infra_vps",
         "title": "14. Инфраструктура, VPS-сервер, Docker и Бэкапы",
-        "keywords": ["vps", "backup", "inventory", "mass_replace", "verify", "preflight", "budget"]
+        "keywords": ["vps", "backup", "inventory", "mass_replace", "verify", "preflight", "budget", "vacuum", "sqlite-auto-vacuum"]
     }
 ]
 

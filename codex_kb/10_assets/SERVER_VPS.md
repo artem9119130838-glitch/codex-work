@@ -58,13 +58,20 @@ Note: `master_doc.md` says Docker and database data are on `/Storage/docker-data
 sudo systemctl reload apache2
 ```
 
-## Docker / n8n
+## Docker / n8n & n8n-eng
 
 - Docker data root: `/Storage/docker-data`
-- n8n compose project: `/Storage/docker/n8n`
-- n8n data: `/Storage/docker/n8n/n8n_data`
-- n8n public URL: `https://n8n.3develop.ru`
-- n8n local URL on VPS: `http://127.0.0.1:5678`
+- **Основной инстанс (n8n)**: `/Storage/docker/n8n` (порт 5678, public URL: `https://n8n.3develop.ru`).
+- **Инженерный инстанс (n8n-eng)**: `/Storage/docker/n8n-eng` (порт 5679).
+- **Политика автоочистки логов и предотвращения раздувания SQLite** (задана в `docker-compose.yml` обоих сервисов):
+  - `EXECUTIONS_DATA_SAVE_ON_SUCCESS=none`
+  - `EXECUTIONS_DATA_SAVE_ON_ERROR=all`
+  - `EXECUTIONS_DATA_MAX_AGE=48` (часов)
+  - `EXECUTIONS_DATA_PRUNE_MAX_COUNT=500`
+- **Автоматическое сжатие SQLite (Cron)**:
+  - Скрипт: `/usr/local/bin/n8n-sqlite-auto-vacuum.sh` (в `/etc/cron.weekly/`).
+  - Логика: если `database.sqlite` превышает 500 МБ, выполняет `PRAGMA wal_checkpoint(TRUNCATE); VACUUM;` с логом в `/var/log/n8n-vacuum.log`.
+  - При ручном сжатии/клонировании базы **всегда сохранять таблицу `migrations`**, иначе TypeORM циклично падает на `table "tag_entity" already exists`.
 
 ## Docker / 3X-UI (VLESS Reality VPN)
 
@@ -100,8 +107,6 @@ sudo systemctl reload apache2
   docker rm -f mtproto-proxy
   ```
 
-
-
 ## Docker / Metabase
 
 - **Статус**: Активен. Запущен в Docker (порт 3000).
@@ -113,14 +118,23 @@ sudo systemctl reload apache2
   - `manager@tender-rag.local` / `manager12345` (Менеджер)
 - **Потребление RAM**: ~3.5 ГБ. При сборке тяжелых образов Docker (например, `tender-rag-api`) временно останавливать (`docker stop metabase`), чтобы избежать ошибки OOM 137.
 
-## Docker / Tender RAG API
+## Docker / Tender RAG API & Изоляция Михаила
 
-- **Статус**: Активен. Путь: `/root/tender-rag-api`
-- **Порт**: `8000` (FastAPI uvicorn).
+- **Статус**: Активен. Путь: `/home/mikhail/tender-rag-api` (также мастер-копия в `/root/tender-rag-api`).
+- **Порт**: `8000` (FastAPI uvicorn). Контейнер: `tender-rag-api-prod`.
 - **Туннель**: `tender-rag-tunnel` (`ekzhang/bore`), проксирует порт на `bore.pub` для внешней интеграции/отладки без VPN.
 - **Хелсчек**: `http://127.0.0.1:8000/health` -> `{"status":"ok"}`.
 - **Сетевая документация**: `docs/ARCHITECTURE_MAP.md`.
-- **Конфигурация**: Переменные загружаются из `.env` через директиву `env_file: - .env` в `docker-compose.yml`.
+- **Изолированный пользователь**: `mikhail` (без группы docker, права 0700 на `/root`, `/var/1C`, `/var/lib/pgpro`).
+- **Sudoers Whitelist (`/etc/sudoers.d/mikhail`)**:
+  - `sudo /usr/local/bin/deploy-tender.sh` (деплой из git и ребилд)
+  - `sudo docker ps`
+  - `sudo docker logs tender-rag-api-prod`
+  - `sudo docker restart tender-rag-api-prod`
+- **Демон автодеплоя по Webhook**:
+  - Служба: `tender-webhook-deploy.service` (скрипт `/opt/scripts/tender_webhook_deploy.py`, порт `9876`).
+  - Секретный токен: `tender_deploy_sec_9119130838_wlisses` (заголовок `X-Deploy-Token`).
+  - Триггер: `curl -X POST http://109.248.170.181:9876/ -H "X-Deploy-Token: tender_deploy_sec_9119130838_wlisses"`.
 
 
 ## Storage

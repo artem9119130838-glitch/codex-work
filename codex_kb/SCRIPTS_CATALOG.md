@@ -1,7 +1,7 @@
 # Единый каталог скриптов и автоматизаций контура (SCRIPTS_CATALOG)
 
-> **Дата последней автоматической ревизии:** `2026-09-25 22:40:43`  
-> **Статус контура:** Уникальных проверенных скриптов: `509` | Отсеяно дубликатов: `596` | Библиотек вендоров: `4385`.  
+> **Дата последней автоматической ревизии:** `2026-09-25 22:43:39`  
+> **Статус контура:** Уникальных проверенных скриптов: `512` | Отсеяно дубликатов: `596` | Библиотек вендоров: `4385`.  
 > **Архитектурный стандарт:** «Семейства инструментов» (Tool Families). Любые модификации группируются в одной ячейке от базового вызова к расширенным.
 
 ---
@@ -103,6 +103,7 @@
 | **Базовый** | `add_wait_node.py` | `C:/Users/Артем/tender-rag-api/scratch/add_wait_node.py` | Create the Wait node | 0 |
 | **Базовый** | `audit_db.py` | `C:/Users/Артем/tender-rag-api/scratch/audit_db.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `config.py` | `C:/Users/Артем/tender-rag-api/app/core/config.py` | odels | 0 |
+| **Базовый** | `deploy-tender.sh` | `scripts/vps/deploy-tender.sh` | Безопасный деплой проекта тендеров tender-rag-api для пользователя mikhail Выполняется через sudo /usr/local/bin/deploy-tender.sh или tender-webhook-deploy | 0 |
 | **Базовый** | `deploy_metabase_analytics.py` | `C:/Users/Артем/tender-rag-api/scripts/deploy_metabase_analytics.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `document.py` | `C:/Users/Артем/tender-rag-api/app/api/routers/document.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `generate_backfill_sql.py` | `C:/Users/Артем/tender-rag-api/analytics/scripts/generate_backfill_sql.py` | Загружаем переменные окружения | 0 |
@@ -112,6 +113,7 @@
 | **Базовый** | `logger.py` | `C:/Users/Артем/tender-rag-api/app/core/logger.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `rabbitmq.py` | `C:/Users/Артем/tender-rag-api/app/core/rabbitmq.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `read_docx.py` | `C:/Users/Артем/tender-rag-api/scratch/read_docx.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `tender_webhook_deploy.py` | `scripts/vps/tender_webhook_deploy.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `tender_worker.py` | `C:/Users/Артем/tender-rag-api/app/workers/tender_worker.py` | Для тестов по умолчанию стучимся на локальный мок-сервер 5001, а на бою - в n8n | 0 |
 | **Базовый** | `update_docs.py` | `C:/Users/Артем/tender-rag-api/scratch/update_docs.py` | Update PROGRESS.md | 0 |
 | **Базовый** | `update_docs_chat.py` | `C:/Users/Артем/tender-rag-api/scratch/update_docs_chat.py` | Update PROGRESS.md | 0 |
@@ -582,6 +584,7 @@
 | **Базовый** | `monitor_disk.sh` | `Shared: scratch/monitor_disk.sh` | Скрипт мониторинга дисков с уведомлением в Битрикс24 | 0 |
 | **Базовый** | `moz_internal_linking_report.py` | `projects/GoW Project/moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `moz_internal_linking_report.py` | `D:/Soft/Codex Backup/projects/GoW Project/moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `n8n-sqlite-auto-vacuum.sh` | `scripts/vps/n8n-sqlite-auto-vacuum.sh` | Еженедельное автоматическое обслуживание и сжатие SQLite баз данных n8n и n8n-eng Размещается в /usr/local/bin/n8n-sqlite-auto-vacuum.sh и связывается с /etc/cron.weekly/ | 0 |
 | **Базовый** | `parse_days_detail.py` | `scripts/parse_days_detail.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `parse_js.py` | `projects/tilda_migration/parse_js.py` | Let's search for URLs or api endpoints | 0 |
 | **Базовый** | `parse_js.py` | `D:/Soft/Codex Backup/projects/tilda_migration/parse_js.py` | Let's search for URLs or api endpoints | 0 |
