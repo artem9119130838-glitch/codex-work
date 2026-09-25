@@ -86,12 +86,16 @@
 <a id='pc_migration'></a>
 ## 5. Перенос данных с ПК на ПК (HP Victus ⮂ MateBook ⮂ Mirror_E_Home)
 
-| Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
+| Уровень / Роль | Скрипт / Конфиг | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Базовый** | `document.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/schemas/document.py` | Схема для описания структуры одного чанка | 0 |
-| **Базовый** | `document.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/services/document.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `document.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/api/routers/document.py` | Передаем файл в слой бизнес-логики для парсинга и нарезки | 0 |
-| **Базовый** | `main.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/main.py` | Подключаем наш роутер | 0 |
+| **Базовый (MateBook)** | `1_MateBook_to_External.ffs_gui` | `E:/Mirror_E_Home/1_MateBook_to_External.ffs_gui` | Выгрузка с MateBook 14 на внешний накопитель (24 пары папок, режим Update) | 1 (`NewLaptop_to_External.ffs_gui`) |
+| **Базовый (Victus)** | `2_External_to_Victus.ffs_gui` | `E:/Mirror_E_Home/2_External_to_Victus.ffs_gui` | Развертывание с внешнего диска F: на HP Victus (пользователь Артем, E:\Codex_Work) | 0 |
+| **Адаптация путей** | `fix_paths_for_victus.py` | `E:/Mirror_E_Home/fix_paths_for_victus.py` | Замена путей Artem -> Артем и C:\Codex_Personal -> E:\Codex_Work в файлах Antigravity | 0 |
+| **Промпт развертывания** | `VICTUS_RESTORE_PROMPT.md` | `E:/Mirror_E_Home/VICTUS_RESTORE_PROMPT.md` | Полный системный промпт проверки и верификации окружения для Antigravity на Victus | 0 |
+| **Инструкция-гайд** | `RETURN_TO_VICTUS_GUIDE.md` | `E:/Mirror_E_Home/RETURN_TO_VICTUS_GUIDE.md` | Пошаговый регламент обратного переноса окружения | 0 |
+| **Диагностика ПК** | `check_and_clean_pc.py` | `scripts/check_and_clean_pc.py` | Экспресс-проверка GPU Код 43, MPO, фантомов SIMULATED, F8, Acrobat, очистка кэша | 0 |
+| **Ревизия каталога** | `full_gravity_audit.py` | `scripts/full_gravity_audit.py` | Сканирование всех контуров, отсев библиотек вендоров, сборка SCRIPTS_CATALOG.md | 0 |
+| **Сжатие сессий** | `session_compress.py` | `scripts/session_compress.py` | Сжатие истории чата, формирование SESSION_SUMMARY.md и синхронизация с Git | 0 |
 
 ---
 
