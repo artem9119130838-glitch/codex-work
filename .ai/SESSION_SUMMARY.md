@@ -1,50 +1,41 @@
 # SESSION SUMMARY — Итоги сессии и handoff-контекст
 
-**Дата и время сжатия (DT):** 2026-09-25 22:51:19
+**Дата и время сжатия (DT):** 2026-09-25 23:10:11
 
 ---
 
 ## 🔍 Итог сессии в один абзац
-Проведена полная синхронизация проекта tender-extraction-lab: выполнено слияние веток Михаила mikhail-origin/main и feature/new-tender-filter с приоритетом его доработок, создан бэкап на VPS (/Storage/backups/tender-rag-api/2026-08-26/), внедрен суточный лимит DeepSeek (.30/сутки), мягкая деградация эмбеддингов, русскоязычный промпт и личные алерты администратору. Контейнеры на VPS пересобраны с поддержкой pandas/openpyxl (Metabase сохранен, Health Check 200 OK), сформирован отчет docs/sync_report_2026-08-26.md, обновлены навыки llm_quota_and_fallback_manager и n8n_idempotent_crm_pipelines, изменения запушены в origin и mikhail-origin.
+Устранены все сбои пайплайна тендеров (Tender RAG API + n8n): исправлена синтаксическая ошибка в промпте llm_service.py, в docker-compose.prod.yml подключено прямое монтирование volumes ./app:/app/app для применения правок Михаила за 2 секунды, в Dockerfile гарантированно установлены python-docx/openpyxl/pypdf, в ноде n8n Notify Empty File1 адрес localhost:8000 заменен на http://10.10.0.1:8000 (обновлено в базе SQLite), на VPS настроен изолированный автодеплой каждые 2 минуты с проверкой py_compile, сквозной тест успешно завершен с созданием сделки ID 2026 в Битрикс24.
 
 ---
 
 ## 1. Выполненные задачи (Успехи)
-- Слияние веток mikhail-origin/main и feature/new-tender-filter
-- Бэкап кода на VPS в /Storage/backups/tender-rag-api/2026-08-26/
-- Внедрение стоп-лосса DeepSeek (.30/день) и мягкой деградации векторизации
-- Защита от китайского языка в промптах и персональные уведомления в колокольчик Битрикс24 (im.notify.personal.add)
-- Пересборка Docker на VPS и Health Check 200 OK (Metabase цел)
-- Создание docs/sync_report_2026-08-26.md и пуш в оба репозитория GitHub
-- Эволюция навыков llm_quota_and_fallback_manager и n8n_idempotent_crm_pipelines
+- Исправление синтаксиса в llm_service.py
+- Настройка volumes ./app:/app/app в docker-compose.prod.yml
+- Установка python-docx в Dockerfile
+- Исправление localhost:8000 в n8n Notify Empty File1
+- Автодеплой на VPS с проверкой py_compile
+- Сквозной прогон и создание сделки ID 2026 в Битрикс24
 
 ---
 
 ## 2. Измененные и новые файлы
-- `app/core/config.py`
-- `app/services/document.py`
 - `app/services/llm_service.py`
-- `app/api/routers/document.py`
-- `app/services/tender_lot_parser_v7.py`
-- `docs/PROGRESS.md`
-- `docs/sync_report_2026-08-26.md`
+- `docker-compose.prod.yml`
+- `Dockerfile`
 - `workflows/n8n/n8n_production_pipeline.json`
-- `C:/Users/Артем/.gemini/config/skills/llm_quota_and_fallback_manager/SKILL.md`
-- `C:/Users/Артем/.gemini/config/skills/n8n_idempotent_crm_pipelines/SKILL.md`
-- `C:/Codex_Personal/todo.md`
+- `todo.md`
+- `SKILL.md`
 
 ---
 
 ## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
-- Копирование тяжелых баз n8n (>10GB) перегружает IO и зависает — бэкапить только код
-- docker-compose down с общими сетями ломает сиротские контейнеры (Metabase) — использовать прямой up -d --build
-- Многоязычные JSON-промпты требуют явного указания (строго на РУССКОМ языке) во избежание галлюцинаций
+- 1. Обязательно настраивать volumes ./app:/app/app в compose во избежание деплоя в старый запеченный образ; 2. Экранировать скобки {{ в f-строках промптов; 3. В n8n использовать 10.10.0.1:8000 вместо localhost:8000; 4. Явно устанавливать python-docx в Dockerfile
 
 ---
 
 ## 4. Открытые вопросы и следующие шаги
-- Тестирование ban-префильтрации Михаилом через n8n_prefilter_bans.json
-- Мониторинг стабильности джиттера Wait Random при массовой загрузке тендеров
+- Контролировать стабильность создания сделок и последующие коммиты Михаила
 
 ---
 
@@ -52,14 +43,11 @@
 
 ```text
 Текущая сессия чата завершена. Итог работы:
-Проведена полная синхронизация проекта tender-extraction-lab: выполнено слияние веток Михаила mikhail-origin/main и feature/new-tender-filter с приоритетом его доработок, создан бэкап на VPS (/Storage/backups/tender-rag-api/2026-08-26/), внедрен суточный лимит DeepSeek (.30/сутки), мягкая деградация эмбеддингов, русскоязычный промпт и личные алерты администратору. Контейнеры на VPS пересобраны с поддержкой pandas/openpyxl (Metabase сохранен, Health Check 200 OK), сформирован отчет docs/sync_report_2026-08-26.md, обновлены навыки llm_quota_and_fallback_manager и n8n_idempotent_crm_pipelines, изменения запушены в origin и mikhail-origin.
+Устранены все сбои пайплайна тендеров (Tender RAG API + n8n): исправлена синтаксическая ошибка в промпте llm_service.py, в docker-compose.prod.yml подключено прямое монтирование volumes ./app:/app/app для применения правок Михаила за 2 секунды, в Dockerfile гарантированно установлены python-docx/openpyxl/pypdf, в ноде n8n Notify Empty File1 адрес localhost:8000 заменен на http://10.10.0.1:8000 (обновлено в базе SQLite), на VPS настроен изолированный автодеплой каждые 2 минуты с проверкой py_compile, сквозной тест успешно завершен с созданием сделки ID 2026 в Битрикс24.
 
 Для продолжения этой задачи в новом чате:
 1. Ознакомься со сводкой в `.ai/SESSION_SUMMARY.md`.
-2. Выполни открытые задачи: - Тестирование ban-префильтрации Михаилом через n8n_prefilter_bans.json
-- Мониторинг стабильности джиттера Wait Random при массовой загрузке тендеров.
-3. Учти критические ошибки и извлеченные уроки: - Копирование тяжелых баз n8n (>10GB) перегружает IO и зависает — бэкапить только код
-- docker-compose down с общими сетями ломает сиротские контейнеры (Metabase) — использовать прямой up -d --build
-- Многоязычные JSON-промпты требуют явного указания (строго на РУССКОМ языке) во избежание галлюцинаций.
+2. Выполни открытые задачи: - Контролировать стабильность создания сделок и последующие коммиты Михаила.
+3. Учти критические ошибки и извлеченные уроки: - 1. Обязательно настраивать volumes ./app:/app/app в compose во избежание деплоя в старый запеченный образ; 2. Экранировать скобки {{ в f-строках промптов; 3. В n8n использовать 10.10.0.1:8000 вместо localhost:8000; 4. Явно устанавливать python-docx в Dockerfile.
 Начни работу строго с этих шагов, соблюдая правила репозитория.
 ```

@@ -185,6 +185,7 @@
 | **Базовый** | `session_compress.py` | `Shared: scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
 | **Базовый** | `session_compress.py` | `D:/Soft/Codex Backup/scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
 | **Базовый** | `summary_service.py` | `Shared: projects/n8n_email_ai_funnel_version/app/services/summary_service.py` | 1. Fetch contact messages (both processed and unprocessed to get full context) | 4 |
+| **Расширенный** | `audit_archived_transcripts.py` | `scripts/audit_archived_transcripts.py` | Автоматический аудит логов архивных сессий `brain/*/transcript.jsonl` за 14-45 дней: поиск упущенных директив, замечаний пользователя и бизнес-ограничений. Запуск: `py scripts/audit_archived_transcripts.py [дни]`. | 0 |
 | **Расширенный** | `check_sintez_summary.py` | `Shared: projects/n8n_email_ai_funnel_version/scratch/check_sintez_summary.py` | Автоматизация рабочего процесса. | 2 |
 
 ---
