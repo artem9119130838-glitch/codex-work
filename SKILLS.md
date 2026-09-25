@@ -18,8 +18,8 @@
     *   *Когда вызывать:* Подготовка `SESSION_SUMMARY.md` для архивации контекста, очистка мусора и переход в новый чистый чат (`/compress`).
 6.  **[tender_automation](file:///C:/Users/Артем/.gemini/config/skills/tender_automation/SKILL.md) — Автоматизация тендеров и парсинг**
     *   *Когда вызывать:* Написание роботов для АСТ ГОЗ, извлечение спецификаций из DOCX/PDF таблиц, троттлинг запросов к Gemini API, слияние Excel-лотов с сохранением формул и стилей.
-7.  **[email_ai_pipelines](file:///C:/Users/Артем/.gemini/config/skills/email_ai_pipelines/SKILL.md) — ИИ-пайплайны почты**
-    *   *Когда вызывать:* Интеграция n8n с почтой/CRM, парсинг вложений (XLSX, PDF), очистка цитирования писем, проверка прав Google Drive, запросы OData 1С, pgvector миграции и SSH-туннели.
+7.  **[email_ai_pipelines](file:///C:/Users/Артем/.gemini/config/skills/email_ai_pipelines/SKILL.md) — ИИ-пайплайны почты и follow-up сделок**
+    *   *Когда вызывать:* Интеграция n8n с почтой/CRM, парсинг вложений (XLSX, PDF), боевой конвейер follow-up на сегодня (`process_today_followup_deals.py`), генерация черновиков в Roundcube IMAP, эскалация звонков при >=2 письмах, запросы OData 1С, pgvector миграции и SSH-туннели.
 8.  **[metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md) — Аналитика и безопасность Metabase**
     *   *Когда вызывать:* Построение SQL-воронок, расчет снижения и НМЦК, скрытие баз данных и настройка прав доступа в Community Free версии Metabase, бэкап H2-базы.
 9.  **[llm_quota_and_fallback_manager](file:///C:/Users/Артем/.gemini/config/skills/llm_quota_and_fallback_manager/SKILL.md) — Мультимодельный LLM Fallback и Квоты**

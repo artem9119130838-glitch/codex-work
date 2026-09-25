@@ -82,7 +82,7 @@ DOMAINS = [
     {
         "id": "followup_sales",
         "title": "11. Follow-up продаж в сделках и реактивация клиентов",
-        "keywords": ["reactivation", "golden_phrases", "follow_up", "подогрев"]
+        "keywords": ["reactivation", "golden_phrases", "follow_up", "followup", "deal_followup", "подогрев"]
     },
     {
         "id": "idempotent_crm_1c",

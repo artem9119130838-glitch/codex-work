@@ -355,7 +355,9 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_v6_backup/app/run_daily_reactivation.py` | Setup path | 0 |
+| **Боевой конвейер** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | **Главный конвейер follow-up на сегодня** (алиас: `follow up deals today`): выборка незавершенных дел Битрикс24 (OWNER_TYPE_ID: 2) с дедлайном <= сегодня, генерация персонализированных черновиков в IMAP Roundcube `sales@longwang.ru` (папка `Черновики`), закрытие дел, постановка дела-звонка при >=2 письмах, перенос CRM_TODO на +4..5 дней. Запуск: `py projects/1c_odata/scripts/process_today_followup_deals.py [--dry-run]`. | 1 |
+| **Модульный пайплайн** | `deal_followup_pipeline.py` | `projects/1c_odata/scripts/deal_followup_pipeline.py` | **Модульный пайплайн контроля сделок**: черновики с вложениями из Диска Битрикс24 (RFC 2231 с кириллицей), кулдаун 7-10 дней, разделение CRM_TODO vs Звонки. | 1 |
+| **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai/app/run_daily_reactivation.py` | Ежедневный фоновый скрипт реактивации «спящих» клиентов и брошенных сделок. | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_migration_backup_20260809/app/run_daily_reactivation.py` | Setup path | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_funnel_version/app/run_daily_reactivation.py` | Setup path | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_backup/app/run_daily_reactivation.py` | Setup path | 0 |

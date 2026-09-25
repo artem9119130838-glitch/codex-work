@@ -19,6 +19,8 @@
   * [/] Локализация причин черного экрана Intel Iris Xe (PSR2/DRRS/Link Training 144 Гц), подготовка чистого отката на заводской OEM-драйвер HP SP148389 (31.0.101.4502) через DDU в Safe Mode и восстановление вывода на внешний монитор MS27HQ-v1 по HDMI.
 
 
+- [x] Разработка и регистрация конвейера follow-up сделок: скрипты `process_today_followup_deals.py` и `deal_followup_pipeline.py` скопированы в личный контур, добавлены быстрые фразы-триггеры «follow up deals today» (или «ащддщ up deals today») в `AGENTS.md`, `GRAVITY_CONTROL_CENTER.md`, `SKILLS.md`, `email_ai_pipelines` и `SCRIPTS_CATALOG.md`.
+
 ## Архив выполненных задач:
 - [x] Очистка переполненного диска /Storage на VPS, устранение дублирования бэкапов в cron, обновление логики скрипта backup-sql.sh (с защитой от удаления последнего бэкапа и отправкой алертов при сбоях в n8n) и перезапуск зависшей службы 1С.
 - [x] Проверка доступов Чулпан (25chulpan@gmail.com) на Google Диске руководителя artem9119130838@gmail.com

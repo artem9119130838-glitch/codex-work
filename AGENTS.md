@@ -28,6 +28,7 @@
   * **«полная ревизия и форматирование гравити»**: Запуск `py scripts/full_gravity_audit.py` (сканирование Personal + Shared + tender-rag, отсев библиотек вендоров, дедупликация, пересборка `SCRIPTS_CATALOG.md`).
   * **«конец чата»**: Комплексное завершение сессии (`py scripts/session_compress.py` + фиксация уроков и эволюция `SKILL.md` + очистка `scratch/` + `git push origin master`).
   * **«почисти и проверь мой ПК (ноутбук)»**: Экспресс-диагностика `py scripts/check_and_clean_pc.py` (GPU Код 43, MPO, фантомы SIMULATED, BCD F8, Acrobat, свободное место на дисках).
+  * **«follow up deals today»** (или **«ащддщ up deals today»**): Разбор незавершенных дел и сделок на сегодня в Битрикс24 (`py projects/1c_odata/scripts/process_today_followup_deals.py`): генерация персонализированных черновиков follow-up писем в IMAP Roundcube `sales@longwang.ru` (папка `Черновики`), перенос CRM_TODO (+4..5 дн.), эскалация звонков при $\ge 2$ неотвеченных письмах и скачивание вложений с Диска.
 - `C:\Codex_Personal` — единый репозиторий Git, привязанный к вашему личному GitHub (`artem9119130838-glitch/codex-work.git`).
 - Основные активы личного контура (сервер VPS, 1С, VPN, Keenetic) описаны в базе знаний `codex_kb/10_assets/` и `codex_kb/20_domains/`.
 - Выполняемые задачи фиксируются в локальном логе: [todo.md](file:///C:/Codex_Personal/todo.md).
