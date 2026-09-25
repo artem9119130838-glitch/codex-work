@@ -33,7 +33,18 @@ def clean_scratch(scratch_dir):
 
 def run_git(args, desc, cwd_dir):
     git_path = r"C:\Program Files\Git\cmd\git.exe"
-    ssh_key_path = r"C:/Users/Artem/.ssh/id_ed25519"
+    ssh_candidates = [
+        Path.home() / ".ssh" / "id_ed25519",
+        Path("C:/Users/Артем/.ssh/id_ed25519"),
+        Path("C:/Users/Artem/.ssh/id_ed25519"),
+    ]
+    ssh_key_path = None
+    for cand in ssh_candidates:
+        if cand.exists():
+            ssh_key_path = str(cand).replace("\\", "/")
+            break
+    if not ssh_key_path:
+        ssh_key_path = str(Path.home() / ".ssh" / "id_ed25519").replace("\\", "/")
     
     # Проверяем, инициализирован ли Git в этой папке
     if not (Path(cwd_dir) / ".git").exists():

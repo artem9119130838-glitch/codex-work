@@ -5,7 +5,7 @@
 ## Список доступных навыков (в C:\Users\Артем\.gemini\config\skills\):
 
 1.  **[windows](file:///C:/Users/Артем/.gemini/config/skills/windows/SKILL.md) — Диагностика Windows**
-    *   *Когда вызывать:* Зависание Acrobat Reader, проблемы блокировки PDF в Temp, медленная работа Проводника (Explorer) из-за сетевых папок, сбои реестра, .bat скрипты, Punto Switcher.
+    *   *Когда вызывать:* Зависание Acrobat Reader, проблемы блокировки PDF в Temp, медленная работа Проводника (Explorer), сбои реестра, .bat скрипты, Punto Switcher, гибридная графика Intel/NVIDIA и черный экран, управление BCD и Safe Mode (клавиша F8, msconfig).
 2.  **[linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md) — Администрирование Linux**
     *   *Когда вызывать:* Настройка и мониторинг VPS-сервера, проверка SSH-ключей, разбор логов авторизации `auth.log`, перезапуск Apache, управление Docker-контейнерами, Keenetic split-routing, бэкапы.
 3.  **[git](file:///C:/Users/Артем/.gemini/config/skills/git/SKILL.md) — Git Workflow и Безопасность**
