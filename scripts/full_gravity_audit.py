@@ -30,44 +30,74 @@ VENDOR_DIRS = {
 
 DOMAINS = [
     {
-        "id": "b24",
-        "title": "1. CRM Битрикс24 (Чаты, Сделки, Лиды, Задачи, Вебхуки)",
-        "keywords": ["bitrix", "b24", "crm", "deal", "lead"]
+        "id": "ai_chats",
+        "title": "1. Выгрузка, парсинг и фильтрация чатов ИИ (Gemini / ChatGPT / Claude)",
+        "keywords": ["ai_chats", "conversations", "chat_operator", "parse_unresolved", "merge_small", "chats export"]
     },
     {
-        "id": "1c",
-        "title": "2. 1С:УНФ и OData API (Контрагенты, Заказы, Номенклатура)",
-        "keywords": ["odata", "onec", "1c", "contractor", "saby", "dadata"]
+        "id": "supply_china",
+        "title": "2. Снабжение и ВЭД в Китае (Дечжоу / Циндао, фонд 5000 RMB, возврат НДС)",
+        "keywords": ["china", "supply", "wechat", "китайский снабженец", "gmv", "дечжоу", "циндао"]
     },
     {
-        "id": "email",
-        "title": "3. Почта (IMAP / SMTP / Обработка писем и вложений)",
-        "keywords": ["imap", "smtp", "mail", "email", "inbox", "junk", "pdf_text"]
+        "id": "price_creating",
+        "title": "3. Создание прайс-листов и коммерческих предложений из каталогов",
+        "keywords": ["price", "прайс", "спецификаци", "дополнительное соглашение", "wgl"]
     },
     {
-        "id": "hr",
-        "title": "4. HR, Резюме и Кандидаты (Китай / ВЭД)",
-        "keywords": ["candidate", "resume", "hr", "wechat", "china", "salary"]
+        "id": "hr_resume",
+        "title": "4. Анализ резюме, RAG-база кандидатов и генерация ответов соискателям",
+        "keywords": ["resume", "candidate", "соискател", "резюме", "clean_digits", "inbox_reply"]
     },
     {
-        "id": "tender",
-        "title": "5. Тендеры, АСТ ГОЗ и RAG-пайплайн спецификаций",
-        "keywords": ["tender", "lot", "chunker", "goz", "act", "nmck", "eval"]
+        "id": "pc_migration",
+        "title": "5. Перенос данных с ПК на ПК (HP Victus ⮂ MateBook ⮂ Mirror_E_Home)",
+        "keywords": ["fix_paths", "victus", "matebook", "freefilesync", "ffs", "punto", "user.dic"]
     },
     {
-        "id": "infra",
-        "title": "6. Инфраструктура, VPS-сервер, Docker и Бэкапы",
-        "keywords": ["vps", "backup", "inventory", "mass_replace", "verify", "preflight", "budget", "docker", "ssh"]
+        "id": "sprint_mikhail",
+        "title": "6. Спринты Михаила, RAG ГОЗ и Архитектура сети VPS",
+        "keywords": ["mikhail", "михаил", "bore", "wireguard", "architecture_map", "tender-rag-api"]
     },
     {
-        "id": "windows",
-        "title": "7. Windows, HP Victus 16, Дисплеи и Safe Mode",
-        "keywords": ["victus", "safe_mode", "f8", "bcd", "acrobat", "display", "mpo", "snapshot"]
+        "id": "windows_diagnostics",
+        "title": "7. Windows Diagnostics, графика Victus 16, Safe Mode и дисплеи",
+        "keywords": ["acrobat", "safe_mode", "f8", "bcd", "check_and_clean_pc", "сброс_кэша", "mpo", "weekly_run"]
     },
     {
-        "id": "session",
-        "title": "8. Управление сессиями и сжатие ИИ-контекста",
-        "keywords": ["session", "compress", "summary", "build_index", "audit"]
+        "id": "session_compression",
+        "title": "8. Анализ истории чата, сжатие сессий и /learn",
+        "keywords": ["session_compress", "full_gravity_audit", "summary", "build_index"]
+    },
+    {
+        "id": "onec_bitrix_sync",
+        "title": "9. Связка 1С:УНФ и Битрикс24 (OData, Контрагенты, Заказы, СКД)",
+        "keywords": ["sync_to_bitrix", "check_contractor", "search_1c", "odata", "kpiменеджеров", "onec"]
+    },
+    {
+        "id": "lead_inbound",
+        "title": "10. Обработка новых лидов и Inbound-снабжение (Email AI Pipeline)",
+        "keywords": ["run_imap", "text_cleaner", "unassociated", "junk_filter", "check_drive_access"]
+    },
+    {
+        "id": "followup_sales",
+        "title": "11. Follow-up продаж в сделках и реактивация клиентов",
+        "keywords": ["reactivation", "golden_phrases", "follow_up", "подогрев"]
+    },
+    {
+        "id": "idempotent_crm_1c",
+        "title": "12. Синхронизация лидов и компаний в 1С и Битрикс24 (Idempotent CRM)",
+        "keywords": ["run_onec_sync", "reconcile_1c", "patch_n8n", "idempotent"]
+    },
+    {
+        "id": "tenders_goz",
+        "title": "13. Тендеры, АСТ ГОЗ и RAG-пайплайн спецификаций",
+        "keywords": ["tender_lot", "chunker", "goz", "act", "nmck", "eval_min_context"]
+    },
+    {
+        "id": "infra_vps",
+        "title": "14. Инфраструктура, VPS-сервер, Docker и Бэкапы",
+        "keywords": ["vps", "backup", "inventory", "mass_replace", "verify", "preflight", "budget"]
     }
 ]
 
@@ -126,17 +156,23 @@ def classify_script(path, desc):
             return dom["id"], level
             
     # Default category based on path
-    if "1c" in full_str:
-        return "1c", level
-    if "tender" in full_str:
-        return "tender", level
-    if "email" in full_str or "n8n" in full_str:
-        return "email", level
-    if "hr" in full_str:
-        return "hr", level
-    if "inventory" in full_str or "vps" in full_str:
-        return "infra", level
-    return "infra", level
+    if "chats export" in full_str or "gemini" in full_str:
+        return "ai_chats", level
+    if "price" in full_str or "прайс" in full_str:
+        return "price_creating", level
+    if "victus" in full_str or "matebook" in full_str:
+        return "pc_migration", level
+    if "1c" in full_str or "bitrix" in full_str or "b24" in full_str:
+        return "onec_bitrix_sync", level
+    if "tender" in full_str or "goz" in full_str:
+        return "tenders_goz", level
+    if "email" in full_str or "n8n" in full_str or "imap" in full_str:
+        return "lead_inbound", level
+    if "hr" in full_str or "resume" in full_str:
+        return "hr_resume", level
+    if "victus" in full_str or "safe_mode" in full_str or "display" in full_str:
+        return "windows_diagnostics", level
+    return "infra_vps", level
 
 def run_audit():
     root_personal = Path(r"C:\Codex_Personal")

@@ -91,3 +91,23 @@
 | **`D:\server-backups`** | Локальные архивы | Архивы дампов SQL и Docker с боевого сервера VPS `109.248.170.181`. |
 | **`D:\Soft\Codex Backup`** | Резервный Git | Полные архивы и снимки сессий с ноутбука Victus. |
 | **Рабочий стол ноутбука** | - | Экстренные батники (`ВКЛЮЧИТЬ_КЛАВИШУ_F8.bat`, `СБРОС_КЭША_ДИСПЛЕЕВ.bat`, памятки). |
+
+---
+
+## 📚 4. Реестр 12 бизнес-доменов контура (Где искать готовое)
+
+Все проверенные готовые скрипты и документы распределены по 12 направлениям в **[SCRIPTS_CATALOG.md](file:///C:/Codex_Personal/codex_kb/SCRIPTS_CATALOG.md)**:
+
+1. **Выгрузка и фильтрация всех чатов Gemini / ChatGPT / Claude**: `projects/AI chats export/src/` (`AI_chats_filter_optimized.py`, слияние и очистка экспортов).
+2. **Подготовка таблиц для снабжения и ВЭД в Китае**: `projects/HR/` (`HR_CHINA_POLICY.md` — фонд 5000 RMB + 1% GMV + 10% 退税, реестр 35 соискателей в Дечжоу/Циндао, генератор Excel `create_candidates_excel.py`).
+3. **Создание прайс-листов и КП из каталогов**: `projects/Price creating/` (шаблон спецификаций WGL, дополнительное соглашение №5).
+4. **Анализ резюме и генерация ответов соискателям**: `projects/HR/` (`scratch_parse_resumes.py`, RAG-база `build_candidates_rag_db.py`, трекер откликов `check_inbox_reply.py`).
+5. **Перенос данных с ПК на ПК (Victus ⮂ MateBook ⮂ Mirror_E_Home)**: конфиги FreeFileSync `1_MateBook_to_External.ffs_gui`, скрипт адаптации путей `fix_paths_for_victus.py`, миграция Punto Switcher `user.dic`.
+6. **Анализ спринтов Михаила и Архитектура сети VPS**: `docs/ARCHITECTURE_MAP.md` (Bore, WireGuard, Docker-порты), приемка RAG в `projects/tender-extraction-lab/PROJECT_HANDOFF.md`.
+7. **Windows Diagnostics и обслуживание Victus 16**: `check_and_clean_pc.py`, батники F8, сброса кэша дисплеев MPO, Код 43 (`nvhmi.inf`), нейтрализация Acrobat (`fix_acrobat_genuine.ps1`).
+8. **Анализ всей истории чата, сжатие контекста и /learn**: `scripts/session_compress.py`, сводка в один абзац `.ai/SESSION_SUMMARY.md`, ревизия `full_gravity_audit.py`.
+9. **Связка 1С:УНФ и Битрикс24**: OData поиск `search_1c_entities.py`, квалификация 3-в-1 (1C + DaData + Saby) `check_contractor.py`, синхронизация `sync_to_bitrix.py`, отчет СКД `KPIМенеджеров_new_fixed.erf`.
+10. **Обработка новых лидов и Inbound-снабжение**: демон входящей почты `run_imap.py`, очистка цитат `text_cleaner.py`, привязка лидов `apply_unassociated_matches.py`.
+11. **Follow-up продаж в сделках и реактивация клиентов**: ежедневный подогрев `run_daily_reactivation.py`, тест `test_pilot_reactivation.py`, скоринг «золотых фраз» `bitrix_golden_phrases.py`.
+12. **Синхронизация лидов в 1С и Битрикс24 (Idempotent CRM)**: фоновый демон `run_onec_sync.py`, сверка `reconcile_1c_db.py`, защита от дубликатов `n8n_idempotent_crm_pipelines`.
+
