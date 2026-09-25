@@ -21,8 +21,13 @@
 3. [SECURITY.md](file:///C:/Codex_Personal/SECURITY.md) — Матрица рисков Decision Policy (L0-L6) и подтверждения.
 4. [SKILLS.md](file:///C:/Codex_Personal/SKILLS.md) — Индекс доступных навыков.
 5. [SCRIPTS_CATALOG.md](file:///C:/Codex_Personal/codex_kb/SCRIPTS_CATALOG.md) — Единый каталог готовых скриптов и автоматизаций по семействам инструментов.
+6. [GRAVITY_CONTROL_CENTER.md](file:///C:/Codex_Personal/codex_kb/00_control/GRAVITY_CONTROL_CENTER.md) — Центр управления Codex, быстрые фразы-триггеры и карта контуров.
 
 ## 2. Локальный контекст контура (Специфика)
+- **Быстрые фразы-триггеры пользователя (Мгновенное выполнение)**:
+  * **«полная ревизия и форматирование гравити»**: Запуск `py scripts/full_gravity_audit.py` (сканирование Personal + Shared + tender-rag, отсев библиотек вендоров, дедупликация, пересборка `SCRIPTS_CATALOG.md`).
+  * **«конец чата»**: Комплексное завершение сессии (`py scripts/session_compress.py` + фиксация уроков и эволюция `SKILL.md` + очистка `scratch/` + `git push origin master`).
+  * **«почисти и проверь мой ПК (ноутбук)»**: Экспресс-диагностика `py scripts/check_and_clean_pc.py` (GPU Код 43, MPO, фантомы SIMULATED, BCD F8, Acrobat, свободное место на дисках).
 - `C:\Codex_Personal` — единый репозиторий Git, привязанный к вашему личному GitHub (`artem9119130838-glitch/codex-work.git`).
 - Основные активы личного контура (сервер VPS, 1С, VPN, Keenetic) описаны в базе знаний `codex_kb/10_assets/` и `codex_kb/20_domains/`.
 - Выполняемые задачи фиксируются в локальном логе: [todo.md](file:///C:/Codex_Personal/todo.md).
