@@ -1,7 +1,7 @@
 # Единый каталог скриптов и автоматизаций контура (SCRIPTS_CATALOG)
 
-> **Дата последней автоматической ревизии:** `2026-09-25 15:42:02`  
-> **Статус контура:** Уникальных проверенных скриптов: `484` | Отсеяно дубликатов: `595` | Библиотек вендоров: `4385`.  
+> **Дата последней автоматической ревизии:** `2026-09-25 22:39:46`  
+> **Статус контура:** Уникальных проверенных скриптов: `509` | Отсеяно дубликатов: `596` | Библиотек вендоров: `4385`.  
 > **Архитектурный стандарт:** «Семейства инструментов» (Tool Families). Любые модификации группируются в одной ячейке от базового вызова к расширенным.
 
 ---
@@ -86,16 +86,12 @@
 <a id='pc_migration'></a>
 ## 5. Перенос данных с ПК на ПК (HP Victus ⮂ MateBook ⮂ Mirror_E_Home)
 
-| Уровень / Роль | Скрипт / Конфиг | Расположение | Описание и модификации | Дублей в архивах |
+| Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Базовый (MateBook)** | `1_MateBook_to_External.ffs_gui` | `E:/Mirror_E_Home/1_MateBook_to_External.ffs_gui` | Выгрузка с MateBook 14 на внешний накопитель (24 пары папок, режим Update) | 1 (`NewLaptop_to_External.ffs_gui`) |
-| **Базовый (Victus)** | `2_External_to_Victus.ffs_gui` | `E:/Mirror_E_Home/2_External_to_Victus.ffs_gui` | Развертывание с внешнего диска F: на HP Victus (пользователь Артем, E:\Codex_Work) | 0 |
-| **Адаптация путей** | `fix_paths_for_victus.py` | `E:/Mirror_E_Home/fix_paths_for_victus.py` | Замена путей Artem -> Артем и C:\Codex_Personal -> E:\Codex_Work в файлах Antigravity | 0 |
-| **Промпт развертывания** | `VICTUS_RESTORE_PROMPT.md` | `E:/Mirror_E_Home/VICTUS_RESTORE_PROMPT.md` | Полный системный промпт проверки и верификации окружения для Antigravity на Victus | 0 |
-| **Инструкция-гайд** | `RETURN_TO_VICTUS_GUIDE.md` | `E:/Mirror_E_Home/RETURN_TO_VICTUS_GUIDE.md` | Пошаговый регламент обратного переноса окружения | 0 |
-| **Диагностика ПК** | `check_and_clean_pc.py` | `scripts/check_and_clean_pc.py` | Экспресс-проверка GPU Код 43, MPO, фантомов SIMULATED, F8, Acrobat, очистка кэша | 0 |
-| **Ревизия каталога** | `full_gravity_audit.py` | `scripts/full_gravity_audit.py` | Сканирование всех контуров, отсев библиотек вендоров, сборка SCRIPTS_CATALOG.md | 0 |
-| **Сжатие сессий** | `session_compress.py` | `scripts/session_compress.py` | Сжатие истории чата, формирование SESSION_SUMMARY.md и синхронизация с Git | 0 |
+| **Базовый** | `document.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/schemas/document.py` | Схема для описания структуры одного чанка | 0 |
+| **Базовый** | `document.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/services/document.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `document.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/api/routers/document.py` | Передаем файл в слой бизнес-логики для парсинга и нарезки | 0 |
+| **Базовый** | `main.py` | `D:/Soft/Codex Backup/AI Backups Victus/Codex_Work/projects/tender-extraction-lab/tender-rag-api/app/main.py` | Подключаем наш роутер | 0 |
 
 ---
 
@@ -180,6 +176,7 @@
 | **Базовый** | `build_index.py` | `D:/Soft/Codex Backup/scripts/build_index.py` | normalize path separators | 0 |
 | **Базовый** | `full_gravity_audit.py` | `scripts/full_gravity_audit.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `generate_local_summary.py` | `Shared: projects/n8n_email_ai_funnel_version/scratch/generate_local_summary.py` | 1. Start SSH tunnel locally to connect to VPS Postgres | 2 |
+| **Базовый** | `parse_sprint_summary.py` | `scripts/parse_sprint_summary.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `print_xlsx_summary.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/print_xlsx_summary.py` | Автоматизация рабочего процесса. | 3 |
 | **Базовый** | `run_single_sintez_summary.py` | `Shared: projects/n8n_email_ai_funnel_version/scratch/run_single_sintez_summary.py` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `session_compress.py` | `scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
@@ -201,13 +198,17 @@
 | **Базовый** | `analyze_odata.py` | `Shared: projects/n8n_email_ai_funnel_version/scripts/analyze_odata.py` | Автоматизация рабочего процесса. | 4 |
 | **Базовый** | `b1c2d3e4f5a6_add_knowledge_base.py` | `Shared: projects/n8n_email_ai_funnel_version/alembic/versions/b1c2d3e4f5a6_add_knowledge_base.py` | add knowledge_base | 4 |
 | **Базовый** | `b24_chat_intelligence.py` | `Shared: projects/1c_odata/scripts/b24_chat_intelligence.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `build_exam_docx.py` | `Shared: projects/1c_odata/scratch/build_exam_docx.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `build_kpi_erf.py` | `Shared: projects/1c_odata/scripts/build_kpi_erf.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `build_master_regulation_docx.py` | `Shared: projects/1c_odata/scratch/build_master_regulation_docx.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `build_scripts_registry.py` | `Shared: projects/1c_odata/scratch/build_scripts_registry.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `catalog_scripts.py` | `Shared: projects/1c_odata/scratch/catalog_scripts.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `deal_followup_pipeline.py` | `Shared: projects/1c_odata/scripts/deal_followup_pipeline.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `deal_followup_pipeline.py` | `projects/1c_odata/scripts/deal_followup_pipeline.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `deep_chat_inspector.py` | `Shared: projects/1c_odata/scratch/deep_chat_inspector.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `deep_inspect_batch_12.py` | `Shared: projects/1c_odata/scripts/deep_inspect_batch_12.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `deep_inspect_batch_12_first4.py` | `Shared: projects/1c_odata/scripts/deep_inspect_batch_12_first4.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `docx_engine.py` | `Shared: projects/1c_odata/scratch/docx_engine.py` | Color Palette | 0 |
+| **Базовый** | `docx_styler.py` | `Shared: projects/1c_odata/scratch/docx_styler.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `dump_lead_groups.py` | `Shared: projects/1c_odata/scratch/dump_lead_groups.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `execute_batch_3.py` | `Shared: projects/1c_odata/scratch/execute_batch_3.py` | ------------------------------------------------------------- CREDENTIALS & CONSTANTS | 0 |
 | **Базовый** | `execute_batch_4.py` | `Shared: projects/1c_odata/scratch/execute_batch_4.py` | ------------------------------------------------------------- CREDENTIALS & CONSTANTS | 0 |
@@ -217,11 +218,13 @@
 | **Базовый** | `fetch_email_119.py` | `Shared: projects/1c_odata/scripts/fetch_email_119.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_all_target_chats.py` | `Shared: projects/1c_odata/scratch/find_all_target_chats.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_lmz_lead.py` | `Shared: projects/1c_odata/scratch/find_lmz_lead.py` | 1. Search Catalog_Лиды by Description 'ЛМЗ Рыбинск' | 0 |
+| **Базовый** | `find_today_activity.py` | `Shared: projects/1c_odata/scratch/find_today_activity.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `generate_batch_4_dry_run.py` | `Shared: projects/1c_odata/scratch/generate_batch_4_dry_run.py` | Constants | 0 |
 | **Базовый** | `group_scripts.py` | `Shared: projects/1c_odata/scratch/group_scripts.py` | Categories definition | 0 |
 | **Базовый** | `inspect_batch_12.py` | `Shared: projects/1c_odata/scripts/inspect_batch_12.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_batch_4_details.py` | `Shared: projects/1c_odata/scratch/inspect_batch_4_details.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_batch_5_bodies.py` | `Shared: projects/1c_odata/scratch/inspect_batch_5_bodies.py` | Print body preview We can inspect the attachments or bodies | 0 |
+| **Базовый** | `inspect_deal_2166.py` | `Shared: projects/1c_odata/scratch/inspect_deal_2166.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_docs_detailed.py` | `Shared: projects/1c_odata/scratch/inspect_docs_detailed.py` | 1. Inspect i7858_Договор_по_КК_РОС.doc xtract text by searching for words in binary doc | 0 |
 | **Базовый** | `inspect_item_details.py` | `Shared: projects/1c_odata/scripts/inspect_item_details.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `parse_attachments.py` | `Shared: projects/1c_odata/scratch/parse_attachments.py` | Автоматизация рабочего процесса. | 0 |
@@ -231,9 +234,12 @@
 | **Базовый** | `print_items_35_36_38.py` | `Shared: projects/1c_odata/scratch/print_items_35_36_38.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `process_b24_inbound_leads.py` | `Shared: projects/1c_odata/scripts/process_b24_inbound_leads.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `process_batch_pipeline.py` | `Shared: projects/1c_odata/scripts/process_batch_pipeline.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `process_today_followup_deals.py` | `Shared: projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `qualify_batch_5.py` | `Shared: projects/1c_odata/scratch/qualify_batch_5.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `read_batch_5_bodies.py` | `Shared: projects/1c_odata/scratch/read_batch_5_bodies.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `read_docx_attachments.py` | `Shared: projects/1c_odata/scratch/read_docx_attachments.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `read_email_thread.py` | `Shared: projects/1c_odata/scratch/read_email_thread.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `scratch_b24_fetch.py` | `projects/HR/scratch_b24_fetch.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_1c_entities.py` | `projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_1c_entities.py` | `Shared: projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 0 |
@@ -242,6 +248,7 @@
 | **Базовый** | `search_dadata_batch_4.py` | `Shared: projects/1c_odata/scratch/search_dadata_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_tasks_and_topics.py` | `Shared: projects/1c_odata/scratch/search_tasks_and_topics.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `summarize_batch_4.py` | `Shared: projects/1c_odata/scratch/summarize_batch_4.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `update_gas_exam.py` | `Shared: projects/1c_odata/scratch/update_gas_exam.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_1c_batch_5.py` | `Shared: projects/1c_odata/scratch/check_1c_batch_5.py` | 1. Counterparty 2. Lead | 0 |
 | **Расширенный** | `check_all_folders.py` | `Shared: projects/1c_odata/scratch/check_all_folders.py` | xample: '(\\HasNoChildren \\Drafts) "." Drafts' | 0 |
 | **Расширенный** | `check_contact_15984.py` | `Shared: projects/1c_odata/scripts/check_contact_15984.py` | 1. B24 Contact 15984 | 0 |
@@ -255,6 +262,7 @@
 | **Расширенный** | `check_snab_region.py` | `Shared: projects/1c_odata/scripts/check_snab_region.py` | 1. Inspect Lead 000001663 in 1C | 0 |
 | **Расширенный** | `inspect_b24_deals.py` | `Shared: projects/1c_odata/scratch/inspect_b24_deals.py` | Also check company for rsce.ru | 0 |
 | **Расширенный** | `inspect_item_119.py` | `Shared: projects/1c_odata/scripts/inspect_item_119.py` | Let's check IMAP message for item 119 or scratch files | 0 |
+| **Расширенный** | `inspect_petroship_email.py` | `Shared: projects/1c_odata/scratch/inspect_petroship_email.py` | Check activities on Contact 16332 and Lead 17338 | 0 |
 | **Расширенный** | `onec_sync_service.py` | `Shared: projects/n8n_email_ai_funnel_version/app/services/onec_sync_service.py` | Автоматизация рабочего процесса. | 3 |
 | **Расширенный** | `onec_sync_service.py` | `Shared: projects/n8n_email_ai/app/services/onec_sync_service.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `run_check_contractors_batch_4.py` | `Shared: projects/1c_odata/scratch/run_check_contractors_batch_4.py` | Автоматизация рабочего процесса. | 0 |
@@ -359,9 +367,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Боевой конвейер** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | **Главный конвейер follow-up на сегодня** (алиас: `follow up deals today`): выборка незавершенных дел Битрикс24 (OWNER_TYPE_ID: 2) с дедлайном <= сегодня, генерация персонализированных черновиков в IMAP Roundcube `sales@longwang.ru` (папка `Черновики`), закрытие дел, постановка дела-звонка при >=2 письмах, перенос CRM_TODO на +4..5 дней. Запуск: `py projects/1c_odata/scripts/process_today_followup_deals.py [--dry-run]`. | 1 |
-| **Модульный пайплайн** | `deal_followup_pipeline.py` | `projects/1c_odata/scripts/deal_followup_pipeline.py` | **Модульный пайплайн контроля сделок**: черновики с вложениями из Диска Битрикс24 (RFC 2231 с кириллицей), кулдаун 7-10 дней, разделение CRM_TODO vs Звонки. | 1 |
-| **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai/app/run_daily_reactivation.py` | Ежедневный фоновый скрипт реактивации «спящих» клиентов и брошенных сделок. | 0 |
+| **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_v6_backup/app/run_daily_reactivation.py` | Setup path | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_migration_backup_20260809/app/run_daily_reactivation.py` | Setup path | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_funnel_version/app/run_daily_reactivation.py` | Setup path | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `Shared: projects/n8n_email_ai_backup/app/run_daily_reactivation.py` | Setup path | 0 |
@@ -393,6 +399,7 @@
 | **Базовый** | `add_error_handling.py` | `Shared: projects/tender-extraction-lab/scratch/add_error_handling.py` | --------------------------------------------------------- 1. Error Trigger & Notify Error | 1 |
 | **Базовый** | `analyze.py` | `Shared: projects/tender-extraction-lab/scratch/analyze.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `base.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/tries/base.py` | !/usr/bin/env python3 | 3 |
+| **Базовый** | `build_full_markdown_artifact.py` | `scripts/build_full_markdown_artifact.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `chanker_gemini_1.py` | `ARCHIVE/GOZ/ACT/_РАЗОБРАНО 13-05/chanker_gemini_1.py` | Улучшенные регулярные выражения (убраны полезные слова из негативных паттернов) Теперь исключаем только реальный юридический мусор, не трогая условия приемки | 1 |
 | **Базовый** | `chunks_jsonl_to_xlsx.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/chunks_jsonl_to_xlsx.py` | !/usr/bin/env python3 | 3 |
 | **Базовый** | `clean_signature.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/Доки и записи/clean_signature.py` | 1. Открываем изображение | 3 |
@@ -415,6 +422,7 @@
 | **Базовый** | `extract_js_context.py` | `projects/tilda_migration/extract_js_context.py` | print 1000 characters before and after | 0 |
 | **Базовый** | `extract_js_context.py` | `D:/Soft/Codex Backup/projects/tilda_migration/extract_js_context.py` | print 1000 characters before and after | 0 |
 | **Базовый** | `extract_pdf_text.py` | `Shared: projects/n8n_email_ai_funnel_version/scripts/extract_pdf_text.py` | Автоматизация рабочего процесса. | 4 |
+| **Базовый** | `extract_sprint_points.py` | `scripts/extract_sprint_points.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `h02__del_date_priority.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/tries/h02__del_date_priority.py` | !/usr/bin/env python3 | 3 |
 | **Базовый** | `h04__del_deadline_clause_boost.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/tries/h04__del_deadline_clause_boost.py` | !/usr/bin/env python3 | 3 |
 | **Базовый** | `h05__del_always_scan_docx_raw.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/tries/h05__del_always_scan_docx_raw.py` | !/usr/bin/env python3 | 3 |
@@ -504,8 +512,10 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Базовый** | `FULL_moz_internal_linking_report.py` | `projects/GoW Project/FULL_moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `FULL_moz_internal_linking_report.py` | `D:/Soft/Codex Backup/projects/GoW Project/FULL_moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `analyze_all_details.py` | `scripts/analyze_all_details.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `analyze_forms.py` | `projects/tilda_migration/analyze_forms.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `analyze_forms.py` | `D:/Soft/Codex Backup/projects/tilda_migration/analyze_forms.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `analyze_sprint.py` | `scripts/analyze_sprint.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `apply_final_fixes.py` | `projects/tilda_migration/apply_final_fixes.py` | FTP Config | 0 |
 | **Базовый** | `apply_final_fixes.py` | `D:/Soft/Codex Backup/projects/tilda_migration/apply_final_fixes.py` | FTP Config | 0 |
 | **Базовый** | `budget_enforcer.py` | `scripts/budget_enforcer.py` | ates per 1M tokens | 0 |
@@ -518,18 +528,22 @@
 | **Базовый** | `compare_vtb.py` | `D:/Soft/Codex Backup/projects/GoW Project/compare_vtb.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `create_theme.py` | `projects/tilda_migration/create_theme.py` | Load resource mapping | 0 |
 | **Базовый** | `create_theme.py` | `D:/Soft/Codex Backup/projects/tilda_migration/create_theme.py` | Load resource mapping | 0 |
+| **Базовый** | `deep_analysis.py` | `scripts/deep_analysis.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `deep_sprint_reviewer.py` | `scripts/deep_sprint_reviewer.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `deploy_files.ps1` | `Shared: scratch/deploy_files.ps1` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `download_project_specific_assets.py` | `projects/tilda_migration/download_project_specific_assets.py` | FTP Config | 0 |
 | **Базовый** | `download_project_specific_assets.py` | `D:/Soft/Codex Backup/projects/tilda_migration/download_project_specific_assets.py` | FTP Config | 0 |
 | **Базовый** | `download_resources.py` | `projects/tilda_migration/download_resources.py` | Paths | 0 |
 | **Базовый** | `download_resources.py` | `D:/Soft/Codex Backup/projects/tilda_migration/download_resources.py` | Paths | 0 |
 | **Базовый** | `download_vps_backup.ps1` | `scripts/download_vps_backup.ps1` | Конфигурация | 1 |
+| **Базовый** | `dump_chat_md.py` | `scripts/dump_chat_md.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `explore_htdocs.py` | `projects/tilda_migration/explore_htdocs.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `explore_htdocs.py` | `D:/Soft/Codex Backup/projects/tilda_migration/explore_htdocs.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `explore_www.py` | `projects/tilda_migration/explore_www.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `explore_www.py` | `D:/Soft/Codex Backup/projects/tilda_migration/explore_www.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `export_installed_programs.ps1` | `projects/local_inventory/inventory/export_installed_programs.ps1` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `export_installed_programs.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/export_installed_programs.ps1` | Автоматизация рабочего процесса. | 2 |
+| **Базовый** | `export_sprint_chat.py` | `scripts/export_sprint_chat.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `find_biohim.py` | `projects/tilda_migration/find_biohim.py` | Search for "БИОХИМ" or "biohim" | 0 |
 | **Базовый** | `find_biohim.py` | `D:/Soft/Codex Backup/projects/tilda_migration/find_biohim.py` | Search for "БИОХИМ" or "biohim" | 0 |
 | **Базовый** | `find_endpoints_in_dashboard.py` | `projects/tilda_migration/find_endpoints_in_dashboard.py` | Автоматизация рабочего процесса. | 0 |
@@ -544,12 +558,15 @@
 | **Базовый** | `find_more_paths.py` | `D:/Soft/Codex Backup/projects/tilda_migration/find_more_paths.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `fix_icons_and_footer.py` | `projects/tilda_migration/fix_icons_and_footer.py` | FTP Config | 0 |
 | **Базовый** | `fix_icons_and_footer.py` | `D:/Soft/Codex Backup/projects/tilda_migration/fix_icons_and_footer.py` | FTP Config | 0 |
+| **Базовый** | `generate_readable_review.py` | `scripts/generate_readable_review.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `inspect_days_6_7_cost.py` | `scripts/inspect_days_6_7_cost.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_form_html.py` | `projects/tilda_migration/inspect_form_html.py` | print first 3000 chars of block HTML | 0 |
 | **Базовый** | `inspect_form_html.py` | `D:/Soft/Codex Backup/projects/tilda_migration/inspect_form_html.py` | print first 3000 chars of block HTML | 0 |
 | **Базовый** | `inspect_forms_detail.py` | `projects/tilda_migration/inspect_forms_detail.py` | Let's find all divs with class 't-form' | 0 |
 | **Базовый** | `inspect_forms_detail.py` | `D:/Soft/Codex Backup/projects/tilda_migration/inspect_forms_detail.py` | Let's find all divs with class 't-form' | 0 |
 | **Базовый** | `inspect_images.py` | `projects/tilda_migration/inspect_images.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_images.py` | `D:/Soft/Codex Backup/projects/tilda_migration/inspect_images.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `inspect_reports_detail.py` | `scripts/inspect_reports_detail.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inventory.py` | `config/infra_management/scripts/inventory.py` | Configuration | 1 |
 | **Базовый** | `inventory_common.ps1` | `projects/local_inventory/inventory/inventory_common.ps1` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `inventory_common.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/inventory_common.ps1` | Автоматизация рабочего процесса. | 2 |
@@ -565,6 +582,7 @@
 | **Базовый** | `monitor_disk.sh` | `Shared: scratch/monitor_disk.sh` | Скрипт мониторинга дисков с уведомлением в Битрикс24 | 0 |
 | **Базовый** | `moz_internal_linking_report.py` | `projects/GoW Project/moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `moz_internal_linking_report.py` | `D:/Soft/Codex Backup/projects/GoW Project/moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `parse_days_detail.py` | `scripts/parse_days_detail.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `parse_js.py` | `projects/tilda_migration/parse_js.py` | Let's search for URLs or api endpoints | 0 |
 | **Базовый** | `parse_js.py` | `D:/Soft/Codex Backup/projects/tilda_migration/parse_js.py` | Let's search for URLs or api endpoints | 0 |
 | **Базовый** | `rename_assets_and_title.py` | `projects/tilda_migration/rename_assets_and_title.py` | FTP Config | 0 |
@@ -597,6 +615,7 @@
 | **Базовый** | `zip_theme.py` | `projects/tilda_migration/zip_theme.py` | Compute relative path in ZIP (should start with qilin-theme/) | 0 |
 | **Базовый** | `zip_theme.py` | `D:/Soft/Codex Backup/projects/tilda_migration/zip_theme.py` | Compute relative path in ZIP (should start with qilin-theme/) | 0 |
 | **Расширенный** | `AI chats filter.py` | `D:/Soft/Codex Backup/ARCHIVE/Архивы чатов ИИ/AI chats filter.py` | ========================================== ========================================== | 0 |
+| **Расширенный** | `build_sprint_evaluation.py` | `scripts/build_sprint_evaluation.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `check_broken_links.py` | `projects/tilda_migration/check_broken_links.py` | 1. Stylesheets | 0 |
 | **Расширенный** | `check_broken_links.py` | `D:/Soft/Codex Backup/projects/tilda_migration/check_broken_links.py` | 1. Stylesheets | 0 |
 | **Расширенный** | `check_content.py` | `projects/tilda_migration/check_content.py` | Print page title | 0 |
