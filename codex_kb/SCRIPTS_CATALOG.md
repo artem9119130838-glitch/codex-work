@@ -1,7 +1,7 @@
 # Единый каталог скриптов и автоматизаций контура (SCRIPTS_CATALOG)
 
-> **Дата последней автоматической ревизии:** `2026-09-25 22:43:39`  
-> **Статус контура:** Уникальных проверенных скриптов: `512` | Отсеяно дубликатов: `596` | Библиотек вендоров: `4385`.  
+> **Дата последней автоматической ревизии:** `2026-09-25 23:09:09`  
+> **Статус контура:** Уникальных проверенных скриптов: `510` | Отсеяно дубликатов: `596` | Библиотек вендоров: `4385`.  
 > **Архитектурный стандарт:** «Семейства инструментов» (Tool Families). Любые модификации группируются в одной ячейке от базового вызова к расширенным.
 
 ---
@@ -267,6 +267,7 @@
 | **Расширенный** | `inspect_petroship_email.py` | `Shared: projects/1c_odata/scratch/inspect_petroship_email.py` | Check activities on Contact 16332 and Lead 17338 | 0 |
 | **Расширенный** | `onec_sync_service.py` | `Shared: projects/n8n_email_ai_funnel_version/app/services/onec_sync_service.py` | Автоматизация рабочего процесса. | 3 |
 | **Расширенный** | `onec_sync_service.py` | `Shared: projects/n8n_email_ai/app/services/onec_sync_service.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `prepare_excel_for_1c.py` | `Shared: projects/1c_odata/scripts/prepare_excel_for_1c.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `run_check_contractors_batch_4.py` | `Shared: projects/1c_odata/scratch/run_check_contractors_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `run_onec_sync.py` | `Shared: projects/n8n_email_ai_funnel_version/app/run_onec_sync.py` | Автоматизация рабочего процесса. | 4 |
 | **Расширенный** | `sync_to_bitrix.py` | `projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |
@@ -399,14 +400,12 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Базовый** | `add_error_handling.py` | `Shared: projects/tender-extraction-lab/scratch/add_error_handling.py` | --------------------------------------------------------- 1. Error Trigger & Notify Error | 1 |
-| **Базовый** | `analyze.py` | `Shared: projects/tender-extraction-lab/scratch/analyze.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `base.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/tries/base.py` | !/usr/bin/env python3 | 3 |
 | **Базовый** | `build_full_markdown_artifact.py` | `scripts/build_full_markdown_artifact.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `chanker_gemini_1.py` | `ARCHIVE/GOZ/ACT/_РАЗОБРАНО 13-05/chanker_gemini_1.py` | Улучшенные регулярные выражения (убраны полезные слова из негативных паттернов) Теперь исключаем только реальный юридический мусор, не трогая условия приемки | 1 |
 | **Базовый** | `chunks_jsonl_to_xlsx.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/chunks_jsonl_to_xlsx.py` | !/usr/bin/env python3 | 3 |
 | **Базовый** | `clean_signature.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/Доки и записи/clean_signature.py` | 1. Открываем изображение | 3 |
 | **Базовый** | `clean_stamp.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/Доки и записи/clean_stamp.py` | 1. перед всем этим установить  pip install pillow | 3 |
-| **Базовый** | `compare.py` | `Shared: projects/tender-extraction-lab/scratch/compare.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `compare_built_vs_gold_19_05.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/compare_built_vs_gold_19_05.py` | Автоматизация рабочего процесса. | 3 |
 | **Базовый** | `compare_with_gold_19_05.py` | `projects/tender-extraction-lab/legacy/old_project/ACT/compare_with_gold_19_05.py` | !/usr/bin/env python3 | 3 |
 | **Базовый** | `config.py` | `Shared: projects/tender-extraction-lab/app/core/config.py` | odels | 0 |
@@ -446,7 +445,6 @@
 | **Базовый** | `md_chunker.py` | `projects/n8n_email_ai/rag_tools/md_chunker.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `md_chunker.py` | `Shared: projects/n8n_email_ai_funnel_version/50_rag_tools/md_chunker.py` | Автоматизация рабочего процесса. | 4 |
 | **Базовый** | `read_docx.py` | `Shared: projects/tender-extraction-lab/scratch/read_docx.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `read_gdrive.py` | `Shared: projects/tender-extraction-lab/scratch/read_gdrive.py` | Заменяем \\u на \u | 0 |
 | **Базовый** | `reinstall_chrome_beta_linux.sh` | `ARCHIVE/GOZ/Архив/node_dependencies/node_modules_2026-05-10/playwright-core/bin/reinstall_chrome_beta_linux.sh` | !/usr/bin/env bash | 1 |
 | **Базовый** | `reinstall_chrome_beta_mac.sh` | `ARCHIVE/GOZ/Архив/node_dependencies/node_modules_2026-05-10/playwright-core/bin/reinstall_chrome_beta_mac.sh` | !/usr/bin/env bash | 1 |
 | **Базовый** | `reinstall_chrome_beta_win.ps1` | `ARCHIVE/GOZ/Архив/node_dependencies/node_modules_2026-05-10/playwright-core/bin/reinstall_chrome_beta_win.ps1` | Автоматизация рабочего процесса. | 1 |
@@ -497,7 +495,6 @@
 | **Расширенный** | `tender_lot_parser_v7.py` | `Shared: projects/tender-extraction-lab/app/services/tender_lot_parser_v7.py` | !/usr/bin/env python3 | 1 |
 | **Интеграционный** | `check_n8n_workflows.py` | `Shared: projects/n8n_email_ai_funnel_version/scratch/check_n8n_workflows.py` | Check active workflows | 2 |
 | **Интеграционный** | `create_bitrix24_workflow.py` | `Shared: projects/tender-extraction-lab/scratch/create_bitrix24_workflow.py` | Автоматизация рабочего процесса. | 1 |
-| **Интеграционный** | `deploy_workflow.py` | `Shared: projects/tender-extraction-lab/scratch/deploy_workflow.py` | Автоматизация рабочего процесса. | 0 |
 | **Интеграционный** | `generate_v2_1_leads_and_contacts_params_workflow.ps1` | `projects/n8n_email_ai/scripts/generate_v2_1_leads_and_contacts_params_workflow.ps1` | Автоматизация рабочего процесса. | 1 |
 | **Интеграционный** | `generate_v2_1_leads_and_contacts_params_workflow.ps1` | `ARCHIVE/n8n_email_ai_2026-05-11/scripts/generate_v2_1_leads_and_contacts_params_workflow.ps1` | Автоматизация рабочего процесса. | 9 |
 | **Интеграционный** | `merge_workflows.py` | `Shared: projects/tender-extraction-lab/scratch/merge_workflows.py` | 1. Start with ingest webhook, but add splitting logic | 1 |
@@ -520,6 +517,7 @@
 | **Базовый** | `analyze_sprint.py` | `scripts/analyze_sprint.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `apply_final_fixes.py` | `projects/tilda_migration/apply_final_fixes.py` | FTP Config | 0 |
 | **Базовый** | `apply_final_fixes.py` | `D:/Soft/Codex Backup/projects/tilda_migration/apply_final_fixes.py` | FTP Config | 0 |
+| **Базовый** | `audit_archived_transcripts.py` | `scripts/audit_archived_transcripts.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `budget_enforcer.py` | `scripts/budget_enforcer.py` | ates per 1M tokens | 0 |
 | **Базовый** | `budget_enforcer.py` | `Shared: scripts/budget_enforcer.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `budget_enforcer.py` | `D:/Soft/Codex Backup/scripts/budget_enforcer.py` | ates per 1M tokens | 0 |
