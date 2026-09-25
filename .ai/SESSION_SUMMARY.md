@@ -1,51 +1,49 @@
 # SESSION SUMMARY — Итоги сессии и handoff-контекст
 
-**Дата и время сжатия (DT):** 2026-09-25 12:00:04
+**Дата и время сжатия (DT):** 2026-09-25 17:14:21
 
 ---
 
 ## 🔍 Итог сессии в один абзац
-В текущей сессии на ноутбуке HP Victus 16 была решена ошибка NVIDIA Код 43 (возврат на Optimus драйвер nvhmi.inf 32.0.15.9649), очищен кэш поврежденных мониторов и оверлеев MPO, нейтрализованы всплывающие окна нелицензионного Acrobat, настроена клавиша F8 (legacy boot policy) для вызова Safe Mode без задержек при загрузке, разъяснены ограничения msconfig и удалены лишние пункты BCD, а также подготовлены твики и скрипты для перехода к установке OEM-драйвера Intel без черного экрана.
+В ходе сессии полностью настроен и зафиксирован конвейер ежедневного follow-up по сделкам в Битрикс24 и IMAP Roundcube (process_today_followup_deals.py и deal_followup_pipeline.py) с быстрыми триггерами «follow up deals today» / «ащддщ up deals today», обновлены контракты AGENTS.md, SKILLS.md, GRAVITY_CONTROL_CENTER.md, каталог скриптов и памятка на Рабочем столе; также закреплены правила безопасной настройки BCD/F8 и обслуживания графики Victus 16, а все изменения сохранены и отправлены в GitHub.
 
 ---
 
 ## 1. Выполненные задачи (Успехи)
-- Устранена ошибка NVIDIA Код 43 (32.0.15.9649 nvhmi.inf)
-- Нейтрализованы баннеры Adobe Acrobat (GC_disabled + cefWorkflow_disabled + hosts + FeatureLockDown)
-- Очищен кэш дисплеев и отключен баг MPO (DisableOverlays=1; HiberbootEnabled=0)
-- Настроен загрузчик Windows: включена клавиша F8 (legacy boot policy) и отключен таймаут загрузчика (timeout 0)
-- Разъяснена логика msconfig (запрет удаления текущей ОС и очистка клонированной записи Safe Mode)
-- Созданы скрипты на Рабочем столе (ВКЛЮЧИТЬ_КЛАВИШУ_F8.bat; УДАЛИТЬ_ЛИШНЕЕ_МЕНЮ_ЗАГРУЗКИ.bat; СБРОС_КЭША_ДИСПЛЕЕВ.bat)
-- Обновлен навык Windows (Раздел 15 про BCD и Safe Mode) и база знаний LOCAL_COMPUTER.md
+- Интеграция конвейера follow-up сделок в личный контур
+- Добавление быстрых триггеров «follow up deals today» / «ащддщ up deals today» в AGENTS.md и Центр управления
+- Обновление мастер-каталога SCRIPTS_CATALOG.md и домена followup в full_gravity_audit.py
+- Актуализация навыка email_ai_pipelines и индекса SKILLS.md
+- Синхронизация памятки на Рабочем столе
+- Ревизия BCD и регламентов графики Victus 16
 
 ---
 
 ## 2. Измененные и новые файлы
-- `codex_kb/10_assets/LOCAL_COMPUTER.md`
+- `AGENTS.md`
 - `SKILLS.md`
-- `docs/SAFE_MODE_AND_GPU_RECOVERY.md`
+- `codex_kb/00_control/GRAVITY_CONTROL_CENTER.md`
+- `codex_kb/SCRIPTS_CATALOG.md`
+- `projects/1c_odata/scripts/process_today_followup_deals.py`
+- `projects/1c_odata/scripts/deal_followup_pipeline.py`
+- `projects/1c_odata/scripts/README.md`
+- `scripts/full_gravity_audit.py`
 - `todo.md`
-- `scripts/fix_acrobat_genuine.ps1`
-- `scripts/session_compress.py`
-- `C:/Users/Артем/.gemini/config/skills/windows/SKILL.md`
-- `C:/Users/Артем/Desktop/ВАЖНЫЕ_КОМАНДЫ_И_SAFE_MODE.md`
-- `C:/Users/Артем/Desktop/ВКЛЮЧИТЬ_КЛАВИШУ_F8.bat`
-- `C:/Users/Артем/Desktop/УДАЛИТЬ_ЛИШНЕЕ_МЕНЮ_ЗАГРУЗКИ.bat`
+- `.ai/SESSION_SUMMARY.md`
 
 ---
 
 ## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
-- Для дискретной графики NVIDIA на HP Victus с Intel Optimus обязательно выбирать пакет nvhmi.inf (пакет nvhm.inf вызывает ошибку Код 43)
-- В Windows 11 команда bcdedit /timeout 0 лишь скрывает меню загрузки но не удаляет саму запись (ее нужно удалять через msconfig или bcdedit /delete)
-- В msconfig минимальный таймаут зафиксирован на 3 секунды при наличии 2+ ОС и текущую рабочую ОС удалить нельзя
-- Классическое меню F8 (bootmenupolicy legacy) - самый безопасный способ вызова Safe Mode без застревания в циклическом safeboot
-- Для скрипта session_compress.py путь к SSH-ключу должен определяться динамически с учетом имени пользователя с кириллицей (Артем)
+- В PowerShell не использовать && для объединения команд (использовать ;)
+- В full_gravity_audit.py включать ключевые слова без подчеркиваний (followup)
+- Для кириллических имен вложений email строго использовать RFC 2231 через EmailMessage
+- В BCD/msconfig никогда не удалять текущую рабочую ОС
 
 ---
 
 ## 4. Открытые вопросы и следующие шаги
-- Локализовать и устранить черный экран на Intel Iris Xe при установке DCH драйвера (отключить PSR2/DRRS перед активацией чипа либо накатить заводской HP SoftPaq SP148389 v31.0.101.4502 через DDU)
-- Восстановить вывод изображения на внешний монитор MS27HQ-v1 по HDMI (Win+P Расширить)
+- При необходимости запустить пробный прогон сделок: py projects/1c_odata/scripts/process_today_followup_deals.py --dry-run
+- Завершить откат драйвера Intel Iris Xe через DDU в Safe Mode при повторении черного экрана
 
 ---
 
@@ -53,16 +51,15 @@
 
 ```text
 Текущая сессия чата завершена. Итог работы:
-В текущей сессии на ноутбуке HP Victus 16 была решена ошибка NVIDIA Код 43 (возврат на Optimus драйвер nvhmi.inf 32.0.15.9649), очищен кэш поврежденных мониторов и оверлеев MPO, нейтрализованы всплывающие окна нелицензионного Acrobat, настроена клавиша F8 (legacy boot policy) для вызова Safe Mode без задержек при загрузке, разъяснены ограничения msconfig и удалены лишние пункты BCD, а также подготовлены твики и скрипты для перехода к установке OEM-драйвера Intel без черного экрана.
+В ходе сессии полностью настроен и зафиксирован конвейер ежедневного follow-up по сделкам в Битрикс24 и IMAP Roundcube (process_today_followup_deals.py и deal_followup_pipeline.py) с быстрыми триггерами «follow up deals today» / «ащддщ up deals today», обновлены контракты AGENTS.md, SKILLS.md, GRAVITY_CONTROL_CENTER.md, каталог скриптов и памятка на Рабочем столе; также закреплены правила безопасной настройки BCD/F8 и обслуживания графики Victus 16, а все изменения сохранены и отправлены в GitHub.
 
 Для продолжения этой задачи в новом чате:
 1. Ознакомься со сводкой в `.ai/SESSION_SUMMARY.md`.
-2. Выполни открытые задачи: - Локализовать и устранить черный экран на Intel Iris Xe при установке DCH драйвера (отключить PSR2/DRRS перед активацией чипа либо накатить заводской HP SoftPaq SP148389 v31.0.101.4502 через DDU)
-- Восстановить вывод изображения на внешний монитор MS27HQ-v1 по HDMI (Win+P Расширить).
-3. Учти критические ошибки и извлеченные уроки: - Для дискретной графики NVIDIA на HP Victus с Intel Optimus обязательно выбирать пакет nvhmi.inf (пакет nvhm.inf вызывает ошибку Код 43)
-- В Windows 11 команда bcdedit /timeout 0 лишь скрывает меню загрузки но не удаляет саму запись (ее нужно удалять через msconfig или bcdedit /delete)
-- В msconfig минимальный таймаут зафиксирован на 3 секунды при наличии 2+ ОС и текущую рабочую ОС удалить нельзя
-- Классическое меню F8 (bootmenupolicy legacy) - самый безопасный способ вызова Safe Mode без застревания в циклическом safeboot
-- Для скрипта session_compress.py путь к SSH-ключу должен определяться динамически с учетом имени пользователя с кириллицей (Артем).
+2. Выполни открытые задачи: - При необходимости запустить пробный прогон сделок: py projects/1c_odata/scripts/process_today_followup_deals.py --dry-run
+- Завершить откат драйвера Intel Iris Xe через DDU в Safe Mode при повторении черного экрана.
+3. Учти критические ошибки и извлеченные уроки: - В PowerShell не использовать && для объединения команд (использовать ;)
+- В full_gravity_audit.py включать ключевые слова без подчеркиваний (followup)
+- Для кириллических имен вложений email строго использовать RFC 2231 через EmailMessage
+- В BCD/msconfig никогда не удалять текущую рабочую ОС.
 Начни работу строго с этих шагов, соблюдая правила репозитория.
 ```
