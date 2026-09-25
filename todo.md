@@ -35,6 +35,12 @@
 
 
 - [x] Разработка и регистрация конвейера follow-up сделок: скрипты `process_today_followup_deals.py` и `deal_followup_pipeline.py` скопированы в личный контур, добавлены быстрые фразы-триггеры «follow up deals today» (или «ащддщ up deals today») в `AGENTS.md`, `GRAVITY_CONTROL_CENTER.md`, `SKILLS.md`, `email_ai_pipelines` и `SCRIPTS_CATALOG.md`.
+- [x] Синхронизация и деплой проекта `tender-extraction-lab`:
+  * Слияние веток Михаила (`mikhail-origin/main` и `mikhail-origin/feature/new-tender-filter`) с локальной веткой `main` (Wait Random, наблюдатели Битрикса, ban-префильтрация лотов `tender_lot_parser_v7.py`);
+  * Создание бэкапа рабочей версии кода на VPS (`/Storage/backups/tender-rag-api/2026-08-26/`);
+  * Внедрение суточного стоп-лосса DeepSeek ($0.30/день), мягкой деградации эмбеддингов, русскоязычного промпта и персональных алертов администратору (`im.notify.personal.add`);
+  * Пересборка Docker-контейнеров на VPS (`pandas`, `openpyxl`), сохранение целостности Metabase, успешный Health Check (`200 OK`);
+  * Формирование отчета для Михаила `docs/sync_report_2026-08-26.md` и пуш во все репозитории GitHub (`origin/main`, `mikhail-origin/main`).
 
 ## Архив выполненных задач:
 - [x] Очистка переполненного диска /Storage на VPS, устранение дублирования бэкапов в cron, обновление логики скрипта backup-sql.sh (с защитой от удаления последнего бэкапа и отправкой алертов при сбоях в n8n) и перезапуск зависшей службы 1С.
