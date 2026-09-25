@@ -14,7 +14,10 @@
 - [x] Проведен комплексный технический аудит наработок Михаила в ветке `main-test` (`wlissespanchame370-cyber/tender-rag-api`):
   * Изучены `daily_schedule_phase2.md`, логика каскадного отсева и принятие гипотез руководителя;
   * Выявлены критические ошибки: сломанный импорт `get_rabbitmq_channel` в `document.py`, отсутствие векторов эмбеддингов в `white_base_init.sql` (все NULL) + синтаксическая ошибка SQL на строке 17, хардкод путей MacOS в `import_white_base.py`, синхронный опрос Gemini в цикле без использования пула ключей.
-- [x] Выполнение задачи Михаила по созданию карты архитектуры сети docs/ARCHITECTURE_MAP.md на VPS. Безопасность окружения проверена, доступы Михаила (WireGuard, туннель Bore, Git) полностью сохранены.
+- [x] Выполнение задачи Михаила по созданию карты архитектуры сети docs/ARCHITECTURE_MAP.md на VPS и пуш в GitHub ветки main (artem9119130838-glitch и wlissespanchame370-cyber).
+- [x] Настройка изолированного окружения для Михаила на VPS (пользователь `mikhail`, доступ только к `/home/mikhail/tender-rag-api`, запрет прямого Docker, белый список в `sudoers` только для деплоя и логов своих сервисов, блокировка 1С и Postgres, сохранение ключа `id_ed25519_mikhail`).
+- [x] Развертывание демона автодеплоя по вебхуку `tender-webhook-deploy.service` (порт 9876) с защитой секретным токеном.
+- [x] Ликвидация сбоя n8n и защита от раздувания базы: сжатие `database.sqlite` в `n8n-eng` с 14 ГБ до 1.26 МБ, устранение ошибки миграции `CreateTagEntity`, включение `EXECUTIONS_DATA_SAVE_ON_SUCCESS=none`, `EXECUTIONS_DATA_MAX_AGE=48` и еженедельного скрипта обслуживания SQLite в `cron.weekly`.
 - [x] Решить проблему приведения типов параметров периода (`&НачалоПериода` и `&КонецПериода` в СКД) и задвоения себестоимости при интеграции пакетного SQL-запроса в отчет `KPIМенеджеров.erf`.
 - [x] Добавлена иконка MAX со ссылкой на бота и адрес почты прописью в шапку сайта [longwang.ru](http://longwang.ru) (исправлена верстка иконки в [custom.css](file:///C:/Codex_Personal/projects/GoW%20Project/themes/themes/longwang/custom.css)).
 - [x] Восстановлен доступ и сброшены пароли в Metabase: учетные данные (`admin@tender-rag.local` / `Artem12345`, `manager@tender-rag.local` / `manager12345`) и быстрая команда CLI-сброса сохранены в базе знаний и навыке `metabase_analytics_ops`.
