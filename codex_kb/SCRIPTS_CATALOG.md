@@ -1,7 +1,7 @@
 # Единый каталог скриптов и автоматизаций контура (SCRIPTS_CATALOG)
 
-> **Дата последней автоматической ревизии:** `2026-09-25 23:09:09`  
-> **Статус контура:** Уникальных проверенных скриптов: `510` | Отсеяно дубликатов: `596` | Библиотек вендоров: `4385`.  
+> **Дата последней автоматической ревизии:** `2026-09-26 07:53:29`  
+> **Статус контура:** Уникальных проверенных скриптов: `518` | Отсеяно дубликатов: `597` | Библиотек вендоров: `4385`.  
 > **Архитектурный стандарт:** «Семейства инструментов» (Tool Families). Любые модификации группируются в одной ячейке от базового вызова к расширенным.
 
 ---
@@ -102,8 +102,9 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Базовый** | `add_wait_node.py` | `C:/Users/Артем/tender-rag-api/scratch/add_wait_node.py` | Create the Wait node | 0 |
 | **Базовый** | `audit_db.py` | `C:/Users/Артем/tender-rag-api/scratch/audit_db.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `auto_deploy.sh` | `scripts/vps/auto_deploy.sh` | Проверяем наличие обновлений в ветке mikhail-origin/main | 0 |
 | **Базовый** | `config.py` | `C:/Users/Артем/tender-rag-api/app/core/config.py` | odels | 0 |
-| **Базовый** | `deploy-tender.sh` | `scripts/vps/deploy-tender.sh` | Безопасный деплой проекта тендеров tender-rag-api для пользователя mikhail Выполняется через sudo /usr/local/bin/deploy-tender.sh или tender-webhook-deploy | 0 |
+| **Базовый** | `deploy-tender.sh` | `scripts/vps/deploy-tender.sh` | Выполняем git pull | 0 |
 | **Базовый** | `deploy_metabase_analytics.py` | `C:/Users/Артем/tender-rag-api/scripts/deploy_metabase_analytics.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `document.py` | `C:/Users/Артем/tender-rag-api/app/api/routers/document.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `generate_backfill_sql.py` | `C:/Users/Артем/tender-rag-api/analytics/scripts/generate_backfill_sql.py` | Загружаем переменные окружения | 0 |
@@ -121,7 +122,6 @@
 | **Базовый** | `update_docs_report.py` | `C:/Users/Артем/tender-rag-api/scratch/update_docs_report.py` | 1. Update PROGRESS.md Update (2026-07-15) | 0 |
 | **Базовый** | `update_summary_fields.py` | `C:/Users/Артем/tender-rag-api/scratch/update_summary_fields.py` | Update Get Deals node | 0 |
 | **Базовый** | `ved_audit_service.py` | `C:/Users/Артем/tender-rag-api/app/services/ved_audit_service.py` | Generate embedding using Gemini API (same model as the White Base import). | 0 |
-| **Расширенный** | `b24_daily_analytics_sync.py` | `C:/Users/Артем/tender-rag-api/scripts/b24_daily_analytics_sync.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `nomenclature_parser.py` | `C:/Users/Артем/tender-rag-api/app/services/nomenclature_parser.py` | Checks if a filename likely contains nomenclature. | 0 |
 | **Расширенный** | `patch_error_node.py` | `C:/Users/Артем/tender-rag-api/scratch/patch_error_node.py` | Find the node that creates the error task (we can identify it by looking at its parameters) Update the description to include the detailed description field | 0 |
 | **Расширенный** | `patch_headers.py` | `C:/Users/Артем/tender-rag-api/scratch/patch_headers.py` | Inject headers | 0 |
@@ -185,7 +185,6 @@
 | **Базовый** | `session_compress.py` | `Shared: scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
 | **Базовый** | `session_compress.py` | `D:/Soft/Codex Backup/scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
 | **Базовый** | `summary_service.py` | `Shared: projects/n8n_email_ai_funnel_version/app/services/summary_service.py` | 1. Fetch contact messages (both processed and unprocessed to get full context) | 4 |
-| **Расширенный** | `audit_archived_transcripts.py` | `scripts/audit_archived_transcripts.py` | Автоматический аудит логов архивных сессий `brain/*/transcript.jsonl` за 14-45 дней: поиск упущенных директив, замечаний пользователя и бизнес-ограничений. Запуск: `py scripts/audit_archived_transcripts.py [дни]`. | 0 |
 | **Расширенный** | `check_sintez_summary.py` | `Shared: projects/n8n_email_ai_funnel_version/scratch/check_sintez_summary.py` | Автоматизация рабочего процесса. | 2 |
 
 ---
@@ -519,9 +518,11 @@
 | **Базовый** | `apply_final_fixes.py` | `projects/tilda_migration/apply_final_fixes.py` | FTP Config | 0 |
 | **Базовый** | `apply_final_fixes.py` | `D:/Soft/Codex Backup/projects/tilda_migration/apply_final_fixes.py` | FTP Config | 0 |
 | **Базовый** | `audit_archived_transcripts.py` | `scripts/audit_archived_transcripts.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `backup-sql.sh` | `scripts/vps/backup-sql.sh` | 1C Backup script with failure notification and safe retention | 0 |
 | **Базовый** | `budget_enforcer.py` | `scripts/budget_enforcer.py` | ates per 1M tokens | 0 |
 | **Базовый** | `budget_enforcer.py` | `Shared: scripts/budget_enforcer.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `budget_enforcer.py` | `D:/Soft/Codex Backup/scripts/budget_enforcer.py` | ates per 1M tokens | 0 |
+| **Базовый** | `clear_tmp.sh` | `scripts/vps/clear_tmp.sh` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `compare_projects.ps1` | `scratch/compare_projects.ps1` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `compare_snapshots.ps1` | `projects/local_inventory/inventory/compare_snapshots.ps1` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `compare_snapshots.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/compare_snapshots.ps1` | Автоматизация рабочего процесса. | 2 |
@@ -579,16 +580,20 @@
 | **Базовый** | `llm_service.py` | `Shared: projects/n8n_email_ai_backup/app/services/llm_service.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `make_snapshot.ps1` | `projects/local_inventory/inventory/make_snapshot.ps1` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `make_snapshot.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/make_snapshot.ps1` | Автоматизация рабочего процесса. | 2 |
+| **Базовый** | `mirror_vps_scripts.py` | `scripts/mirror_vps_scripts.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `models.py` | `Shared: projects/n8n_email_ai_v6_backup/app/db/models.py` | Автоматизация рабочего процесса. | 2 |
+| **Базовый** | `monitor_disk.sh` | `scripts/vps/monitor_disk.sh` | ???????????? ?????????????????????? ???????????? ?? ???????????????????????? ?? ??????????????24 | 0 |
 | **Базовый** | `monitor_disk.sh` | `Shared: scratch/monitor_disk.sh` | Скрипт мониторинга дисков с уведомлением в Битрикс24 | 0 |
 | **Базовый** | `moz_internal_linking_report.py` | `projects/GoW Project/moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `moz_internal_linking_report.py` | `D:/Soft/Codex Backup/projects/GoW Project/moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `n8n-sqlite-auto-vacuum.sh` | `scripts/vps/n8n-sqlite-auto-vacuum.sh` | Еженедельное автоматическое обслуживание и сжатие SQLite баз данных n8n и n8n-eng Размещается в /usr/local/bin/n8n-sqlite-auto-vacuum.sh и связывается с /etc/cron.weekly/ | 0 |
+| **Базовый** | `n8n-sqlite-auto-vacuum.sh` | `scripts/vps/n8n-sqlite-auto-vacuum.sh` | Проверка размера баз n8n и сжатие | 0 |
 | **Базовый** | `parse_days_detail.py` | `scripts/parse_days_detail.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `parse_js.py` | `projects/tilda_migration/parse_js.py` | Let's search for URLs or api endpoints | 0 |
 | **Базовый** | `parse_js.py` | `D:/Soft/Codex Backup/projects/tilda_migration/parse_js.py` | Let's search for URLs or api endpoints | 0 |
 | **Базовый** | `rename_assets_and_title.py` | `projects/tilda_migration/rename_assets_and_title.py` | FTP Config | 0 |
 | **Базовый** | `rename_assets_and_title.py` | `D:/Soft/Codex Backup/projects/tilda_migration/rename_assets_and_title.py` | FTP Config | 0 |
+| **Базовый** | `restore_postgre.sh` | `scripts/vps/restore_postgre.sh` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `run_server_backup.sh` | `scripts/vps/run_server_backup.sh` | ???????????? ?????????????? ???????????? ?? ?????????????????????????????? ???????????????????????? SQLite | 0 |
 | **Базовый** | `run_server_backup_new.sh` | `Shared: scratch/run_server_backup_new.sh` | Скрипт полного бэкапа и автоматического обслуживания SQLite | 0 |
 | **Базовый** | `tilda_fetch_all_projects_pages.py` | `projects/tilda_migration/tilda_fetch_all_projects_pages.py` | 1. Get projects list | 0 |
 | **Базовый** | `tilda_fetch_all_projects_pages.py` | `D:/Soft/Codex Backup/projects/tilda_migration/tilda_fetch_all_projects_pages.py` | 1. Get projects list | 0 |
@@ -612,12 +617,13 @@
 | **Базовый** | `try_submit_login.py` | `D:/Soft/Codex Backup/projects/tilda_migration/try_submit_login.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `update_form_js.py` | `projects/tilda_migration/update_form_js.py` | FTP Config | 0 |
 | **Базовый** | `update_form_js.py` | `D:/Soft/Codex Backup/projects/tilda_migration/update_form_js.py` | FTP Config | 0 |
-| **Базовый** | `run_server_backup.sh` | `scripts/vps/run_server_backup.sh` | Еженедельный полный бэкап VPS с авто-вакуумом SQLite n8n и ротацией до 1 копии | 0 |
+| **Базовый** | `vps_server_backup.sh` | `scripts/vps/vps_server_backup.sh` | 1. pg_dump of marketing_db from docker container | 0 |
 | **Базовый** | `vps_server_backup.sh` | `Shared: projects/n8n_email_ai_v6_backup/scripts/vps_server_backup.sh` | 1. pg_dump of marketing_db from docker container | 2 |
 | **Базовый** | `watch_and_download_backup.ps1` | `scripts/watch_and_download_backup.ps1` | Configuration | 1 |
 | **Базовый** | `zip_theme.py` | `projects/tilda_migration/zip_theme.py` | Compute relative path in ZIP (should start with qilin-theme/) | 0 |
 | **Базовый** | `zip_theme.py` | `D:/Soft/Codex Backup/projects/tilda_migration/zip_theme.py` | Compute relative path in ZIP (should start with qilin-theme/) | 0 |
 | **Расширенный** | `AI chats filter.py` | `D:/Soft/Codex Backup/ARCHIVE/Архивы чатов ИИ/AI chats filter.py` | ========================================== ========================================== | 0 |
+| **Расширенный** | `b24_daily_analytics_sync.py` | `scripts/vps/b24_daily_analytics_sync.py` | !/usr/bin/env python3 | 1 |
 | **Расширенный** | `build_sprint_evaluation.py` | `scripts/build_sprint_evaluation.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `check_broken_links.py` | `projects/tilda_migration/check_broken_links.py` | 1. Stylesheets | 0 |
 | **Расширенный** | `check_broken_links.py` | `D:/Soft/Codex Backup/projects/tilda_migration/check_broken_links.py` | 1. Stylesheets | 0 |
@@ -630,7 +636,6 @@
 | **Расширенный** | `check_public_site.py` | `projects/tilda_migration/check_public_site.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_public_site.py` | `D:/Soft/Codex Backup/projects/tilda_migration/check_public_site.py` | Автоматизация рабочего процесса. | 0 |
 | **Интеграционный** | `mass_replace.py` | `config/infra_management/scripts/mass_replace.py` | Configuration | 1 |
-| **Диагностический** | `monitor_disk.sh` | `scripts/vps/monitor_disk.sh` | Мониторинг дисков / и /Storage каждые 4 ч в cron с алертом в Битрикс24 при >90% | 0 |
 | **Диагностический** | `open_latest_report.bat` | `projects/local_inventory/inventory/open_latest_report.bat` | Автоматизация рабочего процесса. | 1 |
 | **Диагностический** | `open_latest_report.bat` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/open_latest_report.bat` | Автоматизация рабочего процесса. | 2 |
 | **Диагностический** | `preflight.py` | `scripts/preflight.py` | Fallback token estimator if tiktoken is not installed Fallback estimation: | 0 |
