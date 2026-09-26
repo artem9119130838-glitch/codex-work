@@ -292,6 +292,17 @@ def run_audit():
         f.write("\n".join(lines).strip() + "\n")
         
     print(f"\n[OK] Каталог успешно пересобран и сохранен: {catalog_path}")
+    
+    # Автоматическое обновление мастер-файлов 2 и 3 на Рабочем столе пользователя
+    try:
+        scripts_dir = Path(__file__).parent
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        from generate_desktop_guides import update_desktop_files
+        update_desktop_files()
+    except Exception as e:
+        print(f"[WARN] Не удалось обновить файлы на Рабочем столе: {e}")
+
     print("=" * 60)
     print(" [SUCCESS] РЕВИЗИЯ ЗАВЕРШЕНА УСПЕШНО")
     print("=" * 60)

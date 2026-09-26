@@ -1,7 +1,7 @@
 # Единый каталог скриптов и автоматизаций контура (SCRIPTS_CATALOG)
 
-> **Дата последней автоматической ревизии:** `2026-09-26 07:53:29`  
-> **Статус контура:** Уникальных проверенных скриптов: `518` | Отсеяно дубликатов: `597` | Библиотек вендоров: `4385`.  
+> **Дата последней автоматической ревизии:** `2026-09-26 09:50:46`  
+> **Статус контура:** Уникальных проверенных скриптов: `502` | Отсеяно дубликатов: `597` | Библиотек вендоров: `4385`.  
 > **Архитектурный стандарт:** «Семейства инструментов» (Tool Families). Любые модификации группируются в одной ячейке от базового вызова к расширенным.
 
 ---
@@ -173,7 +173,7 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Базовый** | `apply_complete_sintez_summary.py` | `Shared: projects/n8n_email_ai_funnel_version/scratch/apply_complete_sintez_summary.py` | 1. Start SSH tunnel locally | 2 |
-| **Базовый** | `build_index.py` | `scripts/build_index.py` | normalize path separators | 0 |
+| **Базовый** | `build_index.py` | `scripts/build_index.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `build_index.py` | `Shared: scripts/build_index.py` | normalize path separators | 0 |
 | **Базовый** | `build_index.py` | `D:/Soft/Codex Backup/scripts/build_index.py` | normalize path separators | 0 |
 | **Базовый** | `full_gravity_audit.py` | `scripts/full_gravity_audit.py` | !/usr/bin/env python3 | 0 |
@@ -196,7 +196,6 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Базовый** | `5e469a8be92c_add_unique_constraint_to_onec_owner_.py` | `Shared: projects/n8n_email_ai_funnel_version/alembic/versions/5e469a8be92c_add_unique_constraint_to_onec_owner_.py` | add unique constraint to onec_owner_links | 4 |
 | **Базовый** | `a705ca4e0aee_add_onec_owner_links_and_is_synthetic.py` | `Shared: projects/n8n_email_ai_funnel_version/alembic/versions/a705ca4e0aee_add_onec_owner_links_and_is_synthetic.py` | add onec_owner_links and is_synthetic | 4 |
-| **Базовый** | `analyze_batch_4.py` | `Shared: projects/1c_odata/scratch/analyze_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `analyze_odata.py` | `Shared: projects/n8n_email_ai_funnel_version/scripts/analyze_odata.py` | Автоматизация рабочего процесса. | 4 |
 | **Базовый** | `b1c2d3e4f5a6_add_knowledge_base.py` | `Shared: projects/n8n_email_ai_funnel_version/alembic/versions/b1c2d3e4f5a6_add_knowledge_base.py` | add knowledge_base | 4 |
 | **Базовый** | `b24_chat_intelligence.py` | `Shared: projects/1c_odata/scripts/b24_chat_intelligence.py` | !/usr/bin/env python3 | 0 |
@@ -206,7 +205,6 @@
 | **Базовый** | `build_scripts_registry.py` | `Shared: projects/1c_odata/scratch/build_scripts_registry.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `catalog_scripts.py` | `Shared: projects/1c_odata/scratch/catalog_scripts.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `deal_followup_pipeline.py` | `projects/1c_odata/scripts/deal_followup_pipeline.py` | Автоматизация рабочего процесса. | 1 |
-| **Базовый** | `deep_chat_inspector.py` | `Shared: projects/1c_odata/scratch/deep_chat_inspector.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `deep_inspect_batch_12.py` | `Shared: projects/1c_odata/scripts/deep_inspect_batch_12.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `deep_inspect_batch_12_first4.py` | `Shared: projects/1c_odata/scripts/deep_inspect_batch_12_first4.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `docx_engine.py` | `Shared: projects/1c_odata/scratch/docx_engine.py` | Color Palette | 0 |
@@ -215,12 +213,10 @@
 | **Базовый** | `execute_batch_3.py` | `Shared: projects/1c_odata/scratch/execute_batch_3.py` | ------------------------------------------------------------- CREDENTIALS & CONSTANTS | 0 |
 | **Базовый** | `execute_batch_4.py` | `Shared: projects/1c_odata/scratch/execute_batch_4.py` | ------------------------------------------------------------- CREDENTIALS & CONSTANTS | 0 |
 | **Базовый** | `execute_batch_pipeline.py` | `Shared: projects/1c_odata/scripts/execute_batch_pipeline.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `execute_mxl_batch.py` | `Shared: projects/1c_odata/scripts/execute_mxl_batch.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `extract_all_target_chat_messages.py` | `Shared: projects/1c_odata/scratch/extract_all_target_chat_messages.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `fetch_b24_details.py` | `Shared: projects/1c_odata/scratch/fetch_b24_details.py` | 1. Company 11886 | 0 |
 | **Базовый** | `fetch_email_119.py` | `Shared: projects/1c_odata/scripts/fetch_email_119.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `find_all_target_chats.py` | `Shared: projects/1c_odata/scratch/find_all_target_chats.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `find_lmz_lead.py` | `Shared: projects/1c_odata/scratch/find_lmz_lead.py` | 1. Search Catalog_Лиды by Description 'ЛМЗ Рыбинск' | 0 |
-| **Базовый** | `find_today_activity.py` | `Shared: projects/1c_odata/scratch/find_today_activity.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `generate_batch_4_dry_run.py` | `Shared: projects/1c_odata/scratch/generate_batch_4_dry_run.py` | Constants | 0 |
 | **Базовый** | `group_scripts.py` | `Shared: projects/1c_odata/scratch/group_scripts.py` | Categories definition | 0 |
 | **Базовый** | `inspect_batch_12.py` | `Shared: projects/1c_odata/scripts/inspect_batch_12.py` | Автоматизация рабочего процесса. | 0 |
@@ -229,7 +225,6 @@
 | **Базовый** | `inspect_deal_2166.py` | `Shared: projects/1c_odata/scratch/inspect_deal_2166.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_docs_detailed.py` | `Shared: projects/1c_odata/scratch/inspect_docs_detailed.py` | 1. Inspect i7858_Договор_по_КК_РОС.doc xtract text by searching for words in binary doc | 0 |
 | **Базовый** | `inspect_item_details.py` | `Shared: projects/1c_odata/scripts/inspect_item_details.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `parse_attachments.py` | `Shared: projects/1c_odata/scratch/parse_attachments.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `print_batch_4_bodies.py` | `Shared: projects/1c_odata/scratch/print_batch_4_bodies.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `print_batch_5.py` | `Shared: projects/1c_odata/scratch/print_batch_5.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `print_bodies_batch_5.py` | `Shared: projects/1c_odata/scratch/print_bodies_batch_5.py` | Let's inspect IMAP bodies from scratch/attachments_batch_41_50 or re-fetch body | 0 |
@@ -239,9 +234,6 @@
 | **Базовый** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `process_today_followup_deals.py` | `Shared: projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `qualify_batch_5.py` | `Shared: projects/1c_odata/scratch/qualify_batch_5.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `read_batch_5_bodies.py` | `Shared: projects/1c_odata/scratch/read_batch_5_bodies.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `read_docx_attachments.py` | `Shared: projects/1c_odata/scratch/read_docx_attachments.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `read_email_thread.py` | `Shared: projects/1c_odata/scratch/read_email_thread.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `scratch_b24_fetch.py` | `projects/HR/scratch_b24_fetch.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_1c_entities.py` | `projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_1c_entities.py` | `Shared: projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 0 |
@@ -251,16 +243,9 @@
 | **Базовый** | `search_tasks_and_topics.py` | `Shared: projects/1c_odata/scratch/search_tasks_and_topics.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `summarize_batch_4.py` | `Shared: projects/1c_odata/scratch/summarize_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `update_gas_exam.py` | `Shared: projects/1c_odata/scratch/update_gas_exam.py` | Автоматизация рабочего процесса. | 0 |
-| **Расширенный** | `check_1c_batch_5.py` | `Shared: projects/1c_odata/scratch/check_1c_batch_5.py` | 1. Counterparty 2. Lead | 0 |
-| **Расширенный** | `check_all_folders.py` | `Shared: projects/1c_odata/scratch/check_all_folders.py` | xample: '(\\HasNoChildren \\Drafts) "." Drafts' | 0 |
 | **Расширенный** | `check_contact_15984.py` | `Shared: projects/1c_odata/scripts/check_contact_15984.py` | 1. B24 Contact 15984 | 0 |
 | **Расширенный** | `check_contractor.py` | `projects/1c_odata/check_contractor.py` | !/usr/bin/env python3 | 1 |
 | **Расширенный** | `check_contractor.py` | `Shared: projects/1c_odata/check_contractor.py` | !/usr/bin/env python3 | 3 |
-| **Расширенный** | `check_details_batch_5.py` | `Shared: projects/1c_odata/scratch/check_details_batch_5.py` | 1. Map attachments to items | 0 |
-| **Расширенный** | `check_item_49_50.py` | `Shared: projects/1c_odata/scratch/check_item_49_50.py` | Автоматизация рабочего процесса. | 0 |
-| **Расширенный** | `check_items_json.py` | `Shared: projects/1c_odata/scratch/check_items_json.py` | Автоматизация рабочего процесса. | 0 |
-| **Расширенный** | `check_lmz_contacts.py` | `Shared: projects/1c_odata/scratch/check_lmz_contacts.py` | Автоматизация рабочего процесса. | 0 |
-| **Расширенный** | `check_msg_7897.py` | `Shared: projects/1c_odata/scratch/check_msg_7897.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_snab_region.py` | `Shared: projects/1c_odata/scripts/check_snab_region.py` | 1. Inspect Lead 000001663 in 1C | 0 |
 | **Расширенный** | `inspect_b24_deals.py` | `Shared: projects/1c_odata/scratch/inspect_b24_deals.py` | Also check company for rsce.ru | 0 |
 | **Расширенный** | `inspect_item_119.py` | `Shared: projects/1c_odata/scripts/inspect_item_119.py` | Let's check IMAP message for item 119 or scratch files | 0 |
@@ -272,12 +257,7 @@
 | **Расширенный** | `run_onec_sync.py` | `Shared: projects/n8n_email_ai_funnel_version/app/run_onec_sync.py` | Автоматизация рабочего процесса. | 4 |
 | **Расширенный** | `sync_to_bitrix.py` | `projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `sync_to_bitrix.py` | `Shared: projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 1 |
-| **Интеграционный** | `build_rod_matrix.py` | `Shared: projects/1c_odata/scratch/build_rod_matrix.py` | Sheet 1: Master Rod Matrix | 0 |
-| **Диагностический** | `test_chat_search.py` | `Shared: projects/1c_odata/scratch/test_chat_search.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_fetch_chat.py` | `Shared: projects/1c_odata/scratch/test_fetch_chat.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_fetch_saule.py` | `Shared: projects/1c_odata/scratch/test_fetch_saule.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_imap_accounts.py` | `Shared: projects/1c_odata/scratch/test_imap_accounts.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_odata_filters.py` | `Shared: projects/1c_odata/scratch/test_odata_filters.py` | Test 1: substringof in Тема | 0 |
+| **Диагностический** | `test_fixes_verification.py` | `Shared: projects/n8n_email_ai/tests/test_fixes_verification.py` | 1. 1C string with surname + name + position 2. Surname + Name | 0 |
 | **Диагностический** | `test_odata_url.py` | `Shared: projects/n8n_email_ai_funnel_version/scripts/test_odata_url.py` | Автоматизация рабочего процесса. | 4 |
 | **Диагностический** | `verify_batch_4.py` | `Shared: projects/1c_odata/scratch/verify_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 
@@ -305,6 +285,7 @@
 | **Базовый** | `export_data.bat` | `Shared: projects/n8n_email_ai/export_data.bat` | Автоматизация рабочего процесса. | 4 |
 | **Базовый** | `export_data.ps1` | `Shared: projects/n8n_email_ai_funnel_version/scripts/export_data.ps1` | nforce UTF-8 output | 4 |
 | **Базовый** | `fetch_raw_emails.py` | `Shared: projects/n8n_email_ai_funnel_version/scratch/fetch_raw_emails.py` | 1. Start SSH tunnel locally | 2 |
+| **Базовый** | `hr_guard.py` | `Shared: projects/n8n_email_ai/app/services/hr_guard.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `imap_service.py` | `Shared: projects/n8n_email_ai_funnel_version/app/services/imap_service.py` | Автоматизация рабочего процесса. | 4 |
 | **Базовый** | `kb_chunk_export.ps1` | `projects/n8n_email_ai/rag_tools/kb_chunk_export.ps1` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `kb_chunk_export.ps1` | `Shared: projects/n8n_email_ai_funnel_version/50_rag_tools/kb_chunk_export.ps1` | Автоматизация рабочего процесса. | 4 |
@@ -420,6 +401,7 @@
 | **Базовый** | `document.py` | `Shared: projects/tender-extraction-lab/app/schemas/document.py` | Схема для описания структуры одного чанка | 1 |
 | **Базовый** | `document.py` | `Shared: projects/tender-extraction-lab/app/services/document.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `document.py` | `Shared: projects/tender-extraction-lab/app/api/routers/document.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `extract_commands_from_audit.py` | `scratch/extract_commands_from_audit.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `extract_js_context.py` | `projects/tilda_migration/extract_js_context.py` | print 1000 characters before and after | 0 |
 | **Базовый** | `extract_js_context.py` | `D:/Soft/Codex Backup/projects/tilda_migration/extract_js_context.py` | print 1000 characters before and after | 0 |
 | **Базовый** | `extract_pdf_text.py` | `Shared: projects/n8n_email_ai_funnel_version/scripts/extract_pdf_text.py` | Автоматизация рабочего процесса. | 4 |
@@ -560,6 +542,8 @@
 | **Базовый** | `find_more_paths.py` | `D:/Soft/Codex Backup/projects/tilda_migration/find_more_paths.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `fix_icons_and_footer.py` | `projects/tilda_migration/fix_icons_and_footer.py` | FTP Config | 0 |
 | **Базовый** | `fix_icons_and_footer.py` | `D:/Soft/Codex Backup/projects/tilda_migration/fix_icons_and_footer.py` | FTP Config | 0 |
+| **Базовый** | `generate_all_commands_reference.py` | `scripts/generate_all_commands_reference.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `generate_desktop_guides.py` | `scripts/generate_desktop_guides.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `generate_readable_review.py` | `scripts/generate_readable_review.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_days_6_7_cost.py` | `scripts/inspect_days_6_7_cost.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_form_html.py` | `projects/tilda_migration/inspect_form_html.py` | print first 3000 chars of block HTML | 0 |
