@@ -4,6 +4,9 @@
 > **Всего кандидатов в базе:** 35
 > **В приоритетном шорт-листе:** 9
 > **Папка с карточками кандидатов:** [`candidates_db/`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/candidates_db/)
+> **Стратегический анализ и матрица сравнения:** [`CANDIDATE_ANALYSIS_AND_STRATEGY.md`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/CANDIDATE_ANALYSIS_AND_STRATEGY.md)
+> **Комплексная RAG-оценка, мотивация и этапы:** [`CANDIDATE_EVALUATION_AND_STRATEGY.md`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/CANDIDATE_EVALUATION_AND_STRATEGY.md)
+> **Регламент и финансовая модель мотивации:** [`HR_CHINA_POLICY.md`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/HR_CHINA_POLICY.md)
 
 ---
 
