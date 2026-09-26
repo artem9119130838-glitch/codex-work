@@ -1,19 +1,30 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+scripts/build_index.py
+Нормализация и построение поискового индекса файлов личного контура (.ai/file_index.json).
+"""
+
 import os
+import sys
 import json
 import fnmatch
 from pathlib import Path
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 def load_aiignore(root):
     ignore_patterns = []
     aiignore_path = root / '.aiignore'
     if aiignore_path.exists():
-        with open(aiignore_path, 'r', encoding='utf-8') as f:
+        with open(aiignore_path, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#'):
-                    # normalize path separators
                     line = line.replace('\\', '/')
-                    # if it's a directory (ends with /), match it and everything inside
                     if line.endswith('/'):
                         ignore_patterns.append(line)
                         ignore_patterns.append(line + '*')
@@ -24,10 +35,8 @@ def load_aiignore(root):
 def should_ignore(path, root, ignore_patterns):
     rel_path = str(path.relative_to(root)).replace('\\', '/')
     for pattern in ignore_patterns:
-        # Match directory prefixes or file patterns
         if fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(rel_path + '/', pattern):
             return True
-        # also match components of path (e.g. if node_modules/ is ignored, crm/node_modules/file.py should be ignored)
         parts = rel_path.split('/')
         for part in parts:
             if fnmatch.fnmatch(part, pattern.rstrip('/')):
@@ -35,55 +44,48 @@ def should_ignore(path, root, ignore_patterns):
     return False
 
 def check_for_secrets(filepath):
-    dangerous = ['SECRET', 'KEY', 'PASSWORD', 'TOKEN', 'PRIVATE']
+    # Документация и контракты правил не исключаются
+    if filepath.suffix.lower() in ['.md', '.txt']:
+        return False
+    # Исключаем файлы в infrastructure_registry или секретные дампы
+    if 'infrastructure_registry' in str(filepath).lower():
+        return True
+    dangerous = ['SECRET_KEY', 'PRIVATE_KEY', 'PASSWORD =', 'PASS =']
     try:
         with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
-            # We check for UPPERCASE key assignments like API_KEY = "...", SECRET_TOKEN = "..."
-            # to avoid false positives on standard code keywords, but be safe
+            content = f.read(4096)
             for word in dangerous:
                 if word in content.upper():
-                    # Simple heuristic: check if it looks like a variable assignment with secret
-                    # e.g., PASSWORD = "xyz" or token: "abc"
-                    lines = content.split('\n')
-                    for line in lines:
-                        if any(w in line.upper() for w in dangerous) and ('=' in line or ':' in line or 'define' in line.lower()):
-                            # check if it contains actual values (quotes or alphanumeric sequences longer than 8 chars)
-                            if any(q in line for q in ['"', "'"]) or len(line) > 20:
-                                return True
-    except Exception as e:
+                    return True
+    except Exception:
         pass
     return False
 
 def extract_description(filepath):
-    """Extracts summary description, class/def names, or top comments."""
     try:
         ext = filepath.suffix.lower()
         if ext == '.md':
-            # read first 3 non-empty lines
             lines = []
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 for line in f:
                     line = line.strip()
-                    if line:
+                    if line and not line.startswith('#'):
                         lines.append(line)
-                        if len(lines) >= 3:
+                        if len(lines) >= 2:
                             break
             return " | ".join(lines)[:200]
-        
-        elif ext in ['.py', '.js', '.ts']:
+        elif ext in ['.py', '.sh', '.ps1', '.bat']:
             methods = []
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 for line in f:
                     line = line.strip()
-                    if line.startswith('def ') or line.startswith('class ') or line.startswith('function '):
+                    if line.startswith(('def ', 'class ')):
                         methods.append(line.split('(')[0])
-                        if len(methods) >= 5:
+                        if len(methods) >= 4:
                             break
-            summary = f"Code file. Definitions: {', '.join(methods)}" if methods else "Code file."
+            summary = f"Code file. {', '.join(methods)}" if methods else "Executable script."
             return summary[:200]
         else:
-            # generic first line
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 for line in f:
                     line = line.strip()
@@ -98,22 +100,16 @@ def main():
     ignore_patterns = load_aiignore(root)
     index = {}
     
-    # We will walk through all files
     for path in root.rglob('*'):
         if path.is_dir():
             continue
-        
         if should_ignore(path, root, ignore_patterns):
             continue
             
         rel_path = str(path.relative_to(root)).replace('\\', '/')
-        
-        # Check security
         if check_for_secrets(path):
-            print(f"[WARNING] Файл {rel_path} содержит потенциальные секреты и был исключен из индексации.")
             continue
             
-        # Index files that are likely text/code/configs
         allowed_extensions = [
             '.py', '.md', '.json', '.yaml', '.yml', '.js', '.ts', 
             '.sh', '.ps1', '.bat', '.ini', '.conf', '.cfg', '.txt'
@@ -121,7 +117,6 @@ def main():
         if path.suffix.lower() in allowed_extensions:
             index[rel_path] = extract_description(path)
             
-    # Ensure .ai dir exists
     ai_dir = root / '.ai'
     ai_dir.mkdir(exist_ok=True)
     
