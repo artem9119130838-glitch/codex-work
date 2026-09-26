@@ -1,6 +1,4 @@
 #!/bin/bash
-# Безопасный деплой проекта тендеров tender-rag-api для пользователя mikhail
-# Выполняется через sudo /usr/local/bin/deploy-tender.sh или tender-webhook-deploy
 set -e
 LOG_FILE="/var/log/tender-deploy.log"
 mkdir -p /var/log

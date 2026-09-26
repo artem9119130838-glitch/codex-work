@@ -1,6 +1,5 @@
 #!/bin/bash
-# Еженедельное автоматическое обслуживание и сжатие SQLite баз данных n8n и n8n-eng
-# Размещается в /usr/local/bin/n8n-sqlite-auto-vacuum.sh и связывается с /etc/cron.weekly/
+# Проверка размера баз n8n и сжатие
 MAX_SIZE_MB=500
 
 for dir in /Storage/docker/n8n-eng/n8n_data /Storage/docker/n8n/n8n_data; do

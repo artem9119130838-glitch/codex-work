@@ -1,0 +1,8 @@
+0 2 * * 0 /bin/bash /Storage/run_server_backup.sh >/dev/null 2>&1
+0 2 * * 1-6 /bin/sh /Storage/backup-sql.sh >/dev/null 2>&1
+0 * * * * docker exec -u root -i onec_sync_daemon python3 -m app.run_imap --since-days 1 >/dev/null 2>&1
+10 * * * * docker exec -u root -i onec_sync_daemon python3 -m app.run_summaries_batch >/dev/null 2>&1
+0 9 * * * docker exec -u root -i onec_sync_daemon python3 -m app.run_daily_reactivation >/dev/null 2>&1
+0 */4 * * * /bin/bash /Storage/monitor_disk.sh >/dev/null 2>&1
+*/2 * * * * /root/tender-rag-api/scripts/auto_deploy.sh > /dev/null 2>&1
+0 4 * * * /usr/bin/python3 /Storage/scripts/b24_daily_analytics_sync.py >> /var/log/b24_analytics_sync.log 2>&1

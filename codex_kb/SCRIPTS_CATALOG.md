@@ -612,6 +612,7 @@
 | **Базовый** | `try_submit_login.py` | `D:/Soft/Codex Backup/projects/tilda_migration/try_submit_login.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `update_form_js.py` | `projects/tilda_migration/update_form_js.py` | FTP Config | 0 |
 | **Базовый** | `update_form_js.py` | `D:/Soft/Codex Backup/projects/tilda_migration/update_form_js.py` | FTP Config | 0 |
+| **Базовый** | `run_server_backup.sh` | `scripts/vps/run_server_backup.sh` | Еженедельный полный бэкап VPS с авто-вакуумом SQLite n8n и ротацией до 1 копии | 0 |
 | **Базовый** | `vps_server_backup.sh` | `Shared: projects/n8n_email_ai_v6_backup/scripts/vps_server_backup.sh` | 1. pg_dump of marketing_db from docker container | 2 |
 | **Базовый** | `watch_and_download_backup.ps1` | `scripts/watch_and_download_backup.ps1` | Configuration | 1 |
 | **Базовый** | `zip_theme.py` | `projects/tilda_migration/zip_theme.py` | Compute relative path in ZIP (should start with qilin-theme/) | 0 |
@@ -629,6 +630,7 @@
 | **Расширенный** | `check_public_site.py` | `projects/tilda_migration/check_public_site.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_public_site.py` | `D:/Soft/Codex Backup/projects/tilda_migration/check_public_site.py` | Автоматизация рабочего процесса. | 0 |
 | **Интеграционный** | `mass_replace.py` | `config/infra_management/scripts/mass_replace.py` | Configuration | 1 |
+| **Диагностический** | `monitor_disk.sh` | `scripts/vps/monitor_disk.sh` | Мониторинг дисков / и /Storage каждые 4 ч в cron с алертом в Битрикс24 при >90% | 0 |
 | **Диагностический** | `open_latest_report.bat` | `projects/local_inventory/inventory/open_latest_report.bat` | Автоматизация рабочего процесса. | 1 |
 | **Диагностический** | `open_latest_report.bat` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/open_latest_report.bat` | Автоматизация рабочего процесса. | 2 |
 | **Диагностический** | `preflight.py` | `scripts/preflight.py` | Fallback token estimator if tiktoken is not installed Fallback estimation: | 0 |
