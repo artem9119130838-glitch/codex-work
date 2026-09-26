@@ -1,4 +1,4 @@
-﻿# Domains Index
+# Domains Index
 
 Дата обновления: 2026-05-10
 
@@ -14,6 +14,7 @@
 - `bitrix\README.md` - Bitrix tasks/CRM integration.
 - `google_calendar\README.md` - Google Calendar, voice capture and n8n source events.
 - `wordpress_acf\README.md` - WordPress/ACF secondary work area.
+- `hr_and_operations\README.md` - HR, найм, адаптация заместителей, сравнительная база кандидатов и операционный контроль снабжения/логистики.
 
 ## RAG Rule
 

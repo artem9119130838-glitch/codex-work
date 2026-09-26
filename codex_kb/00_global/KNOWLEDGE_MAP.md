@@ -1,4 +1,4 @@
-﻿# Knowledge Map
+# Knowledge Map
 
 ## Постоянные объекты
 
@@ -13,6 +13,7 @@
 - WordPress / ACF: `20_domains\wordpress_acf\README.md`
 - Google Calendar: `20_domains\google_calendar\README.md`
 - AI/RAG/client intelligence: `20_domains\ai_rag_marketing\README.md`
+- HR & Operations / Кандидаты / Заместители: `20_domains\hr_and_operations\README.md`
 - Security policy: `00_global\SECURITY_POLICY.md`
 - Business rules: `00_global\BUSINESS_RULES.md`
 - Global progress: `E:\Codex_Work\PROGRESS.md`
