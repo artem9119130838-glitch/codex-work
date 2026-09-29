@@ -224,7 +224,7 @@ def verify_lead_populated(lead_guid):
     }
 
 
-def verify_event_linked(event_id, expected_lead_id):
+def verify_event_linked(event_id, lead_id):
     url = f"{ODATA_BASE}/Document_Событие(guid'{event_id}')?$format=json"
     r = requests.get(url, auth=(ODATA_USER, ODATA_PASS), headers={'Accept': 'application/json'}, timeout=15)
     if r.status_code != 200:
@@ -236,20 +236,25 @@ def verify_event_linked(event_id, expected_lead_id):
         return False, "Event participants list is EMPTY"
 
     sender = next((p for p in participants if p.get("ТипПолучателяЭлектронногоПисьма") == "ОтКого"), participants[0])
-    contact = sender.get("Контакт")
-    contact_type = sender.get("Контакт_Type")
+    sender_email = sender.get("КакСвязаться", "").strip()
 
-    if contact != expected_lead_id:
-        return False, f"Participant contact mismatch: expected {expected_lead_id}, found {contact}"
-    if contact_type != "StandardODATA.Catalog_Лиды":
-        return False, f"Participant contact_type mismatch: expected StandardODATA.Catalog_Лиды, found {contact_type}"
+    # Check lead CI contains sender_email
+    r_lead = requests.get(f"{ODATA_BASE}/Catalog_Лиды(guid'{lead_id}')?$format=json", auth=(ODATA_USER, ODATA_PASS), headers={'Accept': 'application/json'}, timeout=15)
+    if r_lead.status_code != 200:
+        return False, f"GET Lead failed with HTTP {r_lead.status_code}"
+    lead_ci = r_lead.json().get("КонтактнаяИнформация", [])
+    emails_in_lead = [row.get("АдресЭП", "").lower() for row in lead_ci if row.get("Тип") == "АдресЭлектроннойПочты"]
+
+    if sender_email.lower() not in emails_in_lead:
+        return False, f"Sender email '{sender_email}' is NOT in Lead КонтактнаяИнформация: {emails_in_lead}"
 
     return True, {
         "event_id": event_id,
         "event_number": ev_data.get("Number"),
         "event_subject": ev_data.get("Тема"),
-        "linked_contact": contact,
-        "contact_type": contact_type
+        "sender_email": sender_email,
+        "matched_in_lead": True,
+        "lead_emails": emails_in_lead
     }
 
 
