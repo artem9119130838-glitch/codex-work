@@ -1,5 +1,8 @@
 # Рабочий лог задач (Personal)
 
+- [x] Создание полного образа системы Macrium и обновление FreeFileSync для Victus:
+  - [x] Создан полный образ C: и системных разделов в `D:\server-backups\victus_backup\0AEDAEBEFA1FD758-victus_backup_29-09-26-00-00.mrimgx` (75.52 ГБ)
+  - [x] Полностью обновлены и валидированы профили FreeFileSync (`NewLaptop_to_External.ffs_gui`, `Victus_to_External.ffs_gui`, `External_to_NewLaptop.ffs_gui`, `External_to_Victus.ffs_gui`): заменены 3 устаревшие пары Codex на `C:\Codex`, актуализированы пути диска D: (`D:\SOFT E`, `D:\Save`), добавлена пара `D:\server-backups`, добавлены 4 недостающие пары AppData (Punto Switcher, MobaXterm, 1C, Edge) и фильтры исключений (`.tmp.driveupload`, `NVIDIA\DXCache`, `Codex Backup`)
 - [x] Консолидация контуров Codex на диске C: в единый C:\Codex:
   - [x] Создан полный изолированный бэкап всех трех папок в `D:\Soft\Codex Backup\migration_snapshot_2026-09-29\` (5.19 ГБ)
   - [x] Развернут единый контур `C:\Codex`, перенесены архивные проекты (`pgvector-db`, `n8n_email_ai_backup`), документы (`ARCHITECTURE.md`, `SERVER_VPS.md`), ключи и скрипт `secret_leak_scanner.py`
