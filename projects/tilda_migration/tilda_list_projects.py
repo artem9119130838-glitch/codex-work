@@ -1,10 +1,10 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 import re
 
 def list_projects():
     email = "selfaqua@yandex.ru"
-    password = "70341607Lw-"
+    password = os.getenv("TILDA_PASSWORD", "")
     
     session = requests.Session()
     session.headers.update({
@@ -100,3 +100,4 @@ def list_projects():
 
 if __name__ == "__main__":
     list_projects()
+

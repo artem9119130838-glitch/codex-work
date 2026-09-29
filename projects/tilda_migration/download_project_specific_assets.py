@@ -1,4 +1,4 @@
-import os
+﻿import os
 import requests
 from tilda_session import get_session
 import ftplib
@@ -100,3 +100,4 @@ def download_and_update():
 
 if __name__ == "__main__":
     download_and_update()
+

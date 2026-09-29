@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+﻿from bs4 import BeautifulSoup
 
 def check_form_tag():
     with open("C:/Codex_Personal/projects/tilda_migration/published_site.html", "r", encoding="utf-8") as f:
@@ -12,3 +12,4 @@ def check_form_tag():
 
 if __name__ == "__main__":
     check_form_tag()
+

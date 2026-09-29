@@ -1,11 +1,11 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 import re
 import json
 
 def fetch_project_pages(project_id="5807910"):
     email = "selfaqua@yandex.ru"
-    password = "70341607Lw-"
+    password = os.getenv("TILDA_PASSWORD", "")
     
     session = requests.Session()
     session.headers.update({
@@ -101,3 +101,4 @@ def fetch_project_pages(project_id="5807910"):
 
 if __name__ == "__main__":
     fetch_project_pages()
+

@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+﻿from bs4 import BeautifulSoup
 
 INDEX_PHP = "C:/Codex_Personal/projects/tilda_migration/qilin-theme/index.php"
 
@@ -16,3 +16,4 @@ print(f"Total blocks: {len(recs)}")
 for i, rec in enumerate(recs[-3:]):
     print(f"\n--- BLOCK {rec.get('id')} ({rec.get('data-record-type')}) ---")
     print(rec.prettify()[:1000])
+

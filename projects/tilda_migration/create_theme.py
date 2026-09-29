@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import re
 
@@ -165,3 +165,4 @@ if ($success) {
 
 if __name__ == "__main__":
     main()
+

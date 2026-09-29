@@ -1,4 +1,4 @@
-import socket
+﻿import socket
 
 domain = "xn--80aaagi1aieb9a7amg.xn--p1ai" # доставкакитай.рф
 
@@ -13,3 +13,4 @@ try:
         print("Pointing to another IP:", ip)
 except Exception as e:
     print("Failed to resolve domain:", e)
+

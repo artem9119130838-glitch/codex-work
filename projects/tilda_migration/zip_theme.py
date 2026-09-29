@@ -1,4 +1,4 @@
-import os
+﻿import os
 import zipfile
 
 BASE_DIR = "C:/Codex_Personal/projects/tilda_migration"
@@ -18,3 +18,4 @@ def make_zip():
 
 if __name__ == "__main__":
     make_zip()
+

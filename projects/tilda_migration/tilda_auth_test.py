@@ -1,10 +1,10 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 import json
 
 def test_tilda_auth():
     email = "selfaqua@yandex.ru"
-    password = "70341607Lw-"
+    password = os.getenv("TILDA_PASSWORD", "")
     
     session = requests.Session()
     session.headers.update({
@@ -64,3 +64,4 @@ def test_tilda_auth():
 
 if __name__ == "__main__":
     test_tilda_auth()
+

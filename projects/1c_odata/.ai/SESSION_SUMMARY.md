@@ -43,10 +43,10 @@
 ---
 
 ## 5. Доступы и окружение:
-* **1C OData:** `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/` (`odata.user` / `n8n159753!`, `odata.writer` / `CosiN09oAr`).
-* **Битрикс24 Вебхук:** `https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/` (права CRM).
-* **DaData Token:** `17c6961838d6a750aeadd323d0aa06342f7044f9`.
-* **Saby / СБИС Сессия:** `top-gk@yandex.ru` / `Artem159753!`.
+* **1C OData:** `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/` (`odata.user` / `${ONEC_ODATA_PASSWORD}`, `odata.writer` / `${ONEC_WRITER_PASSWORD}`).
+* **Битрикс24 Вебхук:** `${BITRIX24_WEBHOOK_URL}` (права CRM).
+* **DaData Token:** `${DADATA_API_KEY}`.
+* **Saby / СБИС Сессия:** `top-gk@yandex.ru` / `${SABY_PASSWORD}`.
 * **GitHub:** `git@github.com:artem9119130838-glitch/codex-work.git` (ветка `master`, коммиты `c465d15`, `292f177`).
 
 ---

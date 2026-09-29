@@ -1,4 +1,4 @@
-import os
+﻿import os
 import ftplib
 import re
 
@@ -163,3 +163,4 @@ if ($success) {
 
 if __name__ == "__main__":
     rename_and_upload()
+

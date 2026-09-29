@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 
 url = "http://xn--80aaagi1aieb9a7amg.xn--p1ai/"
 try:
@@ -11,3 +11,4 @@ try:
     print("HTML Snippet:\n", r.text[:1000])
 except Exception as e:
     print("Error:", e)
+

@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+﻿from bs4 import BeautifulSoup
 
 def analyze():
     with open("C:/Codex_Personal/projects/tilda_migration/preview_response.html", "r", encoding="utf-8") as f:
@@ -26,3 +26,4 @@ def analyze():
 
 if __name__ == "__main__":
     analyze()
+

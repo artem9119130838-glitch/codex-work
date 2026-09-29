@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+﻿from bs4 import BeautifulSoup
 
 PUBLISHED_HTML = "C:/Codex_Personal/projects/tilda_migration/published_site.html"
 
@@ -21,3 +21,4 @@ else:
         print("Logo found by class in live site:", logo.get('src'))
     else:
         print("Footer block not found in live site.")
+

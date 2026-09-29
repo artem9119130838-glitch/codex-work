@@ -1,4 +1,4 @@
-import ftplib
+﻿import ftplib
 
 host = "185.26.122.79"
 user = "host1847090_qilinftp"
@@ -23,3 +23,4 @@ try:
     ftp.quit()
 except Exception as e:
     print("Error:", e)
+

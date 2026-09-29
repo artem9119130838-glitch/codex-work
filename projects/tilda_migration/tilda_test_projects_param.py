@@ -1,11 +1,11 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 import re
 import json
 
 def test_param():
     email = "selfaqua@yandex.ru"
-    password = "70341607Lw-"
+    password = os.getenv("TILDA_PASSWORD", "")
     project_id = "5807910"
     
     session = requests.Session()
@@ -41,3 +41,4 @@ def test_param():
 
 if __name__ == "__main__":
     test_param()
+

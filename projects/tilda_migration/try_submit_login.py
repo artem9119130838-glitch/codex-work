@@ -1,10 +1,10 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 import re
 
 def try_submit_login():
     email = "selfaqua@yandex.ru"
-    password = "70341607Lw-"
+    password = os.getenv("TILDA_PASSWORD", "")
     
     session = requests.Session()
     session.headers.update({
@@ -98,3 +98,4 @@ def try_submit_login():
 
 if __name__ == "__main__":
     try_submit_login()
+

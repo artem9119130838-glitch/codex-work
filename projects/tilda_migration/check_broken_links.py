@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
@@ -57,3 +57,4 @@ for type_name, asset_url in set(assets):
 
 print(f"\nTotal assets checked: {len(set(assets))}")
 print(f"Total broken assets: {len(broken)}")
+

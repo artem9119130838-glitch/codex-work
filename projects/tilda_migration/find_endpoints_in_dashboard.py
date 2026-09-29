@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 import re
 
 url = "https://app.tildacdn.com/tfront/dashboard/td-p-all.min.js?v=v26062601"
@@ -17,3 +17,4 @@ with open("C:/Codex_Personal/projects/tilda_migration/endpoints.txt", "w", encod
         f.write(f"{p}\n")
         
 print("Saved endpoints to endpoints.txt successfully.")
+

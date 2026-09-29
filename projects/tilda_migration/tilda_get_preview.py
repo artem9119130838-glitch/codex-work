@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 import re
 from tilda_session import get_session
@@ -32,3 +32,4 @@ def check_preview(page_id="41294814"):
 
 if __name__ == "__main__":
     check_preview()
+

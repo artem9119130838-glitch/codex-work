@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+﻿from bs4 import BeautifulSoup
 import re
 
 def analyze_interactions():
@@ -32,3 +32,4 @@ def analyze_interactions():
 
 if __name__ == "__main__":
     analyze_interactions()
+

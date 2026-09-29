@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+﻿from bs4 import BeautifulSoup
 import re
 
 def inspect():
@@ -25,3 +25,4 @@ def inspect():
 
 if __name__ == "__main__":
     inspect()
+

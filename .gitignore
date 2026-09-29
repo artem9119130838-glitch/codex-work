@@ -35,7 +35,9 @@ infrastructure_registry/
 projects/server_ops/clients configs/
 
 
-
 # Heavy video and binary archives for cylinders/rods contract
 projects/Price creating/**/*.zip
 *.zip
+
+# Local backups
+AI Backups Victus/

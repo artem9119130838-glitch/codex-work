@@ -1,4 +1,4 @@
-import os
+﻿import os
 from bs4 import BeautifulSoup
 import ftplib
 
@@ -84,3 +84,4 @@ def apply_fixes():
 
 if __name__ == "__main__":
     apply_fixes()
+

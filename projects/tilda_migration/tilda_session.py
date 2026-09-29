@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 import json
 import os
 import time
@@ -54,7 +54,7 @@ def login(email, password):
     print("New session created and cookies saved.")
     return session
 
-def get_session(email="selfaqua@yandex.ru", password="70341607Lw-"):
+def get_session(email="selfaqua@yandex.ru", password=os.getenv("TILDA_PASSWORD", "")):
     session = requests.Session()
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -82,3 +82,4 @@ def get_session(email="selfaqua@yandex.ru", password="70341607Lw-"):
 if __name__ == "__main__":
     s = get_session()
     print("Session ready. Cookies:", s.cookies.get_dict())
+

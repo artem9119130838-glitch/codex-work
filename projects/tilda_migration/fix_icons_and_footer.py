@@ -1,4 +1,4 @@
-import os
+﻿import os
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -127,3 +127,4 @@ def fix_icons_and_footer():
 
 if __name__ == "__main__":
     fix_icons_and_footer()
+

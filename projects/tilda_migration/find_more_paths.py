@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 import re
 
 url = "https://app.tildacdn.com/tfront/dashboard/td-p-all.min.js?v=v26062601"
@@ -13,3 +13,4 @@ with open("C:/Codex_Personal/projects/tilda_migration/all_js_paths.txt", "w", en
             f.write(f"{p}\n")
             
 print("Saved JS paths to all_js_paths.txt")
+

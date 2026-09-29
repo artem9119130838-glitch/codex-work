@@ -1,4 +1,4 @@
-import os
+﻿import os
 import ftplib
 
 BASE_DIR = "C:/Codex_Personal/projects/tilda_migration"
@@ -125,3 +125,4 @@ def update_form_js():
 
 if __name__ == "__main__":
     update_form_js()
+

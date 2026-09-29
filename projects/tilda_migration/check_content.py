@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 
 try:
@@ -22,3 +22,4 @@ try:
         
 except Exception as e:
     print("Error:", e)
+

@@ -13,8 +13,9 @@ import sys, json, argparse, urllib.parse, requests
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-ONEC_BASE = "http://artem.medianasoft.spb.ru/unf/odata/standard.odata"
-ONEC_AUTH = ('odata.user', 'n8n159753!')
+import os
+ONEC_BASE = os.getenv("ONEC_ODATA_URL", "http://artem.medianasoft.spb.ru/unf/odata/standard.odata")
+ONEC_AUTH = (os.getenv("ONEC_ODATA_USER", "odata.user"), os.getenv("ONEC_ODATA_PASSWORD", ""))
 
 def search_by_inn(inn):
     res = {"inn": inn, "counterparties": [], "leads": []}

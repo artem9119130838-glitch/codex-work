@@ -1,4 +1,4 @@
-import json
+﻿import json
 from tilda_session import get_session
 
 def check_project_details(project_id="5807910"):
@@ -25,3 +25,4 @@ def check_project_details(project_id="5807910"):
 
 if __name__ == "__main__":
     check_project_details()
+

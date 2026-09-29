@@ -1,4 +1,4 @@
-import ftplib
+﻿import ftplib
 
 hosts = [
     "ftp.hostland.ru",
@@ -26,3 +26,4 @@ for host in hosts:
         break
     except Exception as e:
         print(f"Failed to connect to {host}: {e}")
+

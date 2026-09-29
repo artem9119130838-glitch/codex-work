@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 
 url = "https://app.tildacdn.one/tfront/dashboard/t-sign-in.min.js?ver=v25122301"
 r = requests.get(url)
@@ -13,3 +13,4 @@ if idx != -1:
     print(content[start:end])
 else:
     print("Not found")
+

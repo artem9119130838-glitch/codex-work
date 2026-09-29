@@ -1,4 +1,4 @@
-import re
+﻿import re
 
 INDEX_PHP = "C:/Codex_Personal/projects/tilda_migration/qilin-theme/index.php"
 
@@ -18,3 +18,4 @@ print("\nMatches for 'preview' or similar:")
 matches_prev = re.findall(r'(.{0,100}preview.{0,100})', content)
 for m in matches_prev[:10]:
     print(m.strip())
+

@@ -21,8 +21,7 @@ LOG_FILE = os.path.join(OUTPUT_DIR, "report_log.txt")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# API-Ключ и пул моделей
-API_KEY = "AIzaSyCj1AUDmL3XtL5zu3lXvwsEsjK0XHdKbjM"
+API_KEY = os.getenv("GEMINI_API_KEY", "")
 genai.configure(api_key=API_KEY)
 
 MODEL_POOL = [

@@ -1,4 +1,4 @@
-import os
+﻿import os
 import ftplib
 import requests
 
@@ -120,3 +120,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

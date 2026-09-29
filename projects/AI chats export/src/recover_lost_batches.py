@@ -6,8 +6,7 @@ import json
 import re
 from google import generativeai as genai
 
-# Setup API Key
-API_KEY = "AIzaSyCj1AUDmL3XtL5zu3lXvwsEsjK0XHdKbjM"
+API_KEY = os.getenv("GEMINI_API_KEY", "")
 genai.configure(api_key=API_KEY)
 
 # Add src to sys.path

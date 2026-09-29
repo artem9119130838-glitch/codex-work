@@ -15,24 +15,24 @@
 - **СТРОГИЙ ЗАПРЕТ НА ЗАПИСЬ В 1С БЕЗ СОГЛАСОВАНИЯ**: Категорически ЗАПРЕЩЕНО выполнять любые операции записи/модификации/удаления данных в 1С (POST, PATCH, PUT, DELETE через OData) без предварительного явного согласования с пользователем. Разрешены только чтение (GET) и формирование отчетов предпросмотра (Dry-run). Запись в 1С запускается исключительно после прямого утверждения пользователем списка изменений.
 - **Справочник доступов OData 1С**:
   - Базовый URL: `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/`
-  - Пользователь для чтения (Read-only): `odata.user` / `n8n159753!`
-  - Пользователь с правами записи: `odata.writer` / `CosiN09oAr` (использовать СТРОГО после согласования!)
+  - Пользователь для чтения (Read-only): `odata.user` / `${ONEC_ODATA_PASSWORD}`
+  - Пользователь с правами записи: `odata.writer` / `${ONEC_WRITER_PASSWORD}` (использовать СТРОГО после согласования!)
 - **Справочник почтовых ящиков (Hostland IMAP `mail.hostland.ru`, порт 993)**:
-  - `sales@longwang.ru`: `CosiN09oAr`
-  - `salman@longwang.ru`: `Artem167259!`
-  - `gen_dir@longwang.ru`: `70341607Lw`
-  - `saule@longwang.ru`: `saule159753`
-  - `i_li@longwang.ru`: `Artem159753`
-  - `khuzina.chulpan@longwang.ru`: `Chulpan159753`
-  - `a.ponomareva@longwang.ru`: `YnlByybXGR`
+  - `sales@longwang.ru`: `${MAIL_PASS_SALES}`
+  - `salman@longwang.ru`: `${MAIL_PASS_SALMAN}`
+  - `gen_dir@longwang.ru`: `${MAIL_PASS_GEN_DIR}`
+  - `saule@longwang.ru`: `${MAIL_PASS_SAULE}`
+  - `i_li@longwang.ru`: `${MAIL_PASS_I_LI}`
+  - `khuzina.chulpan@longwang.ru`: `${MAIL_PASS_CHULPAN}`
+  - `a.ponomareva@longwang.ru`: `${MAIL_PASS_PONOMAREVA}`
 - **Вебхук Bitrix24**:
-  - `https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/` (подтверждены права CRM).
+  - `${BITRIX24_WEBHOOK_URL}` (права CRM настраиваются в портале).
 - **Справочник DaData**:
-  - API-ключ (Token): `17c6961838d6a750aeadd323d0aa06342f7044f9`
-  - Секретный ключ (Secret): `84677c7916912e5ae132b4b7359d4f5ad0b69927`
+  - API-ключ (Token): `${DADATA_API_KEY}`
+  - Секретный ключ (Secret): `${DADATA_SECRET_KEY}`
 - **Справочник Saby (СБИС)**:
-  - Сервисная интеграция (OAuth): `app_client_id = 9232528288562092`, `app_secret = YNVFTZZU0SMT943WTZOTMM9O`
-  - Пользовательский доступ (Web / RPC): `top-gk@yandex.ru` / `Artem159753!`
+  - Сервисная интеграция (OAuth): `app_client_id = ${SABY_CLIENT_ID}`, `app_secret = ${SABY_APP_SECRET}`
+  - Пользовательский доступ (Web / RPC): `top-gk@yandex.ru` / `${SABY_USER_PASSWORD}`
 - **Регламент проверки контрагентов (DaData vs Saby) и выявления перепродажников**:
   - **Быстрая проверка / DaData**: Используется для мгновенного получения официального наименования, КПП, ОГРН, адреса, ФИО руководителя, статуса компании и ОКВЭД.
   - **Глубокая проверка / Saby (Тендеры)**: Используется для подсчета количества участий компании в торгах в роли поставщика (`participant_count`) и заказчика (`customer_count`) без использования официального платного API ВОК (через веб-сессию `online.sbis.ru/page/contractor?inn=...`).

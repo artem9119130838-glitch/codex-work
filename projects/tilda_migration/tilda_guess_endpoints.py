@@ -1,11 +1,11 @@
-import requests
+﻿import requests
 from bs4 import BeautifulSoup
 import re
 import json
 
 def guess_endpoints():
     email = "selfaqua@yandex.ru"
-    password = "70341607Lw-"
+    password = os.getenv("TILDA_PASSWORD", "")
     pageid = "41294814"
     
     session = requests.Session()
@@ -93,3 +93,4 @@ def guess_endpoints():
 
 if __name__ == "__main__":
     guess_endpoints()
+
