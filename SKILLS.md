@@ -13,7 +13,7 @@
 3. **[n8n_crm_email_engine](file:///C:/Users/Артем/.gemini/config/skills/n8n_crm_email_engine/SKILL.md) — n8n CRM and Email Engine (Мастер-конвейер)**
    * *Когда вызывать:* Интеграция n8n с почтой IMAP Hostland, парсинг вложений (XLSX, PDF), идемпотентное создание сделок в Битрикс24, защита от дублей, авторетраи, джиттер при шквале вебхуков, диагностика и безопасный вакуум SQLite без WAL. *(Объединил `email_ai_pipelines`, `n8n_idempotent_crm_pipelines` и `n8n_crm_diagnostics`)*.
 4. **[1c_unf](file:///C:/Users/Артем/.gemini/config/skills/1c_unf/SKILL.md) — Разработка и Интеграция 1С:УНФ**
-   * *Когда вызывать:* OData API запросы (`substringof`), JSON-структуры адресов БСП (`make_bsp_address_json`), запрет самодельных формул расчета прибыли/себестоимости, СКД и физические таблицы регистров.
+   * *Когда вызывать:* OData API запросы (`substringof`, PATCH), зеркальная синхронизация с Битрикс24, JSON-структуры адресов БСП (`make_bsp_address_json`), запрет самодельных формул расчета прибыли/себестоимости, СКД и физические таблицы регистров.
 5. **[infra_management](file:///C:/Users/Артем/.gemini/config/skills/infra_management/SKILL.md) — Управление инфраструктурой и единым реестром**
    * *Когда вызывать:* Инвентаризация проектов (`/audit`), аудит переменных `.env`, массовая замена конфигураций (`/replace`), проверка работоспособности сервисов (`/verify`) и карта зависимостей `INFRASTRUCTURE.md`.
 6. **[linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md) — Администрирование Linux Server**
