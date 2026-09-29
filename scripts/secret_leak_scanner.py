@@ -21,12 +21,19 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-REPOS_TO_SCAN = [
-    Path("C:/Codex/projects/n8n_email_ai"),
-    Path("C:/Codex/projects/tender-extraction-lab"),
-    Path("C:/Codex/projects/1c_odata"),
-    Path("D:/Soft/Codex Backup"),
-]
+if sys.platform == "win32":
+    REPOS_TO_SCAN = [
+        Path("C:/Codex/projects/n8n_email_ai"),
+        Path("C:/Codex/projects/tender-extraction-lab"),
+        Path("C:/Codex/projects/1c_odata"),
+        Path("D:/Soft/Codex Backup"),
+    ]
+else:
+    REPOS_TO_SCAN = [
+        Path("/Storage/tender-rag-api"),
+        Path("/Storage/scripts"),
+        Path("/Storage/docker"),
+    ]
 
 B24_WEBHOOK_URL = os.getenv("BITRIX24_WEBHOOK_URL", "https://b24-g4wfjq.bitrix24.ru/rest/1/e89gipx565rig00g").rstrip("/") + "/"
 B24_USER_ID = int(os.getenv("B24_ALERT_USER_ID", "1"))
@@ -167,23 +174,31 @@ def send_b24_alert(findings: list):
 
 def send_email_alert(findings: list):
     """Отправка подробного email-оповещения на почту администратора"""
-    env_file = Path("C:/Codex/projects/n8n_email_ai/.env")
+    env_candidates = [
+        Path("C:/Codex/projects/n8n_email_ai/.env"),
+        Path("/Storage/docker/n8n/.env"),
+        Path("/Storage/tender-rag-api/.env"),
+        Path("/Storage/scripts/.env")
+    ]
     sender_email = None
     sender_pass = None
-    if env_file.exists():
-        try:
-            with open(env_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.startswith("MAIL_ACCOUNTS="):
-                        val = line.split("=", 1)[1].strip().strip("'\"")
-                        accs = json.loads(val)
-                        sales = next((a for a in accs if a.get("user") == "sales@longwang.ru"), None)
-                        if sales:
-                            sender_email = sales.get("user")
-                            sender_pass = sales.get("pass")
-                        break
-        except Exception:
-            pass
+    for env_file in env_candidates:
+        if env_file.exists():
+            try:
+                with open(env_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("MAIL_ACCOUNTS="):
+                            val = line.split("=", 1)[1].strip().strip("'\"")
+                            accs = json.loads(val)
+                            sales = next((a for a in accs if a.get("user") == "sales@longwang.ru"), None)
+                            if sales:
+                                sender_email = sales.get("user")
+                                sender_pass = sales.get("pass")
+                            break
+                if sender_email and sender_pass:
+                    break
+            except Exception:
+                pass
 
     if not sender_email or not sender_pass:
         sender_email = os.getenv("ALERT_SMTP_USER")
