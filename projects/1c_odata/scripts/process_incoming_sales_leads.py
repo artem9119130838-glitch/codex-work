@@ -40,6 +40,7 @@ import os
 import sys
 import re
 import json
+import html
 import argparse
 import imaplib
 import smtplib
@@ -85,14 +86,44 @@ USER_MAPPING = {
     "ван": 30
 }
 
-# Шаблон № 66 (Текст подтверждения принятия заявки в работу)
-TEMPLATE_66_TEXT = """Добрый день!
+USER_PROFILES = {
+    1: {
+        "name": "Артем",
+        "full_name": "Артем Петров",
+        "email": "sales@longwang.ru",
+        "phone": "+7 (812) 509-1245",
+        "sign_text": "С уважением, Артем\nКомпания LongWang, ООО «Ци Линь»\nТел: +7 (812) 509-1245 | sales@longwang.ru\nСайт: https://longwang.ru/",
+        "sign_html": "<b>С уважением, Артем</b><br>Компания LongWang, ООО «Ци Линь»<br>Тел: <a href=\"tel:+78125091245\">+7 (812) 509-1245</a> | Email: <a href=\"mailto:sales@longwang.ru\">sales@longwang.ru</a><br>Сайт: <a href=\"https://longwang.ru/\">longwang.ru</a>"
+    },
+    38: {
+        "name": "Александра",
+        "full_name": "Александра Пономарева",
+        "email": "sales@longwang.ru",
+        "phone": "+7 (812) 509-1245",
+        "sign_text": "С уважением, Александра\nКомпания LongWang, ООО «Ци Линь»\nТел: +7 (812) 509-1245 | sales@longwang.ru\nСайт: https://longwang.ru/",
+        "sign_html": "<b>С уважением, Александра</b><br>Компания LongWang, ООО «Ци Линь»<br>Тел: <a href=\"tel:+78125091245\">+7 (812) 509-1245</a> | Email: <a href=\"mailto:sales@longwang.ru\">sales@longwang.ru</a><br>Сайт: <a href=\"https://longwang.ru/\">longwang.ru</a>"
+    },
+    26: {
+        "name": "Салман",
+        "full_name": "Салман",
+        "email": "salman@longwang.ru",
+        "phone": "+7 (812) 509-1245",
+        "sign_text": "С уважением, Салман\nКомпания LongWang, ООО «Ци Линь»\nEmail: salman@longwang.ru\nСайт: https://longwang.ru/",
+        "sign_html": "<b>С уважением, Салман</b><br>Компания LongWang, ООО «Ци Линь»<br>Email: <a href=\"mailto:salman@longwang.ru\">salman@longwang.ru</a><br>Сайт: <a href=\"https://longwang.ru/\">longwang.ru</a>"
+    }
+}
+
+def get_template_66_content(assigned_user_id: int = 1) -> tuple[str, str]:
+    prof = USER_PROFILES.get(assigned_user_id, USER_PROFILES[1])
+    name = prof["name"]
+    sign_text = prof["sign_text"]
+    sign_html = prof["sign_html"]
+
+    text = f"""Добрый день!
 Ваш заказ принят, передали в работу коллегам. Будем держать вас в курсе по срокам. Если будут вопросы, мы на связи.
 
 --
-С уважением, Артем
-LongWang: https://longwang.ru/
-Тел: +7 (812) 509-1245 | sales@longwang.ru
+{sign_text}
 
 ------------------------------
 Если Вам в дальнейшем понадобится что-то из оригинального оборудования Atlas Copco, SMC, Caterpillar, Danfoss, Siemens, Megger, Fronius, Brevini, Autonics и/или этих производителей:
@@ -103,16 +134,13 @@ https://longwang.ru/supplies-services-china/platezhi-v-kitai/
 https://longwang.ru/supplies-services-china/dostavka-is-kitaya/
 """
 
-TEMPLATE_66_HTML = """<div>
+    html = f"""<div>
   <p>Добрый день!</p>
   <p>Ваш заказ принят, передали в работу коллегам. Будем держать вас в курсе по срокам. Если будут вопросы, мы на связи.</p>
 </div>
 <div style="font-family: Arial, sans-serif; font-size: 13px; color: #333; margin-top: 20px;">
   --<br>
-  <b>С уважением, Артем</b><br>
-  Компания LongWang, ООО «Ци Линь»<br>
-  Тел: <a href="tel:+78125091245">+7 (812) 509-1245</a> | Email: <a href="mailto:sales@longwang.ru">sales@longwang.ru</a><br>
-  Сайт: <a href="https://longwang.ru/">longwang.ru</a><br>
+  {sign_html}<br>
   <hr style="border: none; border-top: 1px solid #eee; margin: 15px 0;">
   <span style="font-size: 11px; color: #777;">
     Если Вам в дальнейшем понадобится что-то из оригинального оборудования Atlas Copco, SMC, Caterpillar, Danfoss, Siemens, Megger, Fronius, Brevini, Autonics и/или этих производителей: 
@@ -123,6 +151,7 @@ TEMPLATE_66_HTML = """<div>
   </span>
 </div>
 """
+    return text, html
 
 
 # ---------------------------------------------------------
@@ -165,9 +194,20 @@ def find_company_by_inn(inn: str) -> dict:
     return items[0] if items else None
 
 
+def find_company_by_title(title: str) -> dict:
+    if not title or title == "Без названия":
+        return None
+    r = call_b24("crm.company.list", {
+        "filter": {"TITLE": title.strip()},
+        "select": ["ID", "TITLE", "UF_CRM_699421CD2A684", "PHONE", "EMAIL", "ADDRESS", "COMMENTS"]
+    })
+    items = r.get("result", [])
+    return items[0] if items else None
+
+
 def enrich_or_create_company(title: str, inn: str, phone: str = None, email: str = None, address: str = None, assigned_by: int = 1, dry_run: bool = False) -> int:
     clean_inn = "".join(filter(str.isdigit, str(inn))) if inn else ""
-    existing = find_company_by_inn(clean_inn) if clean_inn else None
+    existing = find_company_by_inn(clean_inn) if clean_inn else find_company_by_title(title)
     
     if existing:
         cid = int(existing["ID"])
@@ -287,21 +327,23 @@ def bind_activity_to_deal(act_id: int, deal_id: int, company_id: int, contact_id
                 pass
 
 
-def create_crm_todo(deal_id: int, description: str, deadline_days: int = 2, assigned_by: int = 1, dry_run: bool = False) -> int:
+def create_crm_todo(deal_id: int, description: str, deadline_days: int = 2, assigned_by: int = 1, observer_id: int = 1, dry_run: bool = False) -> int:
     deadline_dt = datetime.now() + timedelta(days=deadline_days)
+    prof = USER_PROFILES.get(assigned_by, USER_PROFILES[1])
+    desc = f"{description}\n(Ответственный: {prof['full_name']}; Наблюдатель: Артем)" if assigned_by != 1 else description
     fields = {
         "OWNER_TYPE_ID": 2,
         "OWNER_ID": deal_id,
         "TYPE_ID": 6, # CRM_TODO
-        "SUBJECT": f"Контроль расчета / КП: {description[:80]}",
+        "SUBJECT": f"Контроль расчета / КП ({prof['name']}): {description[:65]}",
         "START_TIME": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "END_TIME": deadline_dt.strftime("%Y-%m-%d 18:00:00"),
         "DEADLINE": deadline_dt.strftime("%Y-%m-%d 18:00:00"),
         "RESPONSIBLE_ID": assigned_by,
-        "DESCRIPTION": description,
+        "DESCRIPTION": desc,
         "COMPLETED": "N"
     }
-    print(f"  [B24] Постановка контрольного дела CRM_TODO на пользователя {assigned_by} (дедлайн: {deadline_dt.strftime('%d.%m.%Y')})")
+    print(f"  [B24] Постановка контрольного дела CRM_TODO на пользователя {prof['name']} (ID {assigned_by}, Наблюдатель: Артем ID {observer_id}, дедлайн: {deadline_dt.strftime('%d.%m.%Y')})")
     if dry_run:
         return 9999904
     res = call_b24("crm.activity.add", {"fields": fields})
@@ -317,21 +359,26 @@ def mark_activity_read(act_id: int, dry_run: bool = False):
 # ---------------------------------------------------------
 # Снабжение Miss Wang (user/30)
 # ---------------------------------------------------------
-def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_id: int = None, deadline_days: int = 4, dry_run: bool = False) -> int:
+def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_id: int = None, deadline_days: int = 4, creator_id: int = 1, observer_ids: list = None, dry_run: bool = False) -> int:
     deadline_dt = datetime.now() + timedelta(days=deadline_days)
+    obs = observer_ids or ([1] if creator_id != 1 else [])
+    prof = USER_PROFILES.get(creator_id, USER_PROFILES[1])
     fields = {
         "TITLE": f"Запрос цен КНР: {title}",
         "DESCRIPTION": description_cn,
         "RESPONSIBLE_ID": 30, # Miss Wang
-        "CREATED_BY": 1,      # Artem
+        "CREATED_BY": creator_id,
         "DEADLINE": deadline_dt.strftime("%Y-%m-%d 18:00:00"),
         "UF_CRM_TASK": [f"D_{deal_id}"]
     }
+    if obs:
+        fields["AUDITORS"] = obs
     if disk_file_id:
         fields["UF_TASK_WEBDAV_FILES"] = [f"n{disk_file_id}"]
         
-    print(f"  [B24] Создание Задачи для Miss Wang (user/30) по Сделке {deal_id} (дедлайн: {deadline_dt.strftime('%d.%m.%Y')})")
+    print(f"  [B24] Создание Задачи для Miss Wang (user/30) по Сделке {deal_id} (Постановщик: {prof['name']} ID {creator_id}, Наблюдатели: {obs}, дедлайн: {deadline_dt.strftime('%d.%m.%Y')})")
     if dry_run:
+        print(f"  [B24] (Dry-run) В чат Задачи будет отправлен пинг-комментарий [USER=30]王女士[/USER] (Постановщик: {prof['name']} ID {creator_id}, Наблюдатель: [USER=1]Артем[/USER])")
         return 9999905
     res = call_b24("tasks.task.add", {"fields": fields})
     task_id = int(res.get("result", {}).get("task", {}).get("id", 0))
@@ -344,29 +391,35 @@ def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_
     )
     if disk_file_id:
         comment_text += f"📎 [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{disk_file_id}/]下载采购清单 Excel 附件[/URL]\n\n"
+    comment_text += f"负责人：{prof['name']}（[USER={creator_id}]{prof['full_name']}[/USER]）。\n"
+    if obs:
+        comment_text += f"观察员/抄送：[USER=1]Артем[/USER]。\n"
     comment_text += f"截止日期：{deadline_dt.strftime('%Y年%m月%d日')}（3-4个工作日）。非常感谢！"
     
     call_b24("task.commentitem.add", {
         "TASKID": task_id,
         "FIELDS": {"POST_MESSAGE": comment_text}
     })
-    print(f"  [B24] В чат Задачи {task_id} отправлен пинг-комментарий [USER=30]王女士[/USER]")
+    print(f"  [B24] В чат Задачи {task_id} отправлен пинг-комментарий [USER=30]王女士[/USER] с указанием постановщика {prof['name']} и наблюдателя Артема")
     return task_id
 
 
 # ---------------------------------------------------------
 # Шаблон № 66 (Почтовый автоответ)
 # ---------------------------------------------------------
-def send_template_66_reply(to_email: str, original_subject: str, message_id_ref: str = None, dry_run: bool = False):
+def send_template_66_reply(to_email: str, original_subject: str, assigned_user_id: int = 1, message_id_ref: str = None, dry_run: bool = False):
     subject = original_subject if original_subject.lower().startswith("re:") else f"Re: {original_subject}"
-    print(f"  [SMTP] Отправка автоответа Шаблоном № 66 на {to_email} (Тема: {subject})")
+    prof = USER_PROFILES.get(assigned_user_id, USER_PROFILES[1])
+    sender_name = prof["name"]
+    print(f"  [SMTP] Отправка автоответа Шаблоном № 66 от имени '{sender_name}' на {to_email} (Тема: {subject})")
     if dry_run:
-        print("  [SMTP] (Dry-run) Отправка пропущена")
+        print(f"  [SMTP] (Dry-run) Отправка пропущена (Подпись: {prof['full_name']}, Получатель: {to_email})")
         return True
 
     try:
+        text_body, html_body = get_template_66_content(assigned_user_id)
         msg = EmailMessage()
-        msg["From"] = f"Артем LongWang <{MAIL_USER}>"
+        msg["From"] = f"{prof['name']} LongWang <{MAIL_USER}>"
         msg["To"] = to_email
         msg["Subject"] = subject
         msg["Date"] = formatdate(localtime=True)
@@ -374,14 +427,14 @@ def send_template_66_reply(to_email: str, original_subject: str, message_id_ref:
         if message_id_ref:
             msg["In-Reply-To"] = message_id_ref
             msg["References"] = message_id_ref
-        msg.set_content(TEMPLATE_66_TEXT)
-        msg.add_alternative(TEMPLATE_66_HTML, subtype="html")
+        msg.set_content(text_body)
+        msg.add_alternative(html_body, subtype="html")
 
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
             server.login(MAIL_USER, MAIL_PASS)
             server.send_message(msg)
-        print(f"  [SMTP] Письмо-подтверждение успешно отправлено на {to_email}")
+        print(f"  [SMTP] Письмо-подтверждение от {sender_name} успешно отправлено на {to_email}")
         return True
     except Exception as e:
         print(f"  [SMTP-ERROR] Ошибка отправки Шаблона 66: {e}")
@@ -539,15 +592,18 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
         email_desc = ""
         files_count = 0
         act_id = None
+        attached_files = []
         
         if email_act:
             act_id = int(email_act.get("ID"))
             email_subject = email_act.get("SUBJECT", "")
             email_desc = email_act.get("DESCRIPTION", "")
-            files_count = len(email_act.get("FILES", []))
+            attached_files = email_act.get("FILES", [])
+            files_count = len(attached_files)
             settings = email_act.get("SETTINGS", {})
             email_meta = settings.get("EMAIL_META", {})
             email_sender = email_meta.get("replyTo") or email_meta.get("from", "")
+            email_msg_id = email_meta.get("messageId", "")
             # Извлечение чистого email
             match_em = re.search(r'[\w\.-]+@[\w\.-]+', email_sender)
             if match_em:
@@ -560,24 +616,43 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                 email_sender = lead_emails[0].get("VALUE", "")
 
         # Извлечение контактов и ИНН из лида и письма
+        clean_desc = html.unescape(email_desc) if email_desc else ""
+        full_text = f"{title} {lead.get('COMMENTS', '')} {clean_desc}"
+
         company_name = lead.get("COMPANY_TITLE") or ""
         if not company_name or company_name == "Без названия":
-            # Попытка извлечь имя компании из кавычек «...» или "..." в заголовке
-            cm = re.search(r'[«"“]([^»"”]+)[»"”]', title)
-            if cm:
-                company_name = cm.group(1).strip()
+            # Попытка извлечь имя компании из кавычек «...» или "..." в тексте письма или заголовка
+            comp_match = re.search(r'(?:АО|ООО|ПАО|ЗАО|НПО)\s*[«"“]([^»"”]+)[»"”]', full_text)
+            if comp_match:
+                company_name = comp_match.group(0).strip()
             else:
-                company_name = title
+                cm = re.search(r'[«"“]([^»"”]+)[»"”]', title)
+                if cm:
+                    company_name = cm.group(1).strip()
+                else:
+                    company_name = title
 
         contact_name = lead.get("NAME") or ""
         contact_last = lead.get("LAST_NAME") or ""
+        second_name = lead.get("SECOND_NAME") or ""
+        if contact_name and not contact_last and " " in contact_name:
+            parts = contact_name.split()
+            if len(parts) == 3:
+                contact_last, contact_name, second_name = parts[0], parts[1], parts[2]
+            elif len(parts) == 2:
+                contact_last, contact_name = parts[0], parts[1]
+
         contact_phone = ""
         phones = lead.get("PHONE", [])
         if phones and isinstance(phones, list):
             contact_phone = phones[0].get("VALUE", "")
+        if not contact_phone and clean_desc:
+            ph_match = re.search(r'(?:\+7|\b8)\s*\(?\d{3,4}\)?\s*[\d\s-]{6,10}', clean_desc)
+            if ph_match:
+                contact_phone = ph_match.group(0).strip()
 
         # Поиск ИНН в тексте
-        inn_match = re.search(r'\b(ИНН\s*[:№]?\s*)?(\d{10}|\d{12})\b', f"{title} {lead.get('COMMENTS', '')} {email_desc}", re.IGNORECASE)
+        inn_match = re.search(r'\b(ИНН\s*[:№]?\s*)?(\d{10}|\d{12})\b', full_text, re.IGNORECASE)
         found_inn = inn_match.group(2) if inn_match else ""
 
         # Проверка однозначности заявки
@@ -591,7 +666,7 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             # -----------------------------------------------------
             # 1. Компания и Контакт
             cid = enrich_or_create_company(company_name, found_inn, phone=contact_phone, email=email_sender, assigned_by=assigned_to, dry_run=dry_run)
-            ctid = enrich_or_create_contact(contact_name or "Контакт", contact_last, post="", phone=contact_phone, email=email_sender, company_id=cid, assigned_by=assigned_to, dry_run=dry_run)
+            ctid = enrich_or_create_contact(contact_name or "Контакт", last_name=contact_last, second_name=second_name, post="", phone=contact_phone, email=email_sender, company_id=cid, assigned_by=assigned_to, dry_run=dry_run)
 
             # 2. Сделка
             deal_title = f"Поставка оборудования/СЗЧ — {company_name}"
@@ -607,12 +682,25 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             if not dry_run:
                 call_b24("crm.lead.update", {"id": lid, "fields": {"STATUS_ID": "CONVERTED"}})
 
-            # 5. Контрольное дело CRM_TODO Артему
-            create_crm_todo(did, f"Контроль подготовки КП и расчета для {company_name} (Заявка из письма {email_subject})", deadline_days=3, assigned_by=assigned_to, dry_run=dry_run)
+            # 5. Контрольное дело CRM_TODO ответственному (с наблюдателем Артемом)
+            create_crm_todo(did, f"Контроль подготовки КП и расчета для {company_name} (Заявка из письма {email_subject})", deadline_days=3, assigned_by=assigned_to, observer_id=1, dry_run=dry_run)
+
+            # 5.1 Задача снабжению Miss Wang (user/30)
+            first_disk_file_id = attached_files[0].get("id") if attached_files else None
+            create_supply_task(
+                deal_id=did,
+                title=f"{company_name} ({title})",
+                description_cn=f"询价清单：{title}\n客户：{company_name}",
+                disk_file_id=first_disk_file_id,
+                deadline_days=4,
+                creator_id=assigned_to,
+                observer_ids=[1] if assigned_to != 1 else [],
+                dry_run=dry_run
+            )
 
             # 6. Автоответ Шаблоном № 66 клиенту
             if email_sender:
-                send_template_66_reply(email_sender, email_subject or title, dry_run=dry_run)
+                send_template_66_reply(email_sender, email_subject or title, assigned_user_id=assigned_to, message_id_ref=email_msg_id, dry_run=dry_run)
 
             # 7. Синхронизация 1С:УНФ
             sync_1c_lead(title, company_name, found_inn, email_sender, contact_phone, deal_id=did, dry_run=dry_run)
@@ -622,10 +710,11 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             # ВЕТКА Б: AMBIGUOUS (Ручная квалификация)
             # -----------------------------------------------------
             cid = enrich_or_create_company(company_name, found_inn, phone=contact_phone, email=email_sender, assigned_by=assigned_to, dry_run=dry_run)
-            ctid = enrich_or_create_contact(contact_name or "Контакт", contact_last, post="", phone=contact_phone, email=email_sender, company_id=cid, assigned_by=assigned_to, dry_run=dry_run)
+            ctid = enrich_or_create_contact(contact_name or "Контакт", last_name=contact_last, second_name=second_name, post="", phone=contact_phone, email=email_sender, company_id=cid, assigned_by=assigned_to, dry_run=dry_run)
             
             # Постановка дела CRM_TODO на лид
-            print(f"  [B24] Постановка задачи Артему на проверку спорного обращения Лида {lid}")
+            prof = USER_PROFILES.get(assigned_to, USER_PROFILES[1])
+            print(f"  [B24] Постановка задачи {prof['name']} на проверку спорного обращения Лида {lid} (Наблюдатель: Артем)")
             if not dry_run:
                 call_b24("crm.activity.add", {
                     "fields": {
@@ -637,7 +726,7 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                         "START_TIME": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "END_TIME": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d 18:00:00"),
                         "DEADLINE": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d 18:00:00"),
-                        "DESCRIPTION": f"Обращение не содержит явного списка позиций или требует уточнения ТЗ.\nПричина: {reason}\nПисьмо: {email_subject}\nОт: {email_sender}",
+                        "DESCRIPTION": f"Обращение не содержит явного списка позиций или требует уточнения ТЗ.\nОтветственный: {prof['full_name']}; Наблюдатель: Артем\nПричина: {reason}\nПисьмо: {email_subject}\nОт: {email_sender}",
                         "COMPLETED": "N"
                     }
                 })
@@ -660,6 +749,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     user_key = str(args.assigned_to).lower()
-    assigned_id = USER_MAPPING.get(user_key, 1)
+    assigned_id = USER_MAPPING.get(user_key, int(user_key) if user_key.isdigit() else 1)
 
     process_leads(mailbox=args.mailbox, assigned_to=assigned_id, specific_lead_id=args.lead_id, dry_run=args.dry_run)

@@ -130,3 +130,12 @@
 13. **Тендеры, АСТ ГОЗ и RAG-пайплайн спецификаций**: автоматизация DOM АСТ ГОЗ, MarkItDown парсинг DOCX/PDF таблиц, Gemini API троттлинг RPM, слияние Excel-лотов.
 14. **Инфраструктура, VPS-сервер, Docker и Бэкапы**: бэкапы `scripts/download_vps_backup.ps1`, еженедельное сжатие SQLite `scripts/vps/n8n-sqlite-auto-vacuum.sh`, инвентаризация `inventory.py`, массовая замена `mass_replace.py`.
 
+---
+
+## 📋 5. Единый реестр архитектурных и рабочих планов (PLANS_REGISTRY)
+
+Все утвержденные и реализуемые планы фиксируются в центральном реестре:
+👉 **[PLANS_REGISTRY.md](file:///C:/Codex/codex_kb/00_control/PLANS_REGISTRY.md)**
+- **Раздел 1:** Планы, подлежащие исполнению (Pending Execution).
+- **Раздел 2:** Частично исполненные планы (Partially Executed / подлежат проверке и валидации на реальных данных).
+- **Раздел 3:** Завершенные и верифицированные планы (Completed & Verified).
