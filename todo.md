@@ -1,5 +1,9 @@
 # Рабочий лог задач (Personal)
 
+- [x] Комплексный архитектурный аудит предложений Михаила и генеральный план B2B-продукта (B2B AI Nexus):
+  - [x] Детально проанализированы 10 гипотез Михаила из `C:\Users\Артем\Downloads\что сейчас делаем не так и как улучшить (глобально).md`: полностью поддержаны Hexagonal Architecture, Alembic, Circuit Breaker, Claim Check (MinIO), OpenTelemetry и DLQ; адаптированы под SMB оркестратор (отказ от тяжелого Temporal в пользу FastAPI + Celery/APScheduler) и аналитика (батчевая асинхронная запись в Postgres вместо ClickHouse);
+  - [x] Проведена сквозная инвентаризация наработок контура Codex: скоринг контрагентов DaData/Saby (`check_contractor.py`), зеркальная синхронизация 1С:УНФ и Битрикс24 (`search_1c_entities.py`, `sync_to_bitrix.py`), интеграция телефонии Новофон (Data API v2.0 JSON-RPC), конвейер Follow-Up сделок и генерация черновиков IMAP (`process_today_followup_deals.py`, `deal_followup_pipeline.py`), ликвидация отрыва писем от сделок CRM и реактивация спящей базы;
+  - [x] Сформирован детальный архитектурный мастер-план и 4-спринтовый Roadmap: `docs/B2B_UNIFIED_PRODUCT_ARCHITECTURE_AND_ROADMAP.md` с распределением ролей и адаптацией инженерных решений Михаила на ВЕСЬ продукт;
 - [x] Создание полного образа системы Macrium и обновление FreeFileSync для Victus:
   - [x] Создан полный образ C: и системных разделов в `D:\server-backups\victus_backup\0AEDAEBEFA1FD758-victus_backup_29-09-26-00-00.mrimgx` (75.52 ГБ)
   - [x] Полностью обновлены и валидированы профили FreeFileSync (`NewLaptop_to_External.ffs_gui`, `Victus_to_External.ffs_gui`, `External_to_NewLaptop.ffs_gui`, `External_to_Victus.ffs_gui`): заменены 3 устаревшие пары Codex на `C:\Codex`, актуализированы пути диска D: (`D:\SOFT E`, `D:\Save`), добавлена пара `D:\server-backups`, добавлены 4 недостающие пары AppData (Punto Switcher, MobaXterm, 1C, Edge) и фильтры исключений (`.tmp.driveupload`, `NVIDIA\DXCache`, `Codex Backup`)
