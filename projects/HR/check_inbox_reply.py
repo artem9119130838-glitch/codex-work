@@ -16,9 +16,10 @@ def decode_mime(val):
             parts.append(str(text))
     return ' '.join(parts)
 
+import os
 accounts = [
-    ('i_li@longwang.ru', 'Artem159753'),
-    ('gen_dir@longwang.ru', '70341607Lw'),
+    ('i_li@longwang.ru', os.getenv("MAIL_PASS_I_LI", "")),
+    ('gen_dir@longwang.ru', os.getenv("MAIL_PASS_GEN_DIR", "")),
 ]
 
 for user, pwd in accounts:

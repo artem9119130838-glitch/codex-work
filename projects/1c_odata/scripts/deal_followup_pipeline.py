@@ -30,12 +30,12 @@ from email.utils import formatdate, make_msgid
 from datetime import datetime, timedelta
 import requests
 
-B24_WEBHOOK = "https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/"
-IMAP_HOST = "mail.hostland.ru"
-IMAP_PORT = 993
+B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "")
+IMAP_HOST = os.getenv("IMAP_SERVER", "mail.hostland.ru")
+IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 
-SENDER_EMAIL = "sales@longwang.ru"
-SENDER_PASS = "CosiN09oAr"
+SENDER_EMAIL = os.getenv("IMAP_USER", "sales@longwang.ru")
+SENDER_PASS = os.getenv("IMAP_PASSWORD", "")
 SENDER_NAME = "Артем Петров Long Wang, ООО Ци Линь"
 
 # Папка "Черновики" в UTF-7 для Roundcube Webmail на Hostland

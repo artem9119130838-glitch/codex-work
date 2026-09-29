@@ -1,9 +1,8 @@
 import imaplib
 import sys
 
-sys.stdout.reconfigure(encoding='utf-8')
-
-for user, pwd in [('gen_dir@longwang.ru', '70341607Lw'), ('i_li@longwang.ru', 'Artem159753')]:
+import os
+for user, pwd in [('gen_dir@longwang.ru', os.getenv('MAIL_PASS_GEN_DIR', '')), ('i_li@longwang.ru', os.getenv('MAIL_PASS_I_LI', ''))]:
     try:
         m = imaplib.IMAP4_SSL('mail.hostland.ru', 993)
         m.login(user, pwd)

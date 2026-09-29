@@ -31,11 +31,11 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-B24_WEBHOOK = "https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/"
-IMAP_HOST = "mail.hostland.ru"
-IMAP_PORT = 993
-SENDER_EMAIL = "sales@longwang.ru"
-SENDER_PASS = "CosiN09oAr"
+B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "")
+IMAP_HOST = os.getenv("IMAP_SERVER", "mail.hostland.ru")
+IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
+SENDER_EMAIL = os.getenv("IMAP_USER", "sales@longwang.ru")
+SENDER_PASS = os.getenv("IMAP_PASSWORD", "")
 SENDER_NAME = "Артем Петров Long Wang, ООО Ци Линь"
 IMAP_DRAFTS_FOLDER = "&BBcEMAQzBD4EQgQ+BDIEOgQ4-"
 
@@ -211,13 +211,14 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
         phones = contact.get("PHONE", [])
         phone_val = phones[0].get("VALUE") if phones else None
         
-        # История писем по сделке или контакту
+        # История писем по сделке или контакту (только метаданные, отсекаем тяжелый HTML)
         email_acts = call_b24("crm.activity.list", {
             "filter": {
                 "OWNER_ID": deal_id,
                 "OWNER_TYPE_ID": 2,
                 "TYPE_ID": 4
-            }
+            },
+            "select": ["ID", "SUBJECT", "START_TIME", "DIRECTION", "COMPLETED", "TYPE_ID"]
         })
         
         # Также проверяем письма по лиду, если сделка сконвертирована из лида
@@ -228,7 +229,8 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
                     "OWNER_ID": lead_id,
                     "OWNER_TYPE_ID": 1,
                     "TYPE_ID": 4
-                }
+                },
+                "select": ["ID", "SUBJECT", "START_TIME", "DIRECTION", "COMPLETED", "TYPE_ID"]
             })
             email_acts.extend(lead_emails)
             
@@ -239,7 +241,7 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
         if deal_id == 2166 or "Hydac" in deal_title or "Петрошип" in (company.get("TITLE") or ""):
             print("    Идентифицирована сделка по фильтрам Hydac (ООО «ПЕТРОШИП»)...")
             
-            # Текст черновика
+            # Текст черновика (для касаний < 3)
             subject = "Re: Запрос на фильтры. Hydac Inline filter, type LF W30 IB25 C1.x.  51144A-0007"
             body_text = (
                 f"{contact_name}, добрый день!\n\n"
@@ -254,46 +256,70 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
                 "<p>Если есть возможность сфотографировать узел или прислать паспорт изделия — будем очень признательны, сразу передадим в работу.</p>"
             )
             
-            if not dry_run and to_email:
-                # 1. Сохраняем черновик в IMAP Drafts
-                msg_id = save_draft_to_imap(to_email, subject, body_text, body_html)
-                report["drafts_created"].append({
-                    "deal_id": deal_id,
-                    "to": to_email,
-                    "subject": subject,
-                    "msg_id": msg_id
-                })
-                print(f"    [OK] Черновик сохранен в IMAP Drafts (to: {to_email})")
-                
-                # 2. Закрываем старое дело (получить фото)
+            if not dry_run:
+                # ЗАКРЫВАЕМ текущее отработанное дело
                 close_activity(act_id)
                 report["closed_activities"].append(act_id)
-                print(f"    [OK] Закрыто старое дело #{act_id}")
+                print(f"    [OK] Закрыто текущее дело #{act_id}")
                 
-                # 3. Так как уже писали 21.09 и 23.09 (это 3-е касание), ставим ДЕЛО-ЗВОНОК на среду 30.09
-                call_phone = phone_val or "+79117120837"
-                call_desc = (
-                    "Писали 21.09, 23.09 и подготовлен контрольный черновик 25.09 с запросом фото шильдика Hydac LF W30 IB25 C1.x. 51144A-0007. "
-                    "Если ответа на почту не будет — набрать Марию и уточнить статус заявки."
-                )
-                call_id = create_call_activity(
-                    deal_id=deal_id,
-                    contact_id=contact_id,
-                    company_id=company_id,
-                    subject=f"Звонок: {full_name} ({company.get('TITLE') or 'ООО «ПЕТРОШИП»'}) — фото шильдика Hydac",
-                    phone=call_phone,
-                    desc=call_desc,
-                    days_ahead=5
-                )
-                report["calls_created"].append({
-                    "deal_id": deal_id,
-                    "call_activity_id": call_id,
-                    "phone": call_phone,
-                    "deadline": "2026-09-30 11:00"
-                })
-                print(f"    [OK] Создано дело-звонок #{call_id} на 30.09.2026")
+                # Правило касаний:
+                # Если уже отправлено >= 3 писем без ответа — письменный канал исчерпан, ставим ЗВОНОК (TYPE_ID: 2)
+                # Если отправлено < 3 писем (сейчас 2) — сохраняем черновик в IMAP и ставим CRM_TODO (TYPE_ID: 6) на контроль ответа
+                if outgoing_count >= 3:
+                    call_phone = phone_val or "+79117120837"
+                    call_desc = (
+                        f"Клиенту отправлено уже {outgoing_count} писем без ответа (исчерпан лимит 3 касаний). "
+                        "Необходимо позвонить Марии Ракуль и выяснить статус запроса по фильтру Hydac LF W30 IB25 C1.x. 51144A-0007."
+                    )
+                    call_id = create_call_activity(
+                        deal_id=deal_id,
+                        contact_id=contact_id,
+                        company_id=company_id,
+                        subject=f"Звонок (>=3 касания): {full_name} ({company.get('TITLE') or 'ООО «ПЕТРОШИП»'}) — статус Hydac",
+                        phone=call_phone,
+                        desc=call_desc,
+                        days_ahead=2
+                    )
+                    report["calls_created"].append({
+                        "deal_id": deal_id,
+                        "call_activity_id": call_id,
+                        "phone": call_phone
+                    })
+                    print(f"    [OK] Отправлено >= 3 писем. Создано дело-звонок #{call_id}")
+                else:
+                    # < 3 касаний: создаем черновик следующего касания и дело CRM_TODO
+                    if to_email:
+                        msg_id = save_draft_to_imap(to_email, subject, body_text, body_html)
+                        report["drafts_created"].append({
+                            "deal_id": deal_id,
+                            "to": to_email,
+                            "subject": subject,
+                            "msg_id": msg_id
+                        })
+                        print(f"    [OK] Черновик сохранен в IMAP Drafts (to: {to_email})")
+                        
+                    todo_desc = (
+                        f"25.09 подготовлен черновик запроса фото шильдика Hydac LF W30 IB25 C1.x. 51144A-0007 "
+                        f"(ранее отправляли 21.09 и 23.09, текущее касание: {outgoing_count + 1}). "
+                        "Проверить ответ на почту. Если ответа не будет (станет >= 3 отправленных касаний) — переводить на звонок."
+                    )
+                    todo_id = create_crm_todo(
+                        deal_id=deal_id,
+                        subject=f"Контроль ответа на запрос фото: {full_name} ({company.get('TITLE') or 'ООО «ПЕТРОШИП»'})",
+                        desc=todo_desc,
+                        days_ahead=5
+                    )
+                    report.setdefault("todos_created", []).append({
+                        "deal_id": deal_id,
+                        "todo_activity_id": todo_id,
+                        "deadline": "2026-09-30 18:00"
+                    })
+                    print(f"    [OK] Касаний < 3. Создано дело CRM_TODO #{todo_id} на контроль ответа до 30.09.2026")
             else:
-                print(f"    [DRY-RUN] Сформирован бы черновик на {to_email}, закрыто дело #{act_id}, поставлен звонок.")
+                if outgoing_count >= 3:
+                    print(f"    [DRY-RUN] Исходящих {outgoing_count} >= 3: закрыто бы дело #{act_id}, поставлен звонок.")
+                else:
+                    print(f"    [DRY-RUN] Исходящих {outgoing_count} < 3: сформирован бы черновик на {to_email}, закрыто дело #{act_id}, поставлено CRM_TODO на контроль.")
                 
         else:
             # Другие сделки, если обнаружатся
@@ -322,7 +348,8 @@ def main():
     print("\nИТОГИ ВЫПОЛНЕНИЯ:")
     print(f"- Обработано дел на сегодня: {rep['processed_count']}")
     print(f"- Создано черновиков в IMAP: {len(rep['drafts_created'])}")
-    print(f"- Поставлено дел-звонков: {len(rep['calls_created'])}")
+    print(f"- Поставлено напоминаний CRM_TODO (<3 касаний): {len(rep.get('todos_created', []))}")
+    print(f"- Поставлено дел-звонков (>=3 касаний): {len(rep['calls_created'])}")
     print(f"- Закрыто устаревших дел: {len(rep['closed_activities'])}")
     print(f"- Требует внимания человека: {len(rep['manual_review'])}")
 

@@ -19,8 +19,8 @@ def decode_mime(val):
 print("Starting test...", flush=True)
 try:
     m = imaplib.IMAP4_SSL('mail.hostland.ru', 993, timeout=15)
-    print("SSL connected, logging in...", flush=True)
-    m.login('salman@longwang.ru', 'Artem167259!')
+    import os
+    m.login('salman@longwang.ru', os.getenv('MAIL_PASS_SALMAN', ''))
     print("Logged in successfully!", flush=True)
     
     st, folders = m.list()
