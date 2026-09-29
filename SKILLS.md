@@ -19,13 +19,13 @@
 6. **[linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md) — Администрирование Linux Server**
    * *Когда вызывать:* Настройка и мониторинг Ubuntu VPS (`109.248.170.181`), аудит SSH-ключей, управление Docker Compose (стандарт 3.3), защита от коллизий Apache vs Nginx, инвентарь скриптов `/Storage/`.
 7. **[windows](file:///C:/Users/Артем/.gemini/config/skills/windows/SKILL.md) — Диагностика Windows и HP Victus 16**
-   * *Когда вызывать:* Видеокарта NVIDIA RTX 3060 (Код 43, драйвер `nvhmi.inf`), базовый видеоадаптер Intel Iris, сброс кэша дисплеев и MPO, клавиша F8 Safe Mode в BCD, нейтрализация popup Adobe Acrobat.
+   * *Когда вызывать:* Видеокарта NVIDIA RTX 3060 (Код 43, драйвер `nvhmi.inf`), базовый видеоадаптер Intel Iris, сброс кэша дисплеев и MPO, клавиша F8 Safe Mode в BCD, глубокая очистка DXCache/WinSxS, создание образов системы Macrium Reflect (F8 BCD vs F9 UEFI, `oledlg.dll`).
 8. **[tender_automation](file:///C:/Users/Артем/.gemini/config/skills/tender_automation/SKILL.md) — Автоматизация тендеров и парсинг ГОЗ**
    * *Когда вызывать:* Парсинг DOCX/PDF таблиц спецификаций MarkItDown, жесткое извлечение 15-значного номера процедуры (на `26...`), запрет 11-значного ЕИС, слияние Excel-лотов, троттлинг Gemini API.
 9. **[llm_quota_and_fallback_manager](file:///C:/Users/Артем/.gemini/config/skills/llm_quota_and_fallback_manager/SKILL.md) — LLM Quota and Multi-Tier Fallback**
    * *Когда вызывать:* Двухконтурная архитектура API (Gemini ➔ DeepSeek при ошибке 429), адаптивный кулдаун `retryDelay`, синхронизация таймаутов n8n, логирование расхода токенов.
 10. **[git](file:///C:/Users/Артем/.gemini/config/skills/git/SKILL.md) — Git Workflow и Безопасность**
-    * *Когда вызывать:* Разграничение доступов: Единый Git (`Codex` — Read/Write) vs Рабочий Git (`tender-rag-api` — Strict Read-Only), защита от утечек секретов.
+    * *Когда вызывать:* Разграничение доступов: Единый Git (`Codex` — Read/Write), защита от утечек секретов, сброс флага Read-Only (`stat.S_IWRITE`) при удалении деревьев Git на Windows.
 11. **[metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md) — Аналитика и безопасность Metabase**
     * *Когда вызывать:* Построение SQL-воронок продаж, бэкап H2-базы Metabase, права доступа в Community Free версии.
 
