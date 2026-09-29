@@ -2,9 +2,10 @@ import urllib.request
 import json
 import urllib.parse
 import sys
+import os
 
 sys.stdout.reconfigure(encoding='utf-8')
-webhook = 'https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/'
+webhook = os.getenv('BITRIX24_WEBHOOK_URL', 'https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}/').rstrip('/') + '/'
 
 def b24_call(method, params=None):
     url = webhook + method

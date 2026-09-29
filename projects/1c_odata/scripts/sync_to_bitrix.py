@@ -8,11 +8,11 @@
     py scripts/sync_to_bitrix.py --batch-json path/to/batch.json
 """
 
-import sys, json, argparse, requests
+import sys, json, argparse, requests, os
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-B24_WEBHOOK = "https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/"
+B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}/").rstrip("/") + "/"
 DEFAULT_ASSIGNED_BY = 1 # Артем
 
 def find_company_by_inn(inn):

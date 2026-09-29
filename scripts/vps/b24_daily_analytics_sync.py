@@ -16,12 +16,12 @@ import urllib.error
 import psycopg2
 from psycopg2.extras import execute_values
 
-B24_URL = os.environ.get("B24_WEBHOOK_URL", "https://b24-g4wfjq.bitrix24.ru/rest/1/e89gipx565rig00g").rstrip("/")
+B24_URL = os.environ.get("B24_WEBHOOK_URL", "https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}").rstrip("/")
 PG_HOST = os.environ.get("PG_HOST", "10.10.0.1")
 PG_PORT = int(os.environ.get("PG_PORT", 5433))
 PG_DBNAME = os.environ.get("PG_DBNAME", "marketing_db")
 PG_USER = os.environ.get("PG_USER", "vector_user")
-PG_PASS = os.environ.get("PG_PASS", "fK8qPz4wT9mXvB2yD5sR7nJ3")
+PG_PASS = os.environ.get("PG_PASS", "")
 
 CLOSE_REASON_MAP = {
     "306": "Национальный режим (запрет)",

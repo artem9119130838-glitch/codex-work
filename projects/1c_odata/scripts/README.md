@@ -85,6 +85,6 @@ py scripts/sync_to_bitrix.py --company-title "АО «Восточный Порт
 
 ## 7. Доступы и окружение
 * **1С:УНФ OData:** `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/` (`odata.user` для чтения, `odata.writer` для записи).
-* **Битрикс24 Вебхук:** `https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/`.
-* **DaData Token:** `17c6961838d6a750aeadd323d0aa06342f7044f9`.
-* **Saby / СБИС Сессия:** `top-gk@yandex.ru` / `Artem159753!`.
+* **Битрикс24 Вебхук:** `https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}/`.
+* **DaData Token:** `${DADATA_API_KEY}`.
+* **Saby / СБИС Сессия:** `${SABY_LOGIN}` / `${SABY_PASSWORD}`.
