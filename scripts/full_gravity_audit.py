@@ -175,10 +175,9 @@ def classify_script(path, desc):
     return "infra_vps", level
 
 def run_audit():
-    root_personal = Path(r"C:\Codex_Personal")
+    root_codex = Path(r"C:\Codex")
     roots = [
-        Path(r"C:\Codex_Personal"),
-        Path(r"C:\Codex_Shared"),
+        root_codex,
         Path(r"C:\Users\Артем\tender-rag-api"),
         Path(r"D:\Soft\Codex Backup")
     ]
@@ -218,7 +217,7 @@ def run_audit():
     for h, flist in by_hash.items():
         if len(flist) > 1:
             duplicate_count += (len(flist) - 1)
-            # Pick the best representative path (prefer C:\Codex_Personal, then C:\Codex_Shared)
+            # Pick the best representative path (prefer C:\Codex, then C:\Codex)
             flist_sorted = sorted(flist, key=lambda p: (
                 0 if "Codex_Personal" in str(p) and "ARCHIVE" not in str(p) else
                 1 if "Codex_Shared" in str(p) and "backup" not in str(p) else
@@ -249,7 +248,7 @@ def run_audit():
         })
         
     # Generate codex_kb/SCRIPTS_CATALOG.md
-    catalog_path = root_personal / "codex_kb" / "SCRIPTS_CATALOG.md"
+    catalog_path = root_codex / "codex_kb" / "SCRIPTS_CATALOG.md"
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
     
     dt = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -283,7 +282,7 @@ def run_audit():
             lines.append("| - | *Нет зарегистрированных скриптов* | - | - | - |")
         else:
             for it in items_sorted:
-                p_display = it['path'].replace('C:/Codex_Personal/', '').replace('C:/Codex_Shared/', 'Shared: ')
+                p_display = it['path'].replace('C:/Codex/', '')
                 desc_clean = it['desc'].replace('|', '/')
                 lines.append(f"| **{it['level']}** | `{it['name']}` | `{p_display}` | {desc_clean} | {it['duplicates']} |")
         lines.append("\n---\n")

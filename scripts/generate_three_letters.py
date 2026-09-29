@@ -674,7 +674,7 @@ def build_chinese_docx(output_path):
 
 def main():
     dl_dir = r"C:\Users\Артем\Downloads\ТЗ для гравити"
-    proj_dir = r"C:\Codex_Personal\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
+    proj_dir = r"C:\Codex\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
     
     os.makedirs(dl_dir, exist_ok=True)
     os.makedirs(proj_dir, exist_ok=True)

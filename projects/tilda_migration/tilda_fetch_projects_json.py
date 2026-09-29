@@ -66,7 +66,7 @@ def fetch_projects():
     try:
         data_post = r_projects_post.json()
         print("POST Response parsed as JSON successfully.")
-        with open("C:/Codex_Personal/projects/tilda_migration/projects_list.json", "w", encoding="utf-8") as f:
+        with open("C:/Codex/projects/tilda_migration/projects_list.json", "w", encoding="utf-8") as f:
             json.dump(data_post, f, indent=2, ensure_ascii=False)
         print("Saved to projects_list.json")
     except Exception as e:

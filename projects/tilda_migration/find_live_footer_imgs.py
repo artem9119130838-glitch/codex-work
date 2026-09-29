@@ -1,6 +1,6 @@
 ﻿from bs4 import BeautifulSoup
 
-PUBLISHED_HTML = "C:/Codex_Personal/projects/tilda_migration/published_site.html"
+PUBLISHED_HTML = "C:/Codex/projects/tilda_migration/published_site.html"
 
 with open(PUBLISHED_HTML, "r", encoding="utf-8") as f:
     html = f.read()

@@ -12,7 +12,7 @@ SSH_KEY = r"C:\Users\Артем\.ssh\id_ed25519_wlisses"
 VPS_IP = "109.248.170.181"
 VPS_USER = "root"
 
-REGISTRY_JSON = r"C:\Codex_Personal\infrastructure_registry\registry.json"
+REGISTRY_JSON = r"C:\Codex\infrastructure_registry\registry.json"
 
 def run_ssh_command(cmd):
     ssh_cmd = [

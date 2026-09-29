@@ -2,7 +2,7 @@
 import re
 
 def inspect():
-    with open("C:/Codex_Personal/projects/tilda_migration/preview_response.html", "r", encoding="utf-8") as f:
+    with open("C:/Codex/projects/tilda_migration/preview_response.html", "r", encoding="utf-8") as f:
         html = f.read()
         
     soup = BeautifulSoup(html, 'html.parser')

@@ -8,10 +8,10 @@ SSH_KEY = r"C:\Users\Артем\.ssh\id_ed25519_wlisses"
 VPS_IP = "109.248.170.181"
 VPS_USER = "root"
 
-PROJECTS_SHARED_DIR = r"C:\Codex_Shared\projects"
-PROJECTS_PERSONAL_DIR = r"C:\Codex_Personal\projects"
-ROUTER_CONFIGS_DIR = r"C:\Codex_Personal\projects\server_ops\clients configs"
-REGISTRY_DIR = r"C:\Codex_Personal\infrastructure_registry"
+PROJECTS_SHARED_DIR = r"C:\Codex\projects"
+PROJECTS_PERSONAL_DIR = r"C:\Codex\projects"
+ROUTER_CONFIGS_DIR = r"C:\Codex\projects\server_ops\clients configs"
+REGISTRY_DIR = r"C:\Codex\infrastructure_registry"
 REGISTRY_JSON = os.path.join(REGISTRY_DIR, "registry.json")
 REGISTRY_MD = os.path.join(REGISTRY_DIR, "INFRASTRUCTURE.md")
 
@@ -191,13 +191,13 @@ def generate_markdown(registry):
     catalogs = registry.get("project_catalogs", {})
     
     if catalogs.get("personal"):
-        md.append("\n### Personal Projects (C:\\Codex_Personal\\projects)")
+        md.append("\n### Personal Projects (C:\\Codex\\projects)")
         for p in catalogs["personal"]:
             env_status = "Contains .env" if p in registry.get("projects", {}) and registry["projects"][p].get("source") == "personal" else "No .env"
             md.append(f"* `{p}` ({env_status})")
             
     if catalogs.get("shared"):
-        md.append("\n### Shared Projects (C:\\Codex_Shared\\projects)")
+        md.append("\n### Shared Projects (C:\\Codex\\projects)")
         for p in catalogs["shared"]:
             env_status = "Contains .env" if p in registry.get("projects", {}) and registry["projects"][p].get("source") == "shared" else "No .env"
             md.append(f"* `{p}` ({env_status})")

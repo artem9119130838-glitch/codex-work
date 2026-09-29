@@ -164,6 +164,6 @@ for i, line in enumerate(letter_lines, 1):
     c = ws2.cell(row=i, column=1, value=line)
     c.font = Font(name="Arial", size=10 if i > 1 else 11, bold=(i == 1))
 
-out_file = r"C:\Codex_Personal\projects\HR\Китайский снабженец\Кандидаты_для_рассылки.xlsx"
+out_file = r"C:\Codex\projects\HR\Китайский снабженец\Кандидаты_для_рассылки.xlsx"
 wb.save(out_file)
 print("SUCCESS: File generated at", out_file)

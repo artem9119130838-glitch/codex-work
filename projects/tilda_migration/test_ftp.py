@@ -21,7 +21,7 @@ for host in hosts:
         ftp.retrlines('LIST')
         ftp.quit()
         # Save working host
-        with open("C:/Codex_Personal/projects/tilda_migration/ftp_host.txt", "w") as f:
+        with open("C:/Codex/projects/tilda_migration/ftp_host.txt", "w") as f:
             f.write(host)
         break
     except Exception as e:

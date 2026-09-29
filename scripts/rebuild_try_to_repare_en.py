@@ -403,7 +403,7 @@ def main():
     src_file = r"C:\Users\Артем\Downloads\ТЗ для гравити\DATASHEET ROD-try to repare.xlsx"
     dest_dl = r"C:\Users\Артем\Downloads\ТЗ для гравити\DATASHEET ROD-try to repare_EN.xlsx"
     
-    proj_dir = r"C:\Codex_Personal\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
+    proj_dir = r"C:\Codex\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
     os.makedirs(proj_dir, exist_ok=True)
     dest_proj = os.path.join(proj_dir, "DATASHEET ROD-try to repare_EN.xlsx")
     

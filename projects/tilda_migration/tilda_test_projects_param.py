@@ -33,7 +33,7 @@ def test_param():
     try:
         data = r.json()
         print("Success! JSON keys:", data.keys())
-        with open("C:/Codex_Personal/projects/tilda_migration/project_details.json", "w", encoding="utf-8") as f:
+        with open("C:/Codex/projects/tilda_migration/project_details.json", "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         print("Saved to project_details.json")
     except Exception as e:

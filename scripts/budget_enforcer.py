@@ -4,8 +4,8 @@ import yaml
 from datetime import date
 from pathlib import Path
 
-LOG_FILE = Path('C:/Codex_Personal/.ai/token_usage.jsonl')
-BUDGET_FILE = Path('C:/Codex_Personal/.ai/budgets.yaml')
+LOG_FILE = Path('C:/Codex/.ai/token_usage.jsonl')
+BUDGET_FILE = Path('C:/Codex/.ai/budgets.yaml')
 
 def calculate_cost(input_tokens, output_tokens, model):
     # Rates per 1M tokens

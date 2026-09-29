@@ -2,7 +2,7 @@
 import json
 import re
 
-BASE_DIR = "C:/Codex_Personal/projects/tilda_migration"
+BASE_DIR = "C:/Codex/projects/tilda_migration"
 HTML_FILE = os.path.join(BASE_DIR, "preview_response.html")
 THEME_DIR = os.path.join(BASE_DIR, "qilin-theme")
 MAPPING_FILE = os.path.join(BASE_DIR, "resource_mapping.json")

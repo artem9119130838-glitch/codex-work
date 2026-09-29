@@ -3,7 +3,7 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-excel_path = r'C:\Codex_Personal\projects\HR\Китайский снабженец\简历汇总表_国际贸易专员.xlsx'
+excel_path = r'C:\Codex\projects\HR\Китайский снабженец\简历汇总表_国际贸易专员.xlsx'
 wb = openpyxl.load_workbook(excel_path)
 ws = wb.active
 

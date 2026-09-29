@@ -10,7 +10,7 @@ try:
     print("Title of published site:", title.text.strip() if title else "Not found")
     
     # Save to file to see if it's the real site or tilda expired warning
-    with open("C:/Codex_Personal/projects/tilda_migration/published_site.html", "w", encoding="utf-8") as f:
+    with open("C:/Codex/projects/tilda_migration/published_site.html", "w", encoding="utf-8") as f:
         f.write(r.text)
     print("Saved public site HTML.")
     

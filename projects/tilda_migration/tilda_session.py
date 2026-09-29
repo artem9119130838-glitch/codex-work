@@ -5,7 +5,7 @@ import time
 from bs4 import BeautifulSoup
 import re
 
-COOKIE_FILE = "C:/Codex_Personal/projects/tilda_migration/session_cookies.json"
+COOKIE_FILE = "C:/Codex/projects/tilda_migration/session_cookies.json"
 
 def login(email, password):
     session = requests.Session()

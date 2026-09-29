@@ -8,7 +8,7 @@ scripts/dump_chat_md.py
 
 import json
 
-with open(r"C:\Codex_Personal\scratch\structured_chat.json", "r", encoding="utf-8") as f:
+with open(r"C:\Codex\scratch\structured_chat.json", "r", encoding="utf-8") as f:
     messages = json.load(f)
 
 lines = ["# Диалог Артема и Михаила в задаче\n"]
@@ -24,7 +24,7 @@ for m in messages:
     lines.append(f"### [{dt}] **{auth}** (Сообщение #{mid})")
     lines.append(f"{txt}\n")
 
-with open(r"C:\Codex_Personal\scratch\chat_clean_view.md", "w", encoding="utf-8") as f:
+with open(r"C:\Codex\scratch\chat_clean_view.md", "w", encoding="utf-8") as f:
     f.write("\n".join(lines))
 
 print("Saved chat_clean_view.md")

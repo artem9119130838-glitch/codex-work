@@ -79,9 +79,9 @@ def try_submit_login():
         print(f"Page content length: {len(r_page.text)}")
         
         # Save page HTML
-        with open("C:/Codex_Personal/projects/tilda_migration/page_admin.html", "w", encoding="utf-8") as f:
+        with open("C:/Codex/projects/tilda_migration/page_admin.html", "w", encoding="utf-8") as f:
             f.write(r_page.text)
-        print("Saved admin page HTML to C:/Codex_Personal/projects/tilda_migration/page_admin.html")
+        print("Saved admin page HTML to C:/Codex/projects/tilda_migration/page_admin.html")
         
         # Print a snippet of the page to verify
         soup_page = BeautifulSoup(r_page.text, 'html.parser')

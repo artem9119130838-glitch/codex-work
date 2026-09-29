@@ -2,7 +2,7 @@
 from bs4 import BeautifulSoup
 import ftplib
 
-BASE_DIR = "C:/Codex_Personal/projects/tilda_migration"
+BASE_DIR = "C:/Codex/projects/tilda_migration"
 INDEX_PHP = os.path.join(BASE_DIR, "qilin-theme", "index.php")
 
 # FTP Config

@@ -21,13 +21,13 @@
 | Артефакт / Ресурс | Реальный путь / Параметр | Статус проверки |
 | :--- | :--- | :--- |
 | **Репозиторий FastAPI** | [git@ssh.github.com:wlissespanchame370-cyber/tender-rag-api.git](git@ssh.github.com:wlissespanchame370-cyber/tender-rag-api.git) (Ветка: `main`) | **Проверено**: Подключен, актуален |
-| **Локальный путь** | `C:\Codex_Shared\projects\tender-extraction-lab` | **Проверено**: Все коммиты стянуты |
+| **Локальный путь** | `C:\Codex\projects\tender-extraction-lab` | **Проверено**: Все коммиты стянуты |
 | **n8n воркфлоу** | [https://n8n.longwang.kz](https://n8n.longwang.kz) | **Проверено**: Доступен |
 | **Тестовый Битрикс24** | [https://b24-wclhfw.bitrix24.ru](https://b24-wclhfw.bitrix24.ru) | **Проверено**: Извлечен из n8n JSON |
 | **Боевой Битрикс24** | [https://b24-g4wfjq.bitrix24.ru](https://b24-g4wfjq.bitrix24.ru) | **Проверено**: Целевой портал |
-| **Шаблон .env** | [.env.example](file:///C:/Codex_Shared/projects/tender-extraction-lab/.env.example) | **Проверено**: Создан в корне |
-| **Локальный .env** | `C:\Codex_Shared\projects\tender-extraction-lab\.env` | **Проверено**: Содержит рабочий `GEMINI_API_KEY` |
-| **Инструкция по деплою** | [docs/DEPLOYMENT.md](file:///C:/Codex_Shared/projects/tender-extraction-lab/docs/DEPLOYMENT.md) | **Проверено**: Описывает Ubuntu-сборку |
+| **Шаблон .env** | [.env.example](file:///C:/Codex/projects/tender-extraction-lab/.env.example) | **Проверено**: Создан в корне |
+| **Локальный .env** | `C:\Codex\projects\tender-extraction-lab\.env` | **Проверено**: Содержит рабочий `GEMINI_API_KEY` |
+| **Инструкция по деплою** | [docs/DEPLOYMENT.md](file:///C:/Codex/projects/tender-extraction-lab/docs/DEPLOYMENT.md) | **Проверено**: Описывает Ubuntu-сборку |
 
 ---
 
@@ -36,7 +36,7 @@
 * **Парсер документов**: Работает через `MarkItDown`. Добавлена важная оптимизация: если длина текста $> 21000$ символов, код обрезает середину, склеивая начало ($15000$ символов) и конец ($6000$ символов), что сохраняет ИНН/реквизиты и уберегает от перерасхода токенов.
 * **Векторизация и чанкинг**: Чанкинг `RecursiveCharacterTextSplitter` (1500 символов, перекрытие 200). Векторизация переведена на `models/gemini-embedding-2` для обхода дневных лимитов. Внедрен `api_lock` с паузой 4 сек (для эмбеддингов) и 15 сек (для LLM).
 * **Схема Pydantic**: Схема `DocumentUploadResponse` исправлена, поле `extracted_data` успешно передается в n8n.
-* **Зависимости**: Ошибка с отсутствием библиотек исправлена. В [requirements.txt](file:///C:/Codex_Shared/projects/tender-extraction-lab/requirements.txt) успешно внесены `sqlalchemy`, `psycopg2-binary` и `pgvector`.
+* **Зависимости**: Ошибка с отсутствием библиотек исправлена. В [requirements.txt](file:///C:/Codex/projects/tender-extraction-lab/requirements.txt) успешно внесены `sqlalchemy`, `psycopg2-binary` и `pgvector`.
 * **SLA-Дедлайны**: В Python-код (`llm_service.py` строки 82-95) добавлено автоматическое вычисление дедлайна задачи (поле `sla_deadline` = `submission_deadline` минус 48 часов). n8n забирает это значение и проставляет в задачу.
 * **Дедупликация**: В n8n внедрена JS-нода, которая сравнивает контакты по логике «2 из 3» (Имя, Телефон, Email).
 
@@ -48,7 +48,7 @@
 > При проверке n8n воркфлоу и исходного кода обнаружены расхождения между задекларированным в акте статусом и реальной схемой:
 >
 > 1. **Отсутствует отправка отчета на китайском языке в задачу**:
->    В акте Михаила указано, что комментарий на китайском языке готов и создается. На самом деле в воркфлоу [n8n_production_pipeline.json](file:///C:/Codex_Shared/projects/tender-extraction-lab/workflows/n8n/n8n_production_pipeline.json) **нет ноды `task.commentitem.add`**. 
+>    В акте Михаила указано, что комментарий на китайском языке готов и создается. На самом деле в воркфлоу [n8n_production_pipeline.json](file:///C:/Codex/projects/tender-extraction-lab/workflows/n8n/n8n_production_pipeline.json) **нет ноды `task.commentitem.add`**. 
 >    *ИИ-экстрактор генерирует отчет на китайском (поле `chinese_report`), но в Битрикс24 он не отправляется и оседает в JSON-ответе.*
 > 2. **Частичный хардкод ID и секретов в n8n**:
 >    Хотя Михаил вынес API-ключи в Credentials, URL-адреса вебхуков тестового Битрикса (`https://b24-wclhfw.bitrix24.ru/rest/13/l6h9p3ek8q0nd3l2/...`) и ID ответственного менеджера (`"13"`) по-прежнему жестко прописаны в нодах n8n.

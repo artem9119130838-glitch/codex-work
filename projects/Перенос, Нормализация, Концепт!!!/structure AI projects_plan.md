@@ -6,10 +6,10 @@
 
 ## 1. Новая архитектура правил ИИ
 
-Мы внедрим идентичную структуру для обоих контуров (`C:\Codex_Personal` и `C:\Codex_Shared`).
+Мы внедрим идентичную структуру для обоих контуров (`C:\Codex` и `C:\Codex`).
 
 ```
-Workspaces (C:\Codex_Personal и C:\Codex_Shared)
+Workspaces (C:\Codex и C:\Codex)
 ├── AGENTS.md                ← Краткий контракт ИИ (до 2 страниц, точка входа)
 ├── AI_RULES.md              ← Общие правила работы и TOKEN-FIRST
 ├── SECURITY.md              ← Матрица рисков (L0-L6) и правила аппрувов
@@ -42,22 +42,22 @@ Global Customizations (C:\Users\Артем\.gemini\config\skills\)
 
 ## 2. Предложенные изменения по файлам
 
-### [NEW] [AGENTS.md](file:///C:/Codex_Personal/AGENTS.md) / [AGENTS.md](file:///C:/Codex_Shared/AGENTS.md)
+### [NEW] [AGENTS.md](file:///C:/Codex/AGENTS.md) / [AGENTS.md](file:///C:/Codex/AGENTS.md)
 Краткий контракт. Описывает базовые правила и ссылается на новые файлы:
-*   [AI_RULES.md](file:///C:/Codex_Personal/AI_RULES.md)
-*   [SECURITY.md](file:///C:/Codex_Personal/SECURITY.md)
+*   [AI_RULES.md](file:///C:/Codex/AI_RULES.md)
+*   [SECURITY.md](file:///C:/Codex/SECURITY.md)
 
-### [NEW] [AI_RULES.md](file:///C:/Codex_Personal/AI_RULES.md) / [AI_RULES.md](file:///C:/Codex_Shared/AI_RULES.md)
+### [NEW] [AI_RULES.md](file:///C:/Codex/AI_RULES.md) / [AI_RULES.md](file:///C:/Codex/AI_RULES.md)
 Политики ведения работы и жесткая экономия токенов.
 
-### [NEW] [SECURITY.md](file:///C:/Codex_Personal/SECURITY.md) / [SECURITY.md](file:///C:/Codex_Shared/SECURITY.md)
+### [NEW] [SECURITY.md](file:///C:/Codex/SECURITY.md) / [SECURITY.md](file:///C:/Codex/SECURITY.md)
 Матрица рисков Decision Policy (L0-L6).
 
-### [NEW] [SKILLS.md](file:///C:/Codex_Personal/SKILLS.md) / [SKILLS.md](file:///C:/Codex_Shared/SKILLS.md)
+### [NEW] [SKILLS.md](file:///C:/Codex/SKILLS.md) / [SKILLS.md](file:///C:/Codex/SKILLS.md)
 Индекс навыков для быстрого поиска ИИ.
 
-### [MODIFY] [C:\Codex_Shared\.aiignore](file:///C:/Codex_Shared/.aiignore)
-Добавление папки `C:/Codex_Personal/` для исключения доступа ИИ-агента.
+### [MODIFY] [C:\Codex\.aiignore](file:///C:/Codex/.aiignore)
+Добавление папки `C:/Codex/` для исключения доступа ИИ-агента.
 
 ---
 
@@ -84,21 +84,21 @@ Global Customizations (C:\Users\Артем\.gemini\config\skills\)
 
 Вместо хардкода репозитория в скрипте хука, мы сделаем pre-push хук с поддержкой вайтлиста.
 
-#### [NEW] [allowed_remotes.txt](file:///C:/codex_home/.git_hooks/allowed_remotes.txt)
+#### [NEW] [allowed_remotes.txt](file:///C:/Codex/.git_hooks/allowed_remotes.txt)
 Текстовый файл со списком разрешенных паттернов для пуша:
 ```text
 github.com/artem9119130838/*
 # Сюда можно будет добавлять другие репозитории
 ```
 
-#### [NEW] [pre-push](file:///C:/codex_home/.git_hooks/pre-push)
+#### [NEW] [pre-push](file:///C:/Codex/.git_hooks/pre-push)
 Динамический Bash-скрипт хука:
 ```bash
 #!/bin/sh
 
 remote_name="$1"
 remote_url="$2"
-whitelist_file="C:/codex_home/.git_hooks/allowed_remotes.txt"
+whitelist_file="C:/Codex/.git_hooks/allowed_remotes.txt"
 
 # 1. Проверяем наличие вайтлиста
 if [ ! -f "$whitelist_file" ]; then
@@ -157,4 +157,4 @@ exit 1
    - Пуш в любой сторонний репозиторий $\rightarrow$ Должен быть заблокирован.
    - Пуш во внешний репозиторий с переменной `ALLOW_EXTERNAL_PUSH=1` $\rightarrow$ Должен пройти (dry-run).
 2. **Проверка изоляции контуров:**
-   - Попытка сканирования ИИ-агентом из `C:\Codex_Shared` каталога `C:\Codex_Personal` $\rightarrow$ Игнорирование.
+   - Попытка сканирования ИИ-агентом из `C:\Codex` каталога `C:\Codex` $\rightarrow$ Игнорирование.

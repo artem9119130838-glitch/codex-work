@@ -11,7 +11,7 @@ import sys
 import json
 import re
 
-SCRATCH = r"C:\Codex_Personal\scratch"
+SCRATCH = r"C:\Codex\scratch"
 DOWNLOADS = r"C:\Users\Артем\Downloads"
 
 def read_file(path):
@@ -35,7 +35,7 @@ def main():
     import subprocess
     git_log_proc = subprocess.run(
         ["git", "log", "--all", "-n", "30", "--format=%h|%ad|%an|%s", "--date=short"],
-        cwd=r"C:\Codex_Shared\projects\tender-extraction-lab",
+        cwd=r"C:\Codex\projects\tender-extraction-lab",
         capture_output=True,
         text=True,
         encoding="utf-8"
@@ -45,7 +45,7 @@ def main():
     # Git branches
     git_branch_proc = subprocess.run(
         ["git", "branch", "-a", "-v"],
-        cwd=r"C:\Codex_Shared\projects\tender-extraction-lab",
+        cwd=r"C:\Codex\projects\tender-extraction-lab",
         capture_output=True,
         text=True,
         encoding="utf-8"

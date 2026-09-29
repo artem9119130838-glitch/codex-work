@@ -15,7 +15,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-with open(r"C:\Codex_Personal\scratch\full_sprint_data.json", "r", encoding="utf-8") as f:
+with open(r"C:\Codex\scratch\full_sprint_data.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 print("="*60)

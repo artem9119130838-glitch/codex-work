@@ -17,7 +17,7 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 DOWNLOADS = r"C:\Users\Артем\Downloads"
-SCRATCH = r"C:\Codex_Personal\scratch"
+SCRATCH = r"C:\Codex\scratch"
 
 REPORTS_MAP = [
     ("sprint_day_1_report.md", "День 1 (17.09)"),

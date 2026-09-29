@@ -230,7 +230,7 @@ Get-ChildItem -Path $LocalDir -File | Where-Object { $_.LastWriteTime -lt (Get-D
 ### 2. Таблица кросс-путей:
 | Ресурс | HP Victus | Внешний диск | Huawei MateBook 14 |
 | :--- | :--- | :--- | :--- |
-| Репозиторий | `E:\Codex_Work` | `Mirror_E_Home\Codex_Work` | `C:\Codex_Personal` |
+| Репозиторий | `E:\Codex_Work` | `Mirror_E_Home\Codex_Work` | `C:\Codex` |
 | Профиль пользователя | `C:\Users\Артем` | `Mirror_E_Home\.gemini` / `.ssh` | `C:\Users\Artem` |
 | Дистрибутивы ПО | `E:\SOFT` | `Mirror_E_Home\SOFT` | `D:\Дистрибутивы` |
 | Установленный софт/базы | `D:\Soft` | `Mirror_E_Home\SOFT_D` | `D:\Soft` |
@@ -239,5 +239,5 @@ Get-ChildItem -Path $LocalDir -File | Where-Object { $_.LastWriteTime -lt (Get-D
 
 ### 3. Обязательная адаптация путей Antigravity:
 При смене компьютера с кириллицей на латиницу (`Артем` ⮂ `Artem`) пути в служебных файлах Antigravity (`antigravity_state.pbtxt`, `.codex-global-state.json`) становятся недействительными.
-- При миграции на MateBook: заменять `Артем` ➔ `Artem`, `E:\Codex_Work` ➔ `C:\Codex_Personal`.
-- При миграции на Victus: запускать скрипт `fix_paths_for_victus.py` для обратной замены `Artem` ➔ `Артем`, `C:\Codex_Personal` ➔ `E:\Codex_Work`.
+- При миграции на MateBook: заменять `Артем` ➔ `Artem`, `E:\Codex_Work` ➔ `C:\Codex`.
+- При миграции на Victus: запускать скрипт `fix_paths_for_victus.py` для обратной замены `Artem` ➔ `Артем`, `C:\Codex` ➔ `E:\Codex_Work`.

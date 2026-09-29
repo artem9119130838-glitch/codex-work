@@ -34,6 +34,9 @@ infrastructure_registry/
 # Router configurations and snapshots (contains VPN keys)
 projects/server_ops/clients configs/
 
+# Codex Agent configuration and auth tokens (contains tokens)
+config/codex_agent/
+
 
 # Heavy video and binary archives for cylinders/rods contract
 projects/Price creating/**/*.zip

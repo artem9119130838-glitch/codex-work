@@ -1,7 +1,7 @@
 ﻿import os
 import zipfile
 
-BASE_DIR = "C:/Codex_Personal/projects/tilda_migration"
+BASE_DIR = "C:/Codex/projects/tilda_migration"
 THEME_DIR = os.path.join(BASE_DIR, "qilin-theme")
 ZIP_FILE = os.path.join(BASE_DIR, "qilin-theme.zip")
 

@@ -978,12 +978,12 @@ def generate_workbook(lang="RU", output_path=""):
         print(f"Locked file saved to alt: {alt}")
 
 def main():
-    p_ru_proj = r"C:\Codex_Personal\projects\Price creating\Договор_62230426_Штоки_и_Трубы\Таблица_проверки_штоков_16шт.xlsx"
+    p_ru_proj = r"C:\Codex\projects\Price creating\Договор_62230426_Штоки_и_Трубы\Таблица_проверки_штоков_16шт.xlsx"
     p_ru_dl = r"C:\Users\Артем\Downloads\ТЗ для гравити\Таблица_проверки_штоков_16шт.xlsx"
     p_ru_dl_v2 = r"C:\Users\Артем\Downloads\ТЗ для гравити\Таблица_проверки_штоков_16шт_v2_актуальная.xlsx"
-    p_ru_proj_v2 = r"C:\Codex_Personal\projects\Price creating\Договор_62230426_Штоки_и_Трубы\Таблица_проверки_штоков_16шт_v2_актуальная.xlsx"
+    p_ru_proj_v2 = r"C:\Codex\projects\Price creating\Договор_62230426_Штоки_и_Трубы\Таблица_проверки_штоков_16шт_v2_актуальная.xlsx"
     
-    p_en_proj = r"C:\Codex_Personal\projects\Price creating\Договор_62230426_Штоки_и_Трубы\Таблица_проверки_штоков_16шт_EN.xlsx"
+    p_en_proj = r"C:\Codex\projects\Price creating\Договор_62230426_Штоки_и_Трубы\Таблица_проверки_штоков_16шт_EN.xlsx"
     p_en_dl = r"C:\Users\Артем\Downloads\ТЗ для гравити\Таблица_проверки_штоков_16шт_EN.xlsx"
 
     print("--- GENERATING RUSSIAN MATRIX ---")

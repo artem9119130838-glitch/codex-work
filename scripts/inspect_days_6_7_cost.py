@@ -10,7 +10,7 @@ import os
 import json
 
 DOWNLOADS = r"C:\Users\Артем\Downloads"
-SCRATCH = r"C:\Codex_Personal\scratch"
+SCRATCH = r"C:\Codex\scratch"
 
 def read_f(name):
     with open(os.path.join(DOWNLOADS, name), "r", encoding="utf-8", errors="ignore") as f:

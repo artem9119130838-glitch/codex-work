@@ -105,7 +105,7 @@ def check_pc():
             
     # 6. Экспресс-очистка scratch
     print("\n6. Экспресс-очистка временных файлов:")
-    scratch_dir = Path(r"C:\Codex_Personal\scratch")
+    scratch_dir = Path(r"C:\Codex\scratch")
     cleaned_count = 0
     if scratch_dir.exists():
         for p in scratch_dir.glob("*"):

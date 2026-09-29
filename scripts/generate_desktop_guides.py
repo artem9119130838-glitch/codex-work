@@ -24,7 +24,7 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 DESKTOP_DIR = Path(r"C:\Users\Артем\Desktop")
-KB_CONTROL_DIR = Path(r"C:\Codex_Personal\codex_kb\00_control")
+KB_CONTROL_DIR = Path(r"C:\Codex\codex_kb\00_control")
 
 def generate_skills_file():
     """Генерирует мастер-файл по всем скиллам и слэш-командам."""

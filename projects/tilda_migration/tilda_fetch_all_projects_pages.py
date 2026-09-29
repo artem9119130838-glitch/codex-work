@@ -33,7 +33,7 @@ def fetch_all():
             all_pages[p_id] = page
             
     # Save all pages to json
-    with open("C:/Codex_Personal/projects/tilda_migration/all_discovered_pages.json", "w", encoding="utf-8") as f:
+    with open("C:/Codex/projects/tilda_migration/all_discovered_pages.json", "w", encoding="utf-8") as f:
         json.dump(all_pages, f, indent=2, ensure_ascii=False)
         
     print(f"Saved {len(all_pages)} pages across all projects.")

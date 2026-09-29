@@ -350,7 +350,7 @@ def create_styled_docx(output_path):
     print(f"Successfully generated DOCX: {output_path}")
 
 def main():
-    proj_dir = r"C:\Codex_Personal\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
+    proj_dir = r"C:\Codex\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
     dl_dir = r"C:\Users\Артем\Downloads\ТЗ для гравити"
     
     os.makedirs(proj_dir, exist_ok=True)

@@ -96,7 +96,7 @@ def extract_description(filepath):
     return "No description available"
 
 def main():
-    root = Path('C:/Codex_Personal')
+    root = Path('C:/Codex')
     ignore_patterns = load_aiignore(root)
     index = {}
     

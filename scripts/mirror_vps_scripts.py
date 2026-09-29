@@ -20,7 +20,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 HOST = "109.248.170.181"
 USER = "root"
 KEY_PATH = Path.home() / ".ssh" / "id_ed25519_wlisses"
-LOCAL_VPS_DIR = Path(r"C:\Codex_Personal\scripts\vps")
+LOCAL_VPS_DIR = Path(r"C:\Codex\scripts\vps")
 LOCAL_VPS_DIR.mkdir(parents=True, exist_ok=True)
 
 REMOTE_FILES = [

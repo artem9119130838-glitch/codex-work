@@ -9,9 +9,9 @@ SSH_KEY = r"C:\Users\Артем\.ssh\id_ed25519_wlisses"
 VPS_IP = "109.248.170.181"
 VPS_USER = "root"
 
-PROJECTS_SHARED_DIR = r"C:\Codex_Shared\projects"
-PROJECTS_PERSONAL_DIR = r"C:\Codex_Personal\projects"
-REGISTRY_JSON = r"C:\Codex_Personal\infrastructure_registry\registry.json"
+PROJECTS_SHARED_DIR = r"C:\Codex\projects"
+PROJECTS_PERSONAL_DIR = r"C:\Codex\projects"
+REGISTRY_JSON = r"C:\Codex\infrastructure_registry\registry.json"
 
 vps_paths = {
     "n8n_email_ai": "/root/n8n_email_ai/.env",

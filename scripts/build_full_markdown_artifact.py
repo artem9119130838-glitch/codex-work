@@ -20,7 +20,7 @@ import sys
 import json
 
 ARTIFACT_DIR = r"C:\Users\Артем\.gemini\antigravity\brain\294ac726-7ded-4523-a4b9-6b518691a6e0"
-SCRATCH_DIR = r"C:\Codex_Personal\scratch"
+SCRATCH_DIR = r"C:\Codex\scratch"
 DOWNLOADS_DIR = r"C:\Users\Артем\Downloads"
 
 def read_utf8(path):

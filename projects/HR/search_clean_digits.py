@@ -1,7 +1,7 @@
 import os, sys, pypdf, re
 
 sys.stdout.reconfigure(encoding='utf-8')
-dir_path = r'C:\Codex_Personal\projects\HR\Китайский снабженец\简历包'
+dir_path = r'C:\Codex\projects\HR\Китайский снабженец\简历包'
 
 for f in sorted(os.listdir(dir_path)):
     p = os.path.join(dir_path, f)

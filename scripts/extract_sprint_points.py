@@ -9,8 +9,8 @@ scripts/extract_sprint_points.py
 import os
 import sys
 
-SCRATCH_IN = r"C:\Codex_Personal\scratch\sprint_full_summary.txt"
-SCRATCH_OUT = r"C:\Codex_Personal\scratch\chat_breakdown.txt"
+SCRATCH_IN = r"C:\Codex\scratch\sprint_full_summary.txt"
+SCRATCH_OUT = r"C:\Codex\scratch\chat_breakdown.txt"
 
 with open(SCRATCH_IN, "r", encoding="utf-8") as f:
     lines = f.readlines()

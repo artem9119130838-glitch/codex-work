@@ -43,7 +43,7 @@ def fetch_project_pages(project_id="5807910"):
     r_proj = session.get(project_url)
     
     # Save project page HTML
-    with open(f"C:/Codex_Personal/projects/tilda_migration/project_{project_id}.html", "w", encoding="utf-8") as f:
+    with open(f"C:/Codex/projects/tilda_migration/project_{project_id}.html", "w", encoding="utf-8") as f:
         f.write(r_proj.text)
         
     soup_proj = BeautifulSoup(r_proj.text, 'html.parser')
@@ -95,9 +95,9 @@ def fetch_project_pages(project_id="5807910"):
         print(f"Page ID: {pid} | Title: {pdata['title']} | Path: {pdata['path']} | URL: {pdata['url']}")
         
     # Save page dictionary to json
-    with open(f"C:/Codex_Personal/projects/tilda_migration/project_{project_id}_pages.json", "w", encoding="utf-8") as f:
+    with open(f"C:/Codex/projects/tilda_migration/project_{project_id}_pages.json", "w", encoding="utf-8") as f:
         json.dump(list(pages.values()), f, indent=2, ensure_ascii=False)
-    print(f"Saved pages list to C:/Codex_Personal/projects/tilda_migration/project_{project_id}_pages.json")
+    print(f"Saved pages list to C:/Codex/projects/tilda_migration/project_{project_id}_pages.json")
 
 if __name__ == "__main__":
     fetch_project_pages()

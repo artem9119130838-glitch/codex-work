@@ -17,7 +17,7 @@ def check_project_details(project_id="5807910"):
     try:
         data = r.json()
         print("Success! Response is JSON.")
-        with open("C:/Codex_Personal/projects/tilda_migration/project_details_test.json", "w", encoding="utf-8") as f:
+        with open("C:/Codex/projects/tilda_migration/project_details_test.json", "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         print("Keys in JSON:", data.keys())
     except Exception as e:

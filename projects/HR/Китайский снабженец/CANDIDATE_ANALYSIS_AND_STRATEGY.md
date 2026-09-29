@@ -4,8 +4,8 @@
 > **Проект:** ООО «Лун-Ван» / Департамент снабжения и ВЭД в Китае  
 > **Локация офиса в КНР:** г. Дечжоу, пров. Шаньдун (DEZHOU ALEXDA INTERNATIONAL IMP.AND EXP.CO.LIMITED)  
 > **Партнер в Китае:** Дэвид (David / 大卫)  
-> **База резюме:** [`CANDIDATES_REGISTRY.md`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/CANDIDATES_REGISTRY.md)  
-> **Карточки кандидатов:** [`candidates_db/`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/candidates_db/)
+> **База резюме:** [`CANDIDATES_REGISTRY.md`](file:///C:/Codex/projects/HR/Китайский%20снабженец/CANDIDATES_REGISTRY.md)  
+> **Карточки кандидатов:** [`candidates_db/`](file:///C:/Codex/projects/HR/Китайский%20снабженец/candidates_db/)
 
 ---
 
@@ -32,8 +32,8 @@
 * **Ник в QQ Mail:** «快乐女孩» («Веселая девушка» / Happy Girl).
 * **Почта:** `465387856@qq.com` (мобильный клиент QQ) / `13206367717@163.com`.
 * **Телефон / WeChat:** `13206367717`.
-* **Файл резюме в проекте:** [`【国际贸易专员_德州_5-6K】安女士_7年.pdf`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/简历包/【国际贸易专员_德州_5-6K】安女士_7年.pdf).
-* **Карточка в базе:** [`candidates_db/31_安女士.md`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/candidates_db/31_安女士.md).
+* **Файл резюме в проекте:** [`【国际贸易专员_德州_5-6K】安女士_7年.pdf`](file:///C:/Codex/projects/HR/Китайский%20снабженец/简历包/【国际贸易专员_德州_5-6K】安女士_7年.pdf).
+* **Карточка в базе:** [`candidates_db/31_安女士.md`](file:///C:/Codex/projects/HR/Китайский%20снабженец/candidates_db/31_安女士.md).
 
 ### 2.2. Хронология переписки и ключевые цитаты
 

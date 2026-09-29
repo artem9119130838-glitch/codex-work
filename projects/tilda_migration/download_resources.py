@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
 # Paths
-BASE_DIR = "C:/Codex_Personal/projects/tilda_migration"
+BASE_DIR = "C:/Codex/projects/tilda_migration"
 HTML_FILE = os.path.join(BASE_DIR, "preview_response.html")
 OUTPUT_DIR = os.path.join(BASE_DIR, "qilin-theme")
 

@@ -105,7 +105,7 @@ def main():
     cost = calculate_cost(input_tokens, model, is_output=False)
     
     # Load budgets
-    budget_file = Path('C:/Codex_Personal/.ai/budgets.yaml')
+    budget_file = Path('C:/Codex/.ai/budgets.yaml')
     max_cost = 0.01
     max_tokens = 10000
     if budget_file.exists():

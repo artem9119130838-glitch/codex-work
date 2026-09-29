@@ -17,7 +17,7 @@ def check_preview(page_id="41294814"):
     print("Final URL:", r.url)
     
     # Save preview HTML
-    with open("C:/Codex_Personal/projects/tilda_migration/preview_response.html", "w", encoding="utf-8") as f:
+    with open("C:/Codex/projects/tilda_migration/preview_response.html", "w", encoding="utf-8") as f:
         f.write(r.text)
     print("Saved response to preview_response.html")
     

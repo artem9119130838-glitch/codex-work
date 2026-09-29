@@ -13,7 +13,7 @@ from pathlib import Path
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-ROOT_DIR = Path(r"C:\Codex_Personal")
+ROOT_DIR = Path(r"C:\Codex")
 SUMMARY_PATH = ROOT_DIR / ".ai" / "SESSION_SUMMARY.md"
 SCRATCH_DIR = ROOT_DIR / "scratch"
 

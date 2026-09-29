@@ -56,7 +56,7 @@ def fetch_pages():
     try:
         data = r_pages.json()
         print("Response parsed as JSON successfully.")
-        with open(f"C:/Codex_Personal/projects/tilda_migration/project_{project_id}_pages.json", "w", encoding="utf-8") as f:
+        with open(f"C:/Codex/projects/tilda_migration/project_{project_id}_pages.json", "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         print("Saved to project_pages.json")
     except Exception as e:

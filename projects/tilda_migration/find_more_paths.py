@@ -7,7 +7,7 @@ content = r.text
 
 paths = re.findall(r'["\'](/[a-zA-Z0-9_/]+)["\']', content)
 
-with open("C:/Codex_Personal/projects/tilda_migration/all_js_paths.txt", "w", encoding="utf-8") as f:
+with open("C:/Codex/projects/tilda_migration/all_js_paths.txt", "w", encoding="utf-8") as f:
     for p in set(paths):
         if len(p) > 5:
             f.write(f"{p}\n")

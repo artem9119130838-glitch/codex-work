@@ -2,7 +2,7 @@
 
 **Проект:** Автоматическая кластеризация и очистка архивов чатов ИИ (ChatGPT & Gemini)  
 **Дата последнего обновления:** 16 июня 2026 г.  
-**Рабочий каталог:** `C:\Codex_Personal\projects\AI chats export`
+**Рабочий каталог:** `C:\Codex\projects\AI chats export`
 
 ---
 
@@ -10,11 +10,11 @@
 
 ### Phase 0: Подготовка структуры
 *   **Результат:** Создана каноническая структура каталогов проекта (`src/`, `data/raw/`, `data/done/`, `.codex/`). 
-*   **Файлы:** Написаны [README.md](file:///C:/Codex_Personal/projects/AI%20chats%20export/README.md), [PROJECT_HANDOFF.md](file:///C:/Codex_Personal/projects/AI%20chats%20export/PROJECT_HANDOFF.md) и [AGENTS.md](file:///C:/Codex_Personal/projects/AI%20chats%20export/AGENTS.md). 
+*   **Файлы:** Написаны [README.md](file:///C:/Codex/projects/AI%20chats%20export/README.md), [PROJECT_HANDOFF.md](file:///C:/Codex/projects/AI%20chats%20export/PROJECT_HANDOFF.md) и [AGENTS.md](file:///C:/Codex/projects/AI%20chats%20export/AGENTS.md). 
 *   **Данные:** Сырые архивы перемещены из `Gemini_GPT_Raw` в `data/raw/`.
 
 ### Phase 1: Первичный разбор и фильтрация
-*   **Скрипт:** Разработан [AI_chats_filter_optimized.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/AI_chats_filter_optimized.py).
+*   **Скрипт:** Разработан [AI_chats_filter_optimized.py](file:///C:/Codex/projects/AI%20chats%20export/src/AI_chats_filter_optimized.py).
 *   **Решение проблем:**
     *   *Лимиты API:* Установлена обязательная пауза в 12 секунд между запросами ( RPM лимиты бесплатного тарифа).
     *   *HTML-верстка:* Вырезаны лишние стили и теги с помощью `BeautifulSoup4`, размер выгрузки сжат, чтобы не тратить токены.
@@ -23,17 +23,17 @@
 
 ### Phase 2: Постобработка и досортировка
 *   **Скрипты:** 
-    *   [parse_unresolved.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/parse_unresolved.py) — успешно разобрал 12 батчей из `Неразобранное.md` и разнес по файлам.
-    *   [retry_failed_batches.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/retry_failed_batches.py) — повторно отправил сбоящие батчи на стабильных моделях с ротацией.
-    *   [clean_temporary_categories.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/clean_temporary_categories.py) — перенес полезный текст из кривых категорий (например, `CategoryName.md`) в правильные файлы.
-    *   [merge_small_files.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/merge_small_files.py) — объединил мелкие файлы (`Финансы_и_Налоги`, `Финансы_и_Бухгалтерия` и др.) в канонические макро-файлы.
+    *   [parse_unresolved.py](file:///C:/Codex/projects/AI%20chats%20export/src/parse_unresolved.py) — успешно разобрал 12 батчей из `Неразобранное.md` и разнес по файлам.
+    *   [retry_failed_batches.py](file:///C:/Codex/projects/AI%20chats%20export/src/retry_failed_batches.py) — повторно отправил сбоящие батчи на стабильных моделях с ротацией.
+    *   [clean_temporary_categories.py](file:///C:/Codex/projects/AI%20chats%20export/src/clean_temporary_categories.py) — перенес полезный текст из кривых категорий (например, `CategoryName.md`) в правильные файлы.
+    *   [merge_small_files.py](file:///C:/Codex/projects/AI%20chats%20export/src/merge_small_files.py) — объединил мелкие файлы (`Финансы_и_Налоги`, `Финансы_и_Бухгалтерия` и др.) в канонические макро-файлы.
 
 ### Phase 2.5: Восстановление сетевых потерь (Финальный этап)
 *   **Проблема:** Батчи 15, 17, 44, 46 при первом запуске отвалились по таймаутам API (`504 Gateway Timeout`), не записав ни байта данных (потеряно более 750 тыс. символов).
 *   **Решение:**
-    1.  Написан скрипт [recover_lost_batches.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/recover_lost_batches.py), который дробит эти 4 батча на мелкие под-блоки (до 100 000 символов) и отправляет их в `gemini-2.5-flash` с таймаутом сокета 90 секунд и таймаутом API 180 секунд.
+    1.  Написан скрипт [recover_lost_batches.py](file:///C:/Codex/projects/AI%20chats%20export/src/recover_lost_batches.py), который дробит эти 4 батча на мелкие под-блоки (до 100 000 символов) и отправляет их в `gemini-2.5-flash` с таймаутом сокета 90 секунд и таймаутом API 180 секунд.
     2.  Батчи 44 и 46 (частично) распарсились успешно. Для Батча 17 и суб-батча 1 Батча 46, вернувших невалидный JSON, данные были сохранены в `Неразобранное_recovered.md`.
-    3.  Разработан скрипт [parse_unresolved_recovered.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/parse_unresolved_recovered.py), который с помощью регулярных выражений Loose-парсера извлек все диалоги (цены на Siemens, очистка WebData Chrome, перенос фото с iPhone) и разнес их по файлам.
+    3.  Разработан скрипт [parse_unresolved_recovered.py](file:///C:/Codex/projects/AI%20chats%20export/src/parse_unresolved_recovered.py), который с помощью регулярных выражений Loose-парсера извлек все диалоги (цены на Siemens, очистка WebData Chrome, перенос фото с iPhone) и разнес их по файлам.
     4.  Запущен финальный прогон `merge_small_files.py`. Все восстановленные данные укрупнены в 8 канонических файлов + 2 новые категории.
     5.  *Исключение:* Батч 15 (182 тыс. символов, чат *«Указания для расшифровки»*) восстановить не удалось, так как он состоит из одной гигантской неделимой реплики и стабильно сбрасывается API по таймауту 504.
 

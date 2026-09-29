@@ -12,7 +12,7 @@ import sys
 import json
 import re
 
-SCRATCH = r"C:\Codex_Personal\scratch"
+SCRATCH = r"C:\Codex\scratch"
 
 with open(os.path.join(SCRATCH, "sprint_raw_analyzed.json"), "r", encoding="utf-8") as f:
     data = json.load(f)

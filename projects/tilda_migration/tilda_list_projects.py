@@ -47,7 +47,7 @@ def list_projects():
     r_projects = session.get("https://tilda.ru/projects/")
     
     # Save projects HTML for debugging
-    with open("C:/Codex_Personal/projects/tilda_migration/projects.html", "w", encoding="utf-8") as f:
+    with open("C:/Codex/projects/tilda_migration/projects.html", "w", encoding="utf-8") as f:
         f.write(r_projects.text)
         
     soup_p = BeautifulSoup(r_projects.text, 'html.parser')
@@ -77,7 +77,7 @@ def list_projects():
         r_proj = session.get(project_url)
         
         # Save project page HTML
-        with open(f"C:/Codex_Personal/projects/tilda_migration/project_{proj_id}.html", "w", encoding="utf-8") as f:
+        with open(f"C:/Codex/projects/tilda_migration/project_{proj_id}.html", "w", encoding="utf-8") as f:
             f.write(r_proj.text)
             
         soup_proj = BeautifulSoup(r_proj.text, 'html.parser')

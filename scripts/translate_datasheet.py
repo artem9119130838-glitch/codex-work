@@ -256,7 +256,7 @@ def main():
     backup_file = r"C:\Users\Артем\Downloads\ТЗ для гравити\DATASHEET ROD-3rd time inspection_ORIG_CN_BACKUP.xlsx"
     dest_en_dl = r"C:\Users\Артем\Downloads\ТЗ для гравити\DATASHEET ROD-3rd time inspection_EN.xlsx"
     
-    proj_dir = r"C:\Codex_Personal\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
+    proj_dir = r"C:\Codex\projects\Price creating\Договор_62230426_Штоки_и_Трубы\reports"
     dest_en_proj = os.path.join(proj_dir, "DATASHEET ROD-3rd time inspection_EN.xlsx")
     
     # 1. Create backup if not exists

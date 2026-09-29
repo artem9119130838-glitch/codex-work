@@ -3,7 +3,7 @@ import requests
 from tilda_session import get_session
 import ftplib
 
-BASE_DIR = "C:/Codex_Personal/projects/tilda_migration"
+BASE_DIR = "C:/Codex/projects/tilda_migration"
 THEME_DIR = os.path.join(BASE_DIR, "qilin-theme")
 INDEX_PHP = os.path.join(THEME_DIR, "index.php")
 

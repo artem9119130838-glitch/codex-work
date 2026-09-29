@@ -1,6 +1,6 @@
 ﻿from bs4 import BeautifulSoup
 
-INDEX_PHP = "C:/Codex_Personal/projects/tilda_migration/qilin-theme/index.php"
+INDEX_PHP = "C:/Codex/projects/tilda_migration/qilin-theme/index.php"
 
 with open(INDEX_PHP, "r", encoding="utf-8") as f:
     content = f.read()

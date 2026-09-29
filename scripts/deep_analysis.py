@@ -12,7 +12,7 @@ import sys
 import json
 
 DOWNLOADS = r"C:\Users\Артем\Downloads"
-SCRATCH = r"C:\Codex_Personal\scratch"
+SCRATCH = r"C:\Codex\scratch"
 
 def main():
     with open(os.path.join(SCRATCH, "full_sprint_data.json"), "r", encoding="utf-8") as f:

@@ -128,7 +128,7 @@ They remain useful, but new global context should live in `codex_kb`.
    - Внешний накопитель для бэкапа монтируется обычно как: `F:\`
 2. **Huawei MateBook 14** (Мобильный рабочий ноутбук):
    - Пользователь Windows: `Artem` (`C:\Users\Artem`, чистая латиница)
-   - Рабочий репозиторий Codex: `C:\Codex_Personal`
+   - Рабочий репозиторий Codex: `C:\Codex`
    - Локальные диски с данными: `C:\` и `D:\`
    - Внешний накопитель для бэкапа монтируется обычно как: `E:\`
 
@@ -140,9 +140,9 @@ They remain useful, but new global context should live in `codex_kb`.
   - `E:\Mirror_E_Home\SOFT_D` ⮂ Victus: `D:\Soft` ⮂ MateBook: `D:\Soft`
   - `E:\Mirror_E_Home\SAVE` ⮂ Victus: `E:\SAVE` ⮂ MateBook: `D:\Save E`
   - `E:\Mirror_E_Home\Документы` ⮂ Victus: `E:\Документы` ⮂ MateBook: `D:\Документы Sync E`
-  - `E:\Mirror_E_Home\Codex_Work` ⮂ Victus: `E:\Codex_Work` ⮂ MateBook: `C:\Codex_Personal`
+  - `E:\Mirror_E_Home\Codex_Work` ⮂ Victus: `E:\Codex_Work` ⮂ MateBook: `C:\Codex`
   - `E:\Mirror_E_Home\.gemini` ⮂ Victus: `C:\Users\Артем\.gemini` ⮂ MateBook: `C:\Users\Artem\.gemini`
   - `E:\Mirror_E_Home\.ssh` ⮂ Victus: `C:\Users\Артем\.ssh` ⮂ MateBook: `C:\Users\Artem\.ssh`
   - Профили AppData (Telegram, WeChat, DBeaver, NovoFon, dupeGuru, Direct Commander, DigiKam, Movavi, Punto Switcher, MobaXterm, 1C, Edge Bookmarks).
-* **Скрипт адаптации путей Antigravity**: При возврате на Victus обязательно запускать `py F:\Mirror_E_Home\fix_paths_for_victus.py` для коррекции `Artem` ➔ `Артем` и `C:\Codex_Personal` ➔ `E:\Codex_Work` в служебных файлах Antigravity.
+* **Скрипт адаптации путей Antigravity**: При возврате на Victus обязательно запускать `py F:\Mirror_E_Home\fix_paths_for_victus.py` для коррекции `Artem` ➔ `Артем` и `C:\Codex` ➔ `E:\Codex_Work` в служебных файлах Antigravity.
 

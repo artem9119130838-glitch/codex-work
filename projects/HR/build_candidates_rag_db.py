@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-base_dir = r'C:\Codex_Personal\projects\HR\Китайский снабженец'
+base_dir = r'C:\Codex\projects\HR\Китайский снабженец'
 excel_path = os.path.join(base_dir, '简历汇总表_国际贸易专员.xlsx')
 resumes_dir = os.path.join(base_dir, '简历包')
 db_dir = os.path.join(base_dir, 'candidates_db')
@@ -202,14 +202,14 @@ with open(reg_path, 'w', encoding='utf-8') as fl:
     fl.write("> **Проект:** Найм руководителя китайского направления снабжения и ВЭД (China Operations Lead)\n")
     fl.write(f"> **Всего кандидатов в базе:** {len(registry_rows)}\n")
     fl.write(f"> **В приоритетном шорт-листе:** {len(shortlist_ids)}\n")
-    fl.write("> **Папка с карточками кандидатов:** [`candidates_db/`](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/candidates_db/)\n\n")
+    fl.write("> **Папка с карточками кандидатов:** [`candidates_db/`](file:///C:/Codex/projects/HR/Китайский%20снабженец/candidates_db/)\n\n")
     fl.write("---\n\n")
     fl.write("## 1. Приоритетный шорт-лист (ТОП-9 для рассылки и отбора)\n\n")
     fl.write("| ID | Имя (CN) | Возраст | Контакты | Специализация / Опыт | Ссылка на карточку |\n")
     fl.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
     for r in registry_rows:
         if r['is_p']:
-            c_link = f"[{r['name']}](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/candidates_db/{r['file']})"
+            c_link = f"[{r['name']}](file:///C:/Codex/projects/HR/Китайский%20снабженец/candidates_db/{r['file']})"
             contact = r['email'] or r['phone']
             fl.write(f"| {r['id']} | **{r['name']}** | {r['age']} | `{contact}` | {r['summary']} | {c_link} |\n")
     
@@ -219,7 +219,7 @@ with open(reg_path, 'w', encoding='utf-8') as fl:
     fl.write("| :--- | :--- | :--- | :--- | :--- | :--- |\n")
     for r in registry_rows:
         if not r['is_p']:
-            c_link = f"[{r['name']}](file:///C:/Codex_Personal/projects/HR/Китайский%20снабженец/candidates_db/{r['file']})"
+            c_link = f"[{r['name']}](file:///C:/Codex/projects/HR/Китайский%20снабженец/candidates_db/{r['file']})"
             contact = r['email'] or r['phone']
             fl.write(f"| {r['id']} | {r['name']} | {r['gender']} {r['age']} | `{contact}` | {r['exp']} | {c_link} |\n")
     

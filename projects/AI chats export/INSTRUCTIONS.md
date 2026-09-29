@@ -9,7 +9,7 @@
 
 ## 1. Файлы скриптов и их назначение
 
-Все скрипты расположены в папке [src/](file:///C:/Codex_Personal/projects/AI%20chats%20export/src):
+Все скрипты расположены в папке [src/](file:///C:/Codex/projects/AI%20chats%20export/src):
 
 *   **`AI_chats_filter_optimized.py`**: Основной скрипт. Считывает сырые данные из `data/raw/`, бьет их на батчи по ~300 000 символов и отправляет в Gemini API. Производит первичную классификацию диалогов по категориям.
 *   **`recover_lost_batches.py`**: Скрипт точечного восстановления. Используется, если при первом запуске гигантские батчи отвалились по таймауту 504. Он дробит эти батчи на мелкие под-блоки (до 100 000 символов) и отправляет их повторно. Если ИИ пришлет невалидный JSON, сохраняет сырой ответ в `Неразобранное_recovered.md`.
@@ -27,7 +27,7 @@
 
 ### Шаг 1. Подготовка
 1. Переместите старые файлы из папки `data/done/` в архив, оставив папку пустой.
-2. Положите новые сырые архивы (например, `conversations.json` и `МоиДействия.html`) в [data/raw/](file:///C:/Codex_Personal/projects/AI%20chats%20export/data/raw).
+2. Положите новые сырые архивы (например, `conversations.json` и `МоиДействия.html`) в [data/raw/](file:///C:/Codex/projects/AI%20chats%20export/data/raw).
 
 ### Шаг 2. Первичный запуск
 Запустите основной скрипт в терминале:
@@ -40,7 +40,7 @@ py src/AI_chats_filter_optimized.py
 Откройте созданный файл `data/done/report_log.txt` и найдите в нем строки с ошибками `504` или `Deadline Exceeded`. Запомните номера упавших батчей (например, 15, 17, 44, 46).
 
 ### Шаг 4. Запуск восстановления утерянного
-1. Откройте [src/recover_lost_batches.py](file:///C:/Codex_Personal/projects/AI%20chats%20export/src/recover_lost_batches.py).
+1. Откройте [src/recover_lost_batches.py](file:///C:/Codex/projects/AI%20chats%20export/src/recover_lost_batches.py).
 2. Задайте список утерянных номеров батчей в переменной:
    `lost_batch_nums = [15, 17, 44, 46]`
 3. Запустите скрипт восстановления:
@@ -81,6 +81,6 @@ py src/AI_chats_filter_optimized.py
 2.  **Запрет на создание кода с нуля без крайней необходимости:**
     *Промпт:* *«Не переписывай скрипты заново. Вноси точечные изменения в существующие файлы с помощью инструмента `replace_file_content`.»*
 3.  **Использование готовых индексов и паспорта проекта:**
-    *Промпт:* *«Перед началом работы изучи [PROJECT_HANDOFF.md](file:///C:/Codex_Personal/projects/AI%20chats%20export/PROJECT_HANDOFF.md) и [progress.md](file:///C:/Codex_Personal/projects/AI%20chats%20export/progress.md). Используй их как единый источник правды о структуре и статусе проекта. Не сканируй заново логи и директории без явного указания.»*
+    *Промпт:* *«Перед началом работы изучи [PROJECT_HANDOFF.md](file:///C:/Codex/projects/AI%20chats%20export/PROJECT_HANDOFF.md) и [progress.md](file:///C:/Codex/projects/AI%20chats%20export/progress.md). Используй их как единый источник правды о структуре и статусе проекта. Не сканируй заново логи и директории без явного указания.»*
 4.  **Кодировка Cyrillic:**
     *Промпт:* *«Все создаваемые или редактируемые Markdown/текстовые файлы, содержащие кириллицу, сохраняй строго в кодировке UTF-8 с BOM (utf-8-sig).»*

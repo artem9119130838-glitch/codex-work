@@ -1,7 +1,7 @@
 # fix_acrobat_genuine.ps1
 # Comprehensive Adobe Acrobat Genuine & Deactivation Popup Eliminator
 
-$logFile = "C:\Codex_Personal\scripts\fix_acrobat_genuine.log"
+$logFile = "C:\Codex\scripts\fix_acrobat_genuine.log"
 Start-Transcript -Path $logFile -Force
 
 Write-Host "1. Stopping all Adobe background processes..." -ForegroundColor Cyan

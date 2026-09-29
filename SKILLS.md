@@ -2,7 +2,7 @@
 
 Перед решением сложных или типовых задач ИИ-ассистент сверяется с этим индексом и загружает нужный навык (skill) для минимизации расхода токенов.
 
-> 📦 **[SCRIPTS_CATALOG.md](file:///C:/Codex_Personal/codex_kb/SCRIPTS_CATALOG.md)** — **Единый каталог всех автоматизаций и скриптов контура** (сгруппированы по семействам инструментов: CRM Битрикс24, 1С OData, Почта IMAP, HR, Тендеры ГОЗ, VPS бэкапы, Windows Victus). Сверяйтесь с ним перед написанием любого нового скрипта!
+> 📦 **[SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md)** — **Единый каталог всех автоматизаций и скриптов контура** (сгруппированы по семействам инструментов: CRM Битрикс24, 1С OData, Почта IMAP, HR, Тендеры ГОЗ, VPS бэкапы, Windows Victus). Сверяйтесь с ним перед написанием любого нового скрипта!
 
 ## Список активных навыков (в C:\Users\Артем\.gemini\config\skills\):
 
@@ -25,7 +25,7 @@
 9. **[llm_quota_and_fallback_manager](file:///C:/Users/Артем/.gemini/config/skills/llm_quota_and_fallback_manager/SKILL.md) — LLM Quota and Multi-Tier Fallback**
    * *Когда вызывать:* Двухконтурная архитектура API (Gemini ➔ DeepSeek при ошибке 429), адаптивный кулдаун `retryDelay`, синхронизация таймаутов n8n, логирование расхода токенов.
 10. **[git](file:///C:/Users/Артем/.gemini/config/skills/git/SKILL.md) — Git Workflow и Безопасность**
-    * *Когда вызывать:* Разграничение доступов: Личный Git (`Codex_Personal` — Read/Write) vs Рабочий Git (`tender-rag-api` — Strict Read-Only), защита от утечек секретов.
+    * *Когда вызывать:* Разграничение доступов: Единый Git (`Codex` — Read/Write) vs Рабочий Git (`tender-rag-api` — Strict Read-Only), защита от утечек секретов.
 11. **[metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md) — Аналитика и безопасность Metabase**
     * *Когда вызывать:* Построение SQL-воронок продаж, бэкап H2-базы Metabase, права доступа в Community Free версии.
 

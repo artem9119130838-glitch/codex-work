@@ -47,9 +47,9 @@ def test_tilda_auth():
         soup = BeautifulSoup(r_page.text, 'html.parser')
         
         # Save page html for analysis
-        with open("C:/Codex_Personal/projects/tilda_migration/page_admin.html", "w", encoding="utf-8") as f:
+        with open("C:/Codex/projects/tilda_migration/page_admin.html", "w", encoding="utf-8") as f:
             f.write(r_page.text)
-        print("Saved admin page HTML to C:/Codex_Personal/projects/tilda_migration/page_admin.html")
+        print("Saved admin page HTML to C:/Codex/projects/tilda_migration/page_admin.html")
         
         # Try to find page title and preview URL
         title_tag = soup.find('title')
@@ -58,9 +58,9 @@ def test_tilda_auth():
     else:
         print("Failed to log in.")
         # Let's save the response to see if there is a captcha or error message
-        with open("C:/Codex_Personal/projects/tilda_migration/login_response.html", "w", encoding="utf-8") as f:
+        with open("C:/Codex/projects/tilda_migration/login_response.html", "w", encoding="utf-8") as f:
             f.write(r_post.text)
-        print("Saved login response HTML to C:/Codex_Personal/projects/tilda_migration/login_response.html")
+        print("Saved login response HTML to C:/Codex/projects/tilda_migration/login_response.html")
 
 if __name__ == "__main__":
     test_tilda_auth()

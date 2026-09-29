@@ -38,5 +38,5 @@ Server facts are documented. Changes must be conservative because the VPS is pro
 - Keep Apache changes behind `apachectl configtest`.
 - Avoid 1C/PostgreSQL restarts without explicit approval.
 - Verify Docker root remains `/Storage/docker-data`.
-- Keep `C:\Codex_Personal` KB structure as the active Codex workspace control plane.
+- Keep `C:\Codex` KB structure as the active Codex workspace control plane.
 

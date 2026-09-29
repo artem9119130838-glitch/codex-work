@@ -1,7 +1,7 @@
 ﻿from bs4 import BeautifulSoup
 
 def check_form_tag():
-    with open("C:/Codex_Personal/projects/tilda_migration/published_site.html", "r", encoding="utf-8") as f:
+    with open("C:/Codex/projects/tilda_migration/published_site.html", "r", encoding="utf-8") as f:
         html = f.read()
         
     soup = BeautifulSoup(html, 'html.parser')

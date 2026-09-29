@@ -6,7 +6,7 @@
 - [x] Временный перенос проектов, документов и ИИ-окружения с Victus на новый ноутбук MateBook 14 (выполнен 13.08.2026).
 - [x] Подготовка обратного переноса на Victus: создание конфигураций FreeFileSync (`1_MateBook_to_External.ffs_gui`, `2_External_to_Victus.ffs_gui`), скрипта адаптации путей Antigravity `fix_paths_for_victus.py` и инструкций по проверке.
 - [x] Синхронизация данных с MateBook на внешний диск `E:\Mirror_E_Home` и развертывание на Victus:
-  * Ветка `master` репозитория `C:\Codex_Personal` синхронизирована без конфликтов;
+  * Ветка `master` репозитория `C:\Codex` синхронизирована без конфликтов;
   * Настроен и валидирован профиль `E:\Mirror_E_Home\2_External_to_Victus.ffs_gui` (все 24 пары исправлены под фактические диски Victus);
   * В фильтр FreeFileSync добавлены исключения: `SAVE` (`Архив Бизнесов`, `iMac`, `Архивы Сайтов` — экономия ~125 ГБ) и `SOFT_D` (`Huawei Service`, `8.5.1.1150`, `Telegram Desktop`, `DigiKam`, `qBittorrent`, `DupeGuru` — экономия ~3.1 ГБ);
   * Проведен полный комплекс верификации (Python 8 библиотек OK, Git, SSH GitHub/VPS, 9/9 локальных путей, профили Edge, Punto Switcher, MobaXterm).
@@ -21,9 +21,9 @@
 - [x] Настройка изолированного окружения для Михаила на VPS (пользователь `mikhail`, доступ только к `/home/mikhail/tender-rag-api`, запрет прямого Docker, белый список в `sudoers` только для деплоя и логов своих сервисов, блокировка 1С и Postgres, сохранение ключа `id_ed25519_mikhail`).
 - [x] Развертывание демона автодеплоя по вебхуку `tender-webhook-deploy.service` (порт 9876) с защитой секретным токеном.
 - [x] Ликвидация сбоя n8n и защита от раздувания базы: сжатие `database.sqlite` в `n8n-eng` с 14 ГБ до 1.26 МБ, устранение ошибки миграции `CreateTagEntity`, включение `EXECUTIONS_DATA_SAVE_ON_SUCCESS=none`, `EXECUTIONS_DATA_MAX_AGE=48` и еженедельного скрипта обслуживания SQLite в `cron.weekly`.
-- [x] Полная синхронизация мастер-каталогов и базы знаний: сохранение локальных копий VPS-скриптов в `scripts/vps/`, регистрация в [SCRIPTS_CATALOG.md](file:///C:/Codex_Personal/codex_kb/SCRIPTS_CATALOG.md) (Домены 6 и 14), актуализация [SERVER_VPS.md](file:///C:/Codex_Personal/codex_kb/10_assets/SERVER_VPS.md), реестра 14 доменов в [GRAVITY_CONTROL_CENTER.md](file:///C:/Codex_Personal/codex_kb/00_control/GRAVITY_CONTROL_CENTER.md) и подтверждение индекса всех 12 навыков в [SKILLS.md](file:///C:/Codex_Personal/SKILLS.md).
+- [x] Полная синхронизация мастер-каталогов и базы знаний: сохранение локальных копий VPS-скриптов в `scripts/vps/`, регистрация в [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md) (Домены 6 и 14), актуализация [SERVER_VPS.md](file:///C:/Codex/codex_kb/10_assets/SERVER_VPS.md), реестра 14 доменов в [GRAVITY_CONTROL_CENTER.md](file:///C:/Codex/codex_kb/00_control/GRAVITY_CONTROL_CENTER.md) и подтверждение индекса всех 12 навыков в [SKILLS.md](file:///C:/Codex/SKILLS.md).
 - [x] Решить проблему приведения типов параметров периода (`&НачалоПериода` и `&КонецПериода` в СКД) и задвоения себестоимости при интеграции пакетного SQL-запроса в отчет `KPIМенеджеров.erf`.
-- [x] Добавлена иконка MAX со ссылкой на бота и адрес почты прописью в шапку сайта [longwang.ru](http://longwang.ru) (исправлена верстка иконки в [custom.css](file:///C:/Codex_Personal/projects/GoW%20Project/themes/themes/longwang/custom.css)).
+- [x] Добавлена иконка MAX со ссылкой на бота и адрес почты прописью в шапку сайта [longwang.ru](http://longwang.ru) (исправлена верстка иконки в [custom.css](file:///C:/Codex/projects/GoW%20Project/themes/themes/longwang/custom.css)).
 - [x] Восстановлен доступ и сброшены пароли в Metabase: учетные данные (`admin@tender-rag.local` / `Artem12345`, `manager@tender-rag.local` / `manager12345`) и быстрая команда CLI-сброса сохранены в базе знаний и навыке `metabase_analytics_ops`.
 - [/] Найм руководителя снабжения и ВЭД в Китае:
   * Зафиксирован отказ Nancy Qin (覃显清, Дечжоу);
@@ -68,4 +68,4 @@
 - [x] Очистка переполненного диска /Storage на VPS, устранение дублирования бэкапов в cron, обновление логики скрипта backup-sql.sh (с защитой от удаления последнего бэкапа и отправкой алертов при сбоях в n8n) и перезапуск зависшей службы 1С.
 - [x] Проверка доступов Чулпан (25chulpan@gmail.com) на Google Диске руководителя artem9119130838@gmail.com
 - [x] Восстановление сетевого доступа к VPS-серверу 109.248.170.181 (диагностика блокировок, решение конфликта портов Apache/Nginx, локализация проблемы на стороне T2 Mobile ISP).
-* Полный список выполненных задач перенесен в файл [todo_archive.md](file:///C:/Codex_Personal/todo_archive.md).
+* Полный список выполненных задач перенесен в файл [todo_archive.md](file:///C:/Codex/todo_archive.md).

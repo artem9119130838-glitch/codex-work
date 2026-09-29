@@ -16,7 +16,7 @@
 | Автоматические субагенты (grep, file read) | Ограничиваем историю субагента до 2000 токенов, передаём только текущую задачу |
 | Нет встроенного кэширования контекста | Реализуем свой **Session Compression** – при длинных сессиях заменяем историю кратким итогом |
 | Работа через API Gemini (Flash, Pro, Flash-8B) | Роутер моделей на основе ключевых слов в промпте + ручное переключение через мета-команды |
-| Файловая система Windows (C:\Codex_Shared) | Все скрипты – на Python, с поддержкой путей с обратным слешем и `pathlib` |
+| Файловая система Windows (C:\Codex) | Все скрипты – на Python, с поддержкой путей с обратным слешем и `pathlib` |
 
 ---
 
@@ -63,7 +63,7 @@
 **Создать структуру каталогов и файлы:**
 
 ```
-C:\Codex_Shared\
+C:\Codex\
 ├── .ai\
 │   ├── file_index.json        (будет создан позже)
 │   ├── architecture.md        (заполнить вручную)
@@ -130,7 +130,7 @@ def extract_description(filepath):
     return "..."
 
 def main():
-    root = Path('C:/Codex_Shared')
+    root = Path('C:/Codex')
     index = {}
     for py_file in root.rglob('*.py'):
         if any(ignore in py_file.parts for ignore in ['.ai', 'node_modules', '__pycache__']):
@@ -161,7 +161,7 @@ def estimate_tokens(text, model="gemini"):
     return len(enc.encode(text))
 
 def check_request(prompt, context, model_name):
-    with open(Path('C:/Codex_Shared/.ai/budgets.yaml')) as f:
+    with open(Path('C:/Codex/.ai/budgets.yaml')) as f:
         limits = yaml.safe_load(f)
     input_tokens = estimate_tokens(prompt + context)
     # грубая оценка стоимости (обновить по текущим тарифам)
@@ -188,8 +188,8 @@ import json
 from datetime import date
 from pathlib import Path
 
-LOG_FILE = Path('C:/Codex_Shared/.ai/token_usage.jsonl')
-BUDGET_FILE = Path('C:/Codex_Shared/.ai/budgets.yaml')
+LOG_FILE = Path('C:/Codex/.ai/token_usage.jsonl')
+BUDGET_FILE = Path('C:/Codex/.ai/budgets.yaml')
 
 def log_call(model, input_tokens, output_tokens, cost_usd, task):
     with open(LOG_FILE, 'a') as f:
@@ -241,10 +241,10 @@ def check_daily_budget():
 
 ### Фаза 3: Обновление AGENTS.md (10 минут)
 
-Добавить в `C:\Codex_Shared\AGENTS.md` раздел **TOKEN LIMITS** (копия из Стандарта, п.3). А также ссылку на этот Implementation Plan.
+Добавить в `C:\Codex\AGENTS.md` раздел **TOKEN LIMITS** (копия из Стандарта, п.3). А также ссылку на этот Implementation Plan.
 
 ```markdown
-# AGENTS.md for C:\Codex_Shared
+# AGENTS.md for C:\Codex
 
 ## Обязательные лимиты для всех ИИ-ассистентов (Antigravity, Claude, и др.)
 
@@ -262,7 +262,7 @@ def check_daily_budget():
 
 ### Фаза 4: Пилотное тестирование (2 дня)
 
-**Выбрать один проект** в `C:\Codex_Shared`, не критичный для бизнеса.
+**Выбрать один проект** в `C:\Codex`, не критичный для бизнеса.
 
 1. Выполнить `build_index.py`.
 2. Включить **только Preflight в режиме warn** (не блокировать).

@@ -5,7 +5,7 @@ import requests
 host = "185.26.122.79"
 user = "host1847090_qilinftp"
 password = "qilin_ftp"
-local_theme_dir = "C:/Codex_Personal/projects/tilda_migration/qilin-theme"
+local_theme_dir = "C:/Codex/projects/tilda_migration/qilin-theme"
 remote_theme_dir = "htdocs/www/wp-content/themes/qilin-theme"
 
 def upload_dir(ftp, local_dir, remote_dir):
@@ -80,7 +80,7 @@ if (!username_exists($username)) {
 unlink(__FILE__);
 echo "Script self-destructed successfully.\\n";
 ?>"""
-    script_path = "C:/Codex_Personal/projects/tilda_migration/activate_qilin.php"
+    script_path = "C:/Codex/projects/tilda_migration/activate_qilin.php"
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(script_content)
     print("Created activation script locally.")

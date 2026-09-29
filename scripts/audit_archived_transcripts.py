@@ -27,8 +27,8 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 BRAIN_DIR = Path(r"C:\Users\Артем\.gemini\antigravity\brain")
-REPORT_PATH = Path(r"C:\Codex_Personal\scratch\transcript_audit_report.json")
-REPORT_MD_PATH = Path(r"C:\Codex_Personal\scratch\transcript_audit_report.md")
+REPORT_PATH = Path(r"C:\Codex\scratch\transcript_audit_report.json")
+REPORT_MD_PATH = Path(r"C:\Codex\scratch\transcript_audit_report.md")
 
 DIRECTIVE_KEYWORDS = [
     r"запрещ[её]н", r"нельзя", r"никогда", r"всегда", r"правил", r"не смей",
