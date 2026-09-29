@@ -24,6 +24,8 @@ node_modules/
 # Temporary and scratch files
 scratch/
 out.csv
+*.log
+.ssh/
 *.ffs_lock
 *.ffs_tmp
 sync.ffs_lock

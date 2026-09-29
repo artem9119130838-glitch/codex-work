@@ -157,6 +157,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Базовый** | `audit_c_drive_bloat.py` | `scripts/audit_c_drive_bloat.py` | Полная ревизия диска C:: анализ DXCache, %TEMP%, WinSxS, буфера Google Drive, крупных папок и свободного места. | 0 |
 | **Базовый** | `__init__.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/vendor_imports/skills/skills/.curated/migrate-to-codex/scripts/migrate/__init__.py` | Section-level migration code for migrate-to-codex. | 0 |
 | **Базовый** | `__init__.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/vendor_imports/skills/skills/.curated/migrate-to-codex/scripts/utils/__init__.py` | igration script helper modules. | 0 |
 | **Базовый** | `agents.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/vendor_imports/skills/skills/.curated/migrate-to-codex/scripts/migrate/agents.py` | Convert Claude Code subagents into Codex custom-agent TOML. | 0 |
