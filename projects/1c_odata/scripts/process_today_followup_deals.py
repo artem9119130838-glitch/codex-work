@@ -31,13 +31,25 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "")
+B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/").rstrip("/") + "/"
 IMAP_HOST = os.getenv("IMAP_SERVER", "mail.hostland.ru")
 IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 SENDER_EMAIL = os.getenv("IMAP_USER", "sales@longwang.ru")
-SENDER_PASS = os.getenv("IMAP_PASSWORD", "")
+SENDER_PASS = os.getenv("IMAP_PASSWORD", "CosiN09oAr")
 SENDER_NAME = "Артем Петров Long Wang, ООО Ци Линь"
 IMAP_DRAFTS_FOLDER = "&BBcEMAQzBD4EQgQ+BDIEOgQ4-"
+
+USER_MAPPING = {
+    "1": 1,
+    "artem": 1,
+    "артем": 1,
+    "38": 38,
+    "alexandra": 38,
+    "александра": 38,
+    "26": 26,
+    "salman": 26,
+    "салман": 26
+}
 
 SIGNATURE_HTML = """
 <div style="font-family: Arial, sans-serif; font-size: 13px; color: #333; margin-top: 20px;">
@@ -99,7 +111,7 @@ def close_activity(activity_id: int):
         print(f"[WARN] Не удалось закрыть дело {activity_id}: {e}")
 
 
-def create_call_activity(deal_id: int, contact_id: int, company_id: int, subject: str, phone: str, desc: str, hours_ahead: int = 1) -> int:
+def create_call_activity(deal_id: int, contact_id: int, company_id: int, subject: str, phone: str, desc: str, hours_ahead: int = 1, responsible_id: int = 1) -> int:
     now = datetime.now()
     call_start = now + timedelta(hours=hours_ahead)
     call_end = call_start + timedelta(minutes=30)
@@ -113,7 +125,7 @@ def create_call_activity(deal_id: int, contact_id: int, company_id: int, subject
         "START_TIME": deadline,
         "END_TIME": end_time,
         "DEADLINE": deadline,
-        "RESPONSIBLE_ID": 1,
+        "RESPONSIBLE_ID": responsible_id,
         "DESCRIPTION": desc,
         "COMPLETED": "N"
     }
@@ -131,7 +143,7 @@ def create_call_activity(deal_id: int, contact_id: int, company_id: int, subject
     return res if isinstance(res, int) else 0
 
 
-def create_crm_todo(deal_id: int, subject: str, desc: str, days_ahead: int = 5) -> int:
+def create_crm_todo(deal_id: int, subject: str, desc: str, days_ahead: int = 5, responsible_id: int = 1) -> int:
     now = datetime.now()
     deadline = (now + timedelta(days=days_ahead)).strftime("%Y-%m-%dT18:00:00+03:00")
     fields = {
@@ -143,7 +155,7 @@ def create_crm_todo(deal_id: int, subject: str, desc: str, days_ahead: int = 5) 
         "START_TIME": deadline,
         "END_TIME": deadline,
         "DEADLINE": deadline,
-        "RESPONSIBLE_ID": 1,
+        "RESPONSIBLE_ID": responsible_id,
         "DESCRIPTION": desc,
         "COMPLETED": "N"
     }
@@ -151,14 +163,19 @@ def create_crm_todo(deal_id: int, subject: str, desc: str, days_ahead: int = 5) 
     return res if isinstance(res, int) else 0
 
 
-def process_today_followup_deals(dry_run: bool = False) -> dict:
+def process_today_followup_deals(assigned_to="1", limit: int = None, dry_run: bool = False) -> dict:
+    if isinstance(assigned_to, str):
+        assigned_id = USER_MAPPING.get(assigned_to.lower().strip(), 1)
+    else:
+        assigned_id = int(assigned_to)
+
     today_str = datetime.now().strftime("%Y-%m-%d")
-    print(f"Поиск дел Артема по сделкам на {today_str} (и просроченных)...")
+    print(f"Поиск дел пользователя ID={assigned_id} по сделкам на {today_str} (и просроченных)...")
     
-    # Ищем дела Артема (RESPONSIBLE_ID = 1), не завершенные
+    # Ищем дела ответственного (RESPONSIBLE_ID = assigned_id), не завершенные
     acts = call_b24("crm.activity.list", {
         "filter": {
-            "RESPONSIBLE_ID": 1,
+            "RESPONSIBLE_ID": assigned_id,
             "COMPLETED": "N",
             "OWNER_TYPE_ID": 2
         },
@@ -174,6 +191,9 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
             target_activities.append(a)
             
     print(f"Найдено целевых дел на сегодня/просроченных по сделкам: {len(target_activities)}")
+    if limit and limit > 0:
+        print(f"Применен лимит: выбор первых {limit} дел из {len(target_activities)}")
+        target_activities = target_activities[:limit]
     
     report = {
         "processed_count": len(target_activities),
@@ -241,7 +261,7 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
         print(f"    Исходящих писем клиенту в истории: {outgoing_count}")
         
         # Кейс 1: Петрошип / Hydac (Сделка 2166)
-        if deal_id == 2166 or "Hydac" in deal_title or "Петрошип" in (company.get("TITLE") or ""):
+        if deal_id == 2166 or "Hydac" in (deal_title or "") or "Петрошип" in (company.get("TITLE") or ""):
             print("    Идентифицирована сделка по фильтрам Hydac (ООО «ПЕТРОШИП»)...")
             
             # Текст черновика (для касаний < 3)
@@ -281,7 +301,8 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
                         subject=f"Звонок (>=3 касания): {full_name} ({company.get('TITLE') or 'ООО «ПЕТРОШИП»'}) — статус Hydac",
                         phone=call_phone,
                         desc=call_desc,
-                        hours_ahead=1
+                        hours_ahead=1,
+                        responsible_id=assigned_id
                     )
                     report["calls_created"].append({
                         "deal_id": deal_id,
@@ -310,7 +331,8 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
                         deal_id=deal_id,
                         subject=f"Контроль ответа на запрос фото: {full_name} ({company.get('TITLE') or 'ООО «ПЕТРОШИП»'})",
                         desc=todo_desc,
-                        days_ahead=5
+                        days_ahead=5,
+                        responsible_id=assigned_id
                     )
                     report.setdefault("todos_created", []).append({
                         "deal_id": deal_id,
@@ -320,33 +342,103 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
                     print(f"    [OK] Касаний < 3. Создано дело CRM_TODO #{todo_id} на контроль ответа до 30.09.2026")
             else:
                 if outgoing_count >= 3:
-                    print(f"    [DRY-RUN] Исходящих {outgoing_count} >= 3: закрыто бы дело #{act_id}, поставлен звонок.")
+                    print(f"    [DRY-RUN] Исходящих {outgoing_count} >= 3: закрыто бы дело #{act_id}, поставлен звонок на сегодня через 1 час.")
                 else:
                     print(f"    [DRY-RUN] Исходящих {outgoing_count} < 3: сформирован бы черновик на {to_email}, закрыто дело #{act_id}, поставлено CRM_TODO на контроль.")
                 
         else:
-            # Другие сделки, если обнаружатся
-            report["manual_review"].append({
-                "deal_id": deal_id,
-                "act_id": act_id,
-                "subj": subj,
-                "reason": "Требует ручного подтверждения контекста"
-            })
+            # Общий обработчик follow-up для сделок
+            first_name = contact_name or "Коллеги"
+            clean_title = deal_title or subj
+            subject = f"Re: {clean_title}"
+            body_text = (
+                f"{first_name}, добрый день!\n\n"
+                f"Подскажите, пожалуйста, удалось ли ознакомиться с нашим предложением по сделке «{clean_title}»?\n\n"
+                "Будем признательны за обратную связь или уточнение актуальности."
+            )
+            body_html = (
+                f"<p>{first_name}, добрый день!</p>"
+                f"<p>Подскажите, пожалуйста, удалось ли ознакомиться с нашим предложением по сделке «{clean_title}»?</p>"
+                "<p>Будем признательны за обратную связь или уточнение актуальности.</p>"
+            )
+            
+            if not dry_run:
+                close_activity(act_id)
+                report["closed_activities"].append(act_id)
+                print(f"    [OK] Закрыто текущее дело #{act_id}")
+                
+                if outgoing_count >= 3:
+                    call_phone = phone_val
+                    call_desc = (
+                        f"Клиенту отправлено уже {outgoing_count} писем без ответа (исчерпан лимит 3 касаний). "
+                        f"Необходимо позвонить {full_name} и выяснить статус заявки «{clean_title}»."
+                    )
+                    call_id = create_call_activity(
+                        deal_id=deal_id,
+                        contact_id=contact_id,
+                        company_id=company_id,
+                        subject=f"Звонок (>=3 касания): {full_name} — {clean_title}",
+                        phone=call_phone,
+                        desc=call_desc,
+                        hours_ahead=1,
+                        responsible_id=assigned_id
+                    )
+                    report["calls_created"].append({
+                        "deal_id": deal_id,
+                        "call_activity_id": call_id,
+                        "phone": call_phone
+                    })
+                    print(f"    [OK] Отправлено >= 3 писем. Создано дело-звонок #{call_id}")
+                else:
+                    if to_email:
+                        msg_id = save_draft_to_imap(to_email, subject, body_text, body_html)
+                        report["drafts_created"].append({
+                            "deal_id": deal_id,
+                            "to": to_email,
+                            "subject": subject,
+                            "msg_id": msg_id
+                        })
+                        print(f"    [OK] Черновик сохранен в IMAP Drafts (to: {to_email})")
+                        
+                    todo_desc = (
+                        f"Подготовлен черновик follow-up письма по сделке «{clean_title}» (касание {outgoing_count + 1}). "
+                        "Проверить ответ на почту. Если ответа не будет (станет >= 3 отправленных касаний) — переводить на звонок."
+                    )
+                    todo_id = create_crm_todo(
+                        deal_id=deal_id,
+                        subject=f"Контроль ответа: {full_name} ({clean_title})",
+                        desc=todo_desc,
+                        days_ahead=5,
+                        responsible_id=assigned_id
+                    )
+                    report.setdefault("todos_created", []).append({
+                        "deal_id": deal_id,
+                        "todo_activity_id": todo_id
+                    })
+                    print(f"    [OK] Касаний < 3. Создано дело CRM_TODO #{todo_id} на контроль ответа на 5 дней")
+            else:
+                if outgoing_count >= 3:
+                    print(f"    [DRY-RUN] Исходящих {outgoing_count} >= 3: закрыто бы дело #{act_id}, поставлен звонок на сегодня через 1 час ({phone_val or 'нет тел'}).")
+                else:
+                    print(f"    [DRY-RUN] Исходящих {outgoing_count} < 3: сформирован бы черновик на {to_email or 'нет email'}, закрыто дело #{act_id}, поставлено CRM_TODO на 5 дней.")
             
     return report
 
 
 def main():
     parser = argparse.ArgumentParser(description="Process today's follow-up deals")
+    parser.add_argument("--assigned-to", default="1", help="Ответственный пользователь (1 / artem / alexandra / salman)")
+    parser.add_argument("--limit", "-n", type=int, default=None, help="Количество сделок/дел для обработки (например, 12)")
     parser.add_argument("--dry-run", action="store_true", help="Не вносить изменения, только показать план действий")
     args = parser.parse_args()
     
     print("\n=======================================================")
     print(" PIPELINE: FOLLOW-UP DEALS TODAY")
     print(f" Время запуска: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f" Ответственный: {args.assigned_to}, Лимит: {args.limit or 'Все'}, Dry-run: {args.dry_run}")
     print("=======================================================")
     
-    rep = process_today_followup_deals(dry_run=args.dry_run)
+    rep = process_today_followup_deals(assigned_to=args.assigned_to, limit=args.limit, dry_run=args.dry_run)
     
     print("\nИТОГИ ВЫПОЛНЕНИЯ:")
     print(f"- Обработано дел на сегодня: {rep['processed_count']}")

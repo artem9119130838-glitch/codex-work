@@ -381,7 +381,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Боевой конвейер** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | Конвейер Follow-up сделок: персонализированные черновики в Roundcube с КП при < 3 касаниях, перенос CRM_TODO (+4..5 дн.), эскалация звонка (TYPE_ID: 2) на сегодня через 1 час при >= 3 письмах. | 0 |
+| **Боевой конвейер** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | Конвейер Follow-up сделок (`--assigned-to 1`, `--limit 12`, `--dry-run`): персонализированные черновики в Roundcube с КП при < 3 касаниях, перенос CRM_TODO (+4..5 дн.), эскалация звонка (TYPE_ID: 2) на сегодня через 1 час с прямым телефоном клиента при >= 3 письмах. | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_v6_backup/app/run_daily_reactivation.py` | Setup path | 1 |
 | **Базовый** | `run_daily_reactivation.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_migration_backup_20260809/app/run_daily_reactivation.py` | Setup path | 1 |
 | **Базовый** | `run_daily_reactivation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_daily_reactivation.py` | Setup path | 1 |
