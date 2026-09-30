@@ -776,12 +776,14 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             task_files = []
             
             # Проверяем наличие Excel-запроса на Рабочем столе
+            excel_found = False
             if os.path.exists(desktop_dir):
                 for f in os.listdir(desktop_dir):
                     if f.startswith("Запрос КП") and f.endswith(".xlsx"):
                         clean_comp = re.sub(r'["«»АООООПАОЗАО]', '', company_name).strip()
                         if clean_comp and clean_comp.lower() in f.lower():
                             efile_path = os.path.join(desktop_dir, f)
+                            excel_found = True
                             if not dry_run:
                                 eid = upload_file_to_disk(efile_path)
                                 if eid:
@@ -790,6 +792,30 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                                 print(f"  [B24] (Dry-run) Загрузка Excel-файла '{f}' на Диск группы 14")
                                 task_files.append(9999906)
                             break
+
+            # Если на Рабочем столе нет чистового Excel — создаем по эталонному шаблону
+            if not excel_found:
+                master_tpl = r"D:\Документы Victus\Рабочее\Шаблоны\Заявки\Запрос КП пример заполнения.xlsx"
+                clean_comp = re.sub(r'["«»АООООПАОЗАО]', '', company_name).strip() or "Клиент"
+                clean_item = re.sub(r'[\\/*?:"<>|]', '', item_subject).strip()[:35] or "Товар"
+                gen_name = f"Запрос КП {clean_item} {clean_comp}.xlsx"
+                gen_path = os.path.join(desktop_dir, gen_name)
+                try:
+                    if os.path.exists(master_tpl):
+                        import shutil
+                        if not dry_run:
+                            shutil.copy2(master_tpl, gen_path)
+                            print(f"  [EXCEL] Создан файл по эталонному шаблону: {gen_name}")
+                            eid = upload_file_to_disk(gen_path)
+                            if eid:
+                                task_files.append(eid)
+                        else:
+                            print(f"  [EXCEL] (Dry-run) Генерация файла по шаблону '{gen_name}' и загрузка на Диск группы 14")
+                            task_files.append(9999906)
+                    else:
+                        print(f"  [WARN] Шаблон не найден: {master_tpl}")
+                except Exception as e_tpl:
+                    print(f"  [WARN] Ошибка генерации Excel по шаблону: {e_tpl}")
 
             # Прикрепляем оригинальные файлы клиента
             if attached_files:

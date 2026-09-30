@@ -99,16 +99,19 @@ def close_activity(activity_id: int):
         print(f"[WARN] Не удалось закрыть дело {activity_id}: {e}")
 
 
-def create_call_activity(deal_id: int, contact_id: int, company_id: int, subject: str, phone: str, desc: str, days_ahead: int = 5) -> int:
+def create_call_activity(deal_id: int, contact_id: int, company_id: int, subject: str, phone: str, desc: str, hours_ahead: int = 1) -> int:
     now = datetime.now()
-    deadline = (now + timedelta(days=days_ahead)).strftime("%Y-%m-%dT11:00:00+03:00")
+    call_start = now + timedelta(hours=hours_ahead)
+    call_end = call_start + timedelta(minutes=30)
+    deadline = call_start.strftime("%Y-%m-%dT%H:%M:00+03:00")
+    end_time = call_end.strftime("%Y-%m-%dT%H:%M:00+03:00")
     fields = {
         "OWNER_TYPE_ID": 2,
         "OWNER_ID": deal_id,
         "TYPE_ID": 2, # Звонок
         "SUBJECT": subject,
         "START_TIME": deadline,
-        "END_TIME": deadline,
+        "END_TIME": end_time,
         "DEADLINE": deadline,
         "RESPONSIBLE_ID": 1,
         "DESCRIPTION": desc,
@@ -278,7 +281,7 @@ def process_today_followup_deals(dry_run: bool = False) -> dict:
                         subject=f"Звонок (>=3 касания): {full_name} ({company.get('TITLE') or 'ООО «ПЕТРОШИП»'}) — статус Hydac",
                         phone=call_phone,
                         desc=call_desc,
-                        days_ahead=2
+                        hours_ahead=1
                     )
                     report["calls_created"].append({
                         "deal_id": deal_id,
