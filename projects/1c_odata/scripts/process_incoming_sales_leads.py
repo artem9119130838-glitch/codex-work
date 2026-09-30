@@ -330,19 +330,26 @@ def create_crm_deal(title: str, company_id: int, contact_id: int, assigned_by: i
     return int(res.get("result", 0))
 
 
-def bind_activity_to_deal(act_id: int, deal_id: int, company_id: int, contact_id: int, dry_run: bool = False):
-    bindings = [
-        {"ownerTypeId": 2, "ownerId": deal_id},
-        {"ownerTypeId": 4, "ownerId": company_id}
-    ]
-    if contact_id:
-        bindings.append({"ownerTypeId": 3, "ownerId": contact_id})
-    print(f"  [B24] Привязка дела-письма ID {act_id} к Сделке {deal_id}, Компании {company_id}")
-    if not dry_run:
-        for b in bindings:
+def bind_activity_to_deal(act_id: int, deal_id: int, company_id: int, contact_id: int, email: str = None, dry_run: bool = False):
+    print(f"  [B24] Привязка дела-письма ID {act_id} к Сделке {deal_id}, Компании {company_id}, Контакту {contact_id}")
+    if not dry_run and act_id:
+        comms = []
+        if contact_id:
+            comms.append({"ENTITY_ID": contact_id, "ENTITY_TYPE_ID": 3, "TYPE": "EMAIL", "VALUE": email or ""})
+        if deal_id:
+            comms.append({"ENTITY_ID": deal_id, "ENTITY_TYPE_ID": 2, "TYPE": "EMAIL", "VALUE": email or ""})
+        try:
+            call_b24("crm.activity.update", {"id": act_id, "fields": {"COMMUNICATIONS": comms}})
+        except Exception:
+            pass
+
+        if contact_id:
             try:
-                call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": b["ownerTypeId"], "entityId": b["ownerId"]})
-            except Exception as e:
+                call_b24("crm.deal.contact.items.set", {
+                    "id": deal_id,
+                    "items": [{"CONTACT_ID": contact_id, "SORT": 10, "IS_PRIMARY": "Y"}]
+                })
+            except Exception:
                 pass
 
 
@@ -760,7 +767,7 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
 
             # 3. Привязка письма к Сделке
             if act_id:
-                bind_activity_to_deal(act_id, did, cid, ctid, dry_run=dry_run)
+                bind_activity_to_deal(act_id, did, cid, ctid, email=email_sender, dry_run=dry_run)
                 mark_activity_read(act_id, dry_run=dry_run)
 
             # 4. Конвертация Лида в CONVERTED
