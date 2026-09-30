@@ -1,5 +1,37 @@
 # Рабочий лог задач (Personal)
 
+- [x] Архитектурный рефакторинг контура: Переход от монолита AGENTS.md к Hub-and-Spoke Router и 7 Доменным Манифестам:
+  - [x] Корневой `C:\Codex\AGENTS.md` сокращен с 76 КБ до 12.7 КБ и переведен в режим высокоскоростного Диспетчера (Root Router & Dynamic Context Dispatcher);
+  - [x] Все специфические регламенты, формулы и правила без потерь распределены по 7 Доменным Манифестам:
+    * `projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md` (Устав Follow-up сделок: КП из истории, 7-дневный кулдаун, ответ в цепочке, подпись Б24, черновик моделью);
+    * `projects/1c_odata/LEAD_PROCESSING_POLICY.md` (Устав обработки входящих лидов: Clear RFQ vs Ambiguous, задачи Miss Wang [USER=30], шаблон 66, отметка прочитанным);
+    * `projects/1c_odata/ERP_1C_POLICY.md` (OData Guard, CRM Integrity, двухфазная запись Zero-Blank, запрет самодельного расчета себестоимости, зеркальная синхронизация);
+    * `codex_kb/20_domains/b2b_sales/B2B_SALES_POLICY.md` (B2B-реанимация, запрет мета-фраз, стандарты чистых URL в письмах, извлечение имен);
+    * `codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md` (Архитектура мотивации 5000 RMB + 10% 退税 + 1% GMV * K_orders, юрлицо Alexda в Дечжоу, запрет отката, регламент дефектовки металла, отказ от щеточной гальваники);
+    * `codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md` (SSH ключи root, защита диска SQLite/pgvector, Compose 3.3, Apache vs Nginx, Post-Failure проверка Docker);
+    * `codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md` (Архитектура графики Victus 16, nvhmi.inf vs Код 43, MPO DisableOverlays, BCD F8 legacy, Acrobat Reader);
+    * `codex_kb/20_domains/tenders/TENDER_RAG_POLICY.md` (Номер процедуры АСТ ГОЗ vs ЕИС, Claim Check, MarkItDown, Read-Only на tender-rag-api);
+    * `codex_kb/20_domains/hr_and_operations/OPERATIONS_HR_POLICY.md` (Принцип цифрового следа, запрет Excel-бюрократии, онбординг заместителя, ежедневные аудио-отчеты в 19:00);
+  - [x] Вшиты жесткие правила дисциплины:
+    * **Token Guard First:** обязательный запуск скилла `token_guard` перед стартом любого проекта/задачи;
+    * **Universal Strict Change Policy & Dry-run First:** по умолчанию режим Read-Only ко всему, кроме папки текущего проекта; любые мутации 1С, VPS и Битрикс24 — СТРОГО через согласованный `--dry-run`;
+    * **Zero Secrets in Git Policy:** категорический запрет коммита любых токенов, ключей, паролей и .env;
+    * **Search-First & Existing Script Priority:** запрет изобретать велосипед, обязательная проверка `SCRIPTS_CATALOG.md` и приоритет доработки существующих скриптов;
+    * **Clarify-Fast Guard:** немедленное уточнение на этапе 1 при малейшем сомнении без траты времени на слепой анализ;
+    * **Batch Execution & Anti-Ban:** группировка команд, пакетирование вызовов, лимит 3 SSH/мин;
+    * **Script Retention Guard:** сохранение отладочных скриптов в архив `ARCHIVE/leads_processing_research_scratch/`;
+  - [x] Проведена полная ревизия через `scripts/full_gravity_audit.py`, обновлен `SCRIPTS_CATALOG.md` (1139 скриптов), синхронизированы файлы на Рабочем столе.
+
+- [x] Разбор Follow-up сделок Артема (12 просроченных/на сегодня + 10 сделок без активных дел):
+  - [x] Боевой прогон 12 дел Артема (`py projects/1c_odata/scripts/process_today_followup_deals.py --assigned-to 1 --limit 12`):
+    * По 11 сделкам ($\ge 3$ писем): закрыты старые дела (#40974, #42260, #43122, #43130, #43160, #43168, #43170, #43172, #43556, #42428, #42964), созданы дела-звонки (#43954–#43976, `TYPE_ID: 2`) на сегодня через 1 час с прямыми номерами контрагентов;
+    * По 1 сделке (#2316, $< 3$ писем): закрыто дело #43762, сохранен черновик в IMAP Roundcube (`119@ventelectro.ru`), создано дело `CRM_TODO` #43972 на +5 дней;
+  - [x] Поиск и Follow-up dry-run 10 сделок Артема БЕЗ активных дел (`py projects/1c_odata/scripts/process_deals_without_activities.py --dry-run`):
+    * Найдены 10 открытых сделок без дел: #2354 (Фермер Холод / Bitzer), #2312 (Дальхимфарм / Gemu), #2198 (Казанский КМК / Lanbao), #2166 (Петрошип / Hydac), #2158 (АртВкус / стаканчики), #2156 (Баренцкул / Danfoss), #2122 (Якутский Речной Порт / Atlas Copco), #2120 (Газтурботэк / Hydac VW5), #2118 (Три Направления / Megger DLRO600), #2090 (Майрест / Rostics);
+    * По всем 10 сделкам сформированы персонализированные тексты по стандарту деловой переписки Long Wang и сохранены в IMAP Roundcube (`sales@longwang.ru`, папка `Черновики`) для ручной проверки Артемом;
+    * В режиме dry-run мутации в Битрикс24 не производились (письма не отправлялись, дела ожидают подтверждения Артема);
+  - [x] Скрипт `process_deals_without_activities.py` зарегистрирован в `codex_kb/SCRIPTS_CATALOG.md`.
+
 - [x] Реализация боевого конвейера Follow-up сделок (`process_today_followup_deals.py`) и генератора Excel снабжения КНР (`generate_supply_rfq_excel.py`) (/learn):
   - [x] Модернизирован скрипт `projects/1c_odata/scripts/process_today_followup_deals.py`:
     * Добавлены рабочие fallback-учетные данные (B24 webhook, IMAP);

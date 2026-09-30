@@ -1,7 +1,7 @@
 # Единый каталог скриптов и автоматизаций контура (SCRIPTS_CATALOG)
 
-> **Дата последней автоматической ревизии:** `2026-09-29 07:20:27`  
-> **Статус контура:** Уникальных проверенных скриптов: `1081` | Отсеяно дубликатов: `1243` | Библиотек вендоров: `4440`.  
+> **Дата последней автоматической ревизии:** `2026-09-30 11:04:52`  
+> **Статус контура:** Уникальных проверенных скриптов: `1139` | Отсеяно дубликатов: `1240` | Библиотек вендоров: `4440`.  
 > **Архитектурный стандарт:** «Семейства инструментов» (Tool Families). Любые модификации группируются в одной ячейке от базового вызова к расширенным.
 
 ---
@@ -52,6 +52,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Базовый** | `h03__del_relax_supply_gate.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tender-extraction-lab/legacy/old_project/ACT/tries/h03__del_relax_supply_gate.py` | !/usr/bin/env python3 | 5 |
 | **Расширенный** | `check_import_china.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/check_import_china.py` | Автоматизация рабочего процесса. | 2 |
+| **Расширенный** | `generate_supply_rfq_excel.py` | `projects/1c_odata/scripts/generate_supply_rfq_excel.py` | База готовых спецификаций по подтвержденным заявкам (наработки из архива) | 0 |
 
 ---
 
@@ -82,6 +83,7 @@
 | **Расширенный** | `create_candidates_excel.py` | `projects/HR/create_candidates_excel.py` | Sheet 1: Candidates list | 0 |
 | **Расширенный** | `create_candidates_excel.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/HR/create_candidates_excel.py` | Sheet 1: Candidates list | 1 |
 | **Расширенный** | `scratch_check_specific.py` | `projects/HR/scratch_check_specific.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `scratch_filter_notes.py` | `projects/HR/scratch_filter_notes.py` | Автоматизация рабочего процесса. | 1 |
 
 ---
 
@@ -108,17 +110,26 @@
 | **Базовый** | `auto_deploy.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/vps/auto_deploy.sh` | Проверяем наличие обновлений в ветке mikhail-origin/main | 1 |
 | **Базовый** | `auto_deploy.sh` | `D:/Soft/Codex Backup/scripts/vps/auto_deploy.sh` | Проверяем наличие обновлений в ветке mikhail-origin/main | 0 |
 | **Базовый** | `config.py` | `C:/Users/Артем/tender-rag-api/app/core/config.py` | odels | 0 |
+| **Базовый** | `cost_calculator.py` | `C:/Users/Артем/tender-rag-api/app/services/cost_calculator.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `cost_schema.py` | `C:/Users/Артем/tender-rag-api/app/schemas/cost_schema.py` | Модель для расчета себестоимости одной товарной позиции из Китая. | 0 |
 | **Базовый** | `deploy-tender.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/vps/deploy-tender.sh` | Выполняем git pull | 1 |
 | **Базовый** | `deploy-tender.sh` | `D:/Soft/Codex Backup/scripts/vps/deploy-tender.sh` | Выполняем git pull | 0 |
 | **Базовый** | `deploy_metabase_analytics.py` | `C:/Users/Артем/tender-rag-api/scripts/deploy_metabase_analytics.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `disable_deepseek.py` | `C:/Users/Артем/tender-rag-api/scripts/disable_deepseek.py` | place body of _call_deepseek | 0 |
 | **Базовый** | `document.py` | `C:/Users/Артем/tender-rag-api/app/api/routers/document.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `fix_n8n_auth.py` | `C:/Users/Артем/tender-rag-api/scripts/fix_n8n_auth.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `fix_n8n_final.py` | `C:/Users/Артем/tender-rag-api/scripts/fix_n8n_final.py` | Fix URLs to include the webhook token | 0 |
+| **Базовый** | `fix_n8n_task.py` | `C:/Users/Артем/tender-rag-api/scripts/fix_n8n_task.py` | Fix nomenclature Fix User IDs | 0 |
+| **Базовый** | `force_worker_dir.py` | `C:/Users/Артем/tender-rag-api/force_worker_dir.py` | Add root to pythonpath | 0 |
 | **Базовый** | `generate_backfill_sql.py` | `C:/Users/Артем/tender-rag-api/analytics/scripts/generate_backfill_sql.py` | Загружаем переменные окружения | 0 |
-| **Базовый** | `import_white_base.py` | `C:/Users/Артем/tender-rag-api/scripts/import_white_base.py` | Format list into pgvector string format: '[1.0, 2.0, 3.0]' | 0 |
+| **Базовый** | `import_white_base.py` | `C:/Users/Артем/tender-rag-api/scripts/import_white_base.py` | Build paths relative to the project root | 0 |
 | **Базовый** | `key_manager.py` | `C:/Users/Артем/tender-rag-api/app/core/key_manager.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `llm_service.py` | `C:/Users/Артем/tender-rag-api/app/services/llm_service.py` | Ограничиваем количество чанков (Token-First Vibe Engineering) | 0 |
+| **Базовый** | `llm_service.py` | `C:/Users/Артем/tender-rag-api/app/services/llm_service.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `logger.py` | `C:/Users/Артем/tender-rag-api/app/core/logger.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `rabbitmq.py` | `C:/Users/Артем/tender-rag-api/app/core/rabbitmq.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `read_docx.py` | `C:/Users/Артем/tender-rag-api/scratch/read_docx.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `rewrite_nomenclature.py` | `C:/Users/Артем/tender-rag-api/scripts/rewrite_nomenclature.py` | Find the extract_nomenclature_from_tables function and replace it | 0 |
+| **Базовый** | `setup_bitrix_fields.py` | `C:/Users/Артем/tender-rag-api/scripts/setup_bitrix_fields.py` | Список нужных полей | 0 |
 | **Базовый** | `tender_webhook_deploy.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/vps/tender_webhook_deploy.py` | !/usr/bin/env python3 | 1 |
 | **Базовый** | `tender_webhook_deploy.py` | `D:/Soft/Codex Backup/scripts/vps/tender_webhook_deploy.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `tender_worker.py` | `C:/Users/Артем/tender-rag-api/app/workers/tender_worker.py` | Для тестов по умолчанию стучимся на локальный мок-сервер 5001, а на бою - в n8n | 0 |
@@ -127,7 +138,9 @@
 | **Базовый** | `update_docs_heuristic.py` | `C:/Users/Артем/tender-rag-api/scratch/update_docs_heuristic.py` | 1. Update PROGRESS.md | 0 |
 | **Базовый** | `update_docs_report.py` | `C:/Users/Артем/tender-rag-api/scratch/update_docs_report.py` | 1. Update PROGRESS.md Update (2026-07-15) | 0 |
 | **Базовый** | `update_summary_fields.py` | `C:/Users/Артем/tender-rag-api/scratch/update_summary_fields.py` | Update Get Deals node | 0 |
-| **Базовый** | `ved_audit_service.py` | `C:/Users/Артем/tender-rag-api/app/services/ved_audit_service.py` | Generate embedding using Gemini API (same model as the White Base import). | 0 |
+| **Базовый** | `ved_audit_service.py` | `C:/Users/Артем/tender-rag-api/app/services/ved_audit_service.py` | Generate embedding using Gemini API with KeyManager rotation. | 0 |
+| **Расширенный** | `b24_daily_analytics_sync.py` | `C:/Users/Артем/tender-rag-api/scripts/b24_daily_analytics_sync.py` | !/usr/bin/env python3 | 0 |
+| **Расширенный** | `check_gemini_models.py` | `C:/Users/Артем/tender-rag-api/scripts/check_gemini_models.py` | Get API key from .env.local | 0 |
 | **Расширенный** | `nomenclature_parser.py` | `C:/Users/Артем/tender-rag-api/app/services/nomenclature_parser.py` | Checks if a filename likely contains nomenclature. | 0 |
 | **Расширенный** | `patch_error_node.py` | `C:/Users/Артем/tender-rag-api/scratch/patch_error_node.py` | Find the node that creates the error task (we can identify it by looking at its parameters) Update the description to include the detailed description field | 0 |
 | **Расширенный** | `patch_headers.py` | `C:/Users/Артем/tender-rag-api/scratch/patch_headers.py` | Inject headers | 0 |
@@ -135,20 +148,15 @@
 | **Расширенный** | `patch_n8n_chat.py` | `C:/Users/Артем/tender-rag-api/scratch/patch_n8n_chat.py` | Update parameters | 0 |
 | **Расширенный** | `patch_n8n_deal.py` | `C:/Users/Артем/tender-rag-api/scratch/patch_n8n_deal.py` | ap old codes to new codes | 0 |
 | **Расширенный** | `patch_remove_postgres.py` | `C:/Users/Артем/tender-rag-api/scratch/patch_remove_postgres.py` | ove the node named "Insert to Postgres" | 0 |
+| **Интеграционный** | `patch_n8n_workflow.py` | `C:/Users/Артем/tender-rag-api/scripts/patch_n8n_workflow.py` | 1. Update workflow name | 0 |
 | **Диагностический** | `generate_sql.py` | `C:/Users/Артем/tender-rag-api/analytics/tests/generate_sql.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `load_bulk_csv.py` | `C:/Users/Артем/tender-rag-api/analytics/tests/load_bulk_csv.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `load_test_data.py` | `C:/Users/Артем/tender-rag-api/analytics/tests/load_test_data.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `mock_webhook_server.py` | `C:/Users/Артем/tender-rag-api/docs/part2_regulatory_sieve/test_contour/mock_webhook_server.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `send_test_tender.py` | `C:/Users/Артем/tender-rag-api/docs/part2_regulatory_sieve/test_contour/send_test_tender.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `setup_metabase.py` | `C:/Users/Артем/tender-rag-api/analytics/tests/setup_metabase.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_fastapi.py` | `C:/Users/Артем/tender-rag-api/test_fastapi.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_folder.py` | `C:/Users/Артем/tender-rag-api/scratch/test_folder.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_health.py` | `C:/Users/Артем/tender-rag-api/scratch/test_health.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_llm.py` | `C:/Users/Артем/tender-rag-api/test_llm.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_llm_large.py` | `C:/Users/Артем/tender-rag-api/test_llm_large.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_local_db.py` | `C:/Users/Артем/tender-rag-api/analytics/tests/test_local_db.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_models.py` | `C:/Users/Артем/tender-rag-api/scripts/test_models.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `test_monthly_query.py` | `C:/Users/Артем/tender-rag-api/scripts/test_monthly_query.py` | !/usr/bin/env python3 | 0 |
 
 ---
 
@@ -157,7 +165,6 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Базовый** | `audit_c_drive_bloat.py` | `scripts/audit_c_drive_bloat.py` | Полная ревизия диска C:: анализ DXCache, %TEMP%, WinSxS, буфера Google Drive, крупных папок и свободного места. | 0 |
 | **Базовый** | `__init__.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/vendor_imports/skills/skills/.curated/migrate-to-codex/scripts/migrate/__init__.py` | Section-level migration code for migrate-to-codex. | 0 |
 | **Базовый** | `__init__.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/vendor_imports/skills/skills/.curated/migrate-to-codex/scripts/utils/__init__.py` | igration script helper modules. | 0 |
 | **Базовый** | `agents.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/vendor_imports/skills/skills/.curated/migrate-to-codex/scripts/migrate/agents.py` | Convert Claude Code subagents into Codex custom-agent TOML. | 0 |
@@ -264,9 +271,11 @@
 | **Базовый** | `parse_sprint_summary.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/parse_sprint_summary.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `placeholder_defaults.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/morningstar/skills/fund-summarizer/scripts/placeholder_defaults.py` | Placeholder registry and default display values for fund summary reports. | 0 |
 | **Базовый** | `print_xlsx_summary.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tender-extraction-lab/legacy/old_project/ACT/print_xlsx_summary.py` | Автоматизация рабочего процесса. | 5 |
+| **Базовый** | `read_dossier_summary.py` | `ARCHIVE/leads_processing_research_scratch/read_dossier_summary.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `run_single_sintez_summary.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scratch/run_single_sintez_summary.py` | Автоматизация рабочего процесса. | 4 |
 | **Базовый** | `section_builders.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/morningstar/skills/fund-summarizer/scripts/section_builders.py` | Build derived HTML placeholders from structured fund summary data. | 0 |
-| **Базовый** | `session_compress.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 2 |
+| **Базовый** | `session_compress.py` | `scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
+| **Базовый** | `session_compress.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 1 |
 | **Базовый** | `session_compress.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
 | **Базовый** | `summary_service.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/services/summary_service.py` | 1. Fetch contact messages (both processed and unprocessed to get full context) | 8 |
 | **Расширенный** | `check_sintez_summary.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_funnel_version/scratch/check_sintez_summary.py` | Автоматизация рабочего процесса. | 1 |
@@ -289,6 +298,7 @@
 | **Базовый** | `build_master_regulation_docx.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/build_master_regulation_docx.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `build_scripts_registry.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/build_scripts_registry.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `catalog_scripts.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/catalog_scripts.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `create_1c_lead.py` | `projects/1c_odata/scripts/create_1c_lead.py` | Dry-run создания нового лида с привязкой к событию: | 0 |
 | **Базовый** | `deal_followup_pipeline.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/deal_followup_pipeline.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `deal_followup_pipeline.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/deal_followup_pipeline.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `deep_inspect_batch_12.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/deep_inspect_batch_12.py` | Автоматизация рабочего процесса. | 0 |
@@ -305,6 +315,7 @@
 | **Базовый** | `fetch_email_119.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/fetch_email_119.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `generate_batch_4_dry_run.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/generate_batch_4_dry_run.py` | Constants | 0 |
 | **Базовый** | `group_scripts.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/group_scripts.py` | Categories definition | 0 |
+| **Базовый** | `inspect_b24_leads.py` | `ARCHIVE/leads_processing_research_scratch/inspect_b24_leads.py` | Fetch recent leads via POST | 0 |
 | **Базовый** | `inspect_batch_12.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/inspect_batch_12.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_batch_4_details.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/inspect_batch_4_details.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_batch_5_bodies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/inspect_batch_5_bodies.py` | Print body preview We can inspect the attachments or bodies | 0 |
@@ -318,13 +329,16 @@
 | **Базовый** | `print_items_35_36_38.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/print_items_35_36_38.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `process_b24_inbound_leads.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/process_b24_inbound_leads.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `process_batch_pipeline.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/process_batch_pipeline.py` | !/usr/bin/env python3 | 0 |
-| **Базовый** | `process_today_followup_deals.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 1 |
+| **Базовый** | `process_deals_without_activities.py` | `projects/1c_odata/scripts/process_deals_without_activities.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `process_incoming_sales_leads.py` | `projects/1c_odata/scripts/process_incoming_sales_leads.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `process_today_followup_deals.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 1 |
+| **Базовый** | `process_today_followup_deals.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `qualify_batch_5.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/qualify_batch_5.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `scratch_b24_fetch.py` | `projects/HR/scratch_b24_fetch.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `search_1c_entities.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `search_1c_entities.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_agrosnab.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/search_agrosnab.py` | 1. Search Leads | 0 |
-| **Базовый** | `search_b24_emails.py` | `scratch/search_b24_emails.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_dadata_batch_4.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/search_dadata_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_tasks_and_topics.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/search_tasks_and_topics.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `summarize_batch_4.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/summarize_batch_4.py` | Автоматизация рабочего процесса. | 0 |
@@ -336,6 +350,7 @@
 | **Расширенный** | `check_niiemp_sync.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/check_niiemp_sync.py` | 1.1 Company by INN | 0 |
 | **Расширенный** | `check_snab_region.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/check_snab_region.py` | 1. Inspect Lead 000001663 in 1C | 0 |
 | **Расширенный** | `inspect_b24_deals.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/inspect_b24_deals.py` | Also check company for rsce.ru | 0 |
+| **Расширенный** | `inspect_infamed_existing.py` | `ARCHIVE/leads_processing_research_scratch/inspect_infamed_existing.py` | Check existing 1C lead for INFAMED | 0 |
 | **Расширенный** | `inspect_item_119.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/inspect_item_119.py` | Let's check IMAP message for item 119 or scratch files | 0 |
 | **Расширенный** | `inspect_petroship_email.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/inspect_petroship_email.py` | Check activities on Contact 16332 and Lead 17338 | 0 |
 | **Расширенный** | `odata_audit_pavlova_cilin.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/odata_audit_pavlova_cilin.py` | 1. Check document 96 | 0 |
@@ -345,9 +360,12 @@
 | **Расширенный** | `run_check_contractors_batch_4.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/run_check_contractors_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `run_onec_sync.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_onec_sync.py` | Автоматизация рабочего процесса. | 8 |
 | **Расширенный** | `sync_b24_to_novofon.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/sync_b24_to_novofon.py` | Автоматизация рабочего процесса. | 0 |
-| **Расширенный** | `sync_to_bitrix.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 1 |
-| **Расширенный** | `sync_to_bitrix.py` | `D:/Soft/Codex Backup/projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | !/usr/bin/env python3 | 0 |
+| **Расширенный** | `sync_to_bitrix.py` | `projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 1 |
 | **Расширенный** | `sync_to_bitrix.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `sync_to_bitrix.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `test_b24_signatures_and_attachments.py` | `ARCHIVE/leads_processing_research_scratch/test_b24_signatures_and_attachments.py` | !/usr/bin/env python3 | 0 |
+| **Диагностический** | `test_b24_users_and_tasks.py` | `ARCHIVE/leads_processing_research_scratch/test_b24_users_and_tasks.py` | Check Lead 17794 assigned | 0 |
 | **Диагностический** | `test_odata_filter.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/test_odata_filter.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_odata_url.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/test_odata_url.py` | Автоматизация рабочего процесса. | 7 |
 | **Диагностический** | `test_odata_url.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/scripts/test_odata_url.py` | Автоматизация рабочего процесса. | 0 |
@@ -361,14 +379,16 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Боевой конвейер** | `process_incoming_sales_leads.py` | `projects/1c_odata/scripts/process_incoming_sales_leads.py` | Монолитный конвейер полной квалификации лидов: Clear RFQ (Сделка, Задача Miss Wang, чистовой Excel, Шаблон № 66, запись 1С) vs Ambiguous (дело CRM_TODO). | 0 |
-| **Боевой генератор** | `generate_supply_rfq_excel.py` | `projects/1c_odata/scripts/generate_supply_rfq_excel.py` | Генерация чистового Excel по шаблону «Запрос КП пример заполнения.xlsx» через Openpyxl со спецификацией позиций (CN/RU, бренд, модель, кол-во), шрифтами Calibri 10 и тонкими рамками. | 0 |
 | **Базовый** | `analyze_unassociated.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/analyze_unassociated.py` | Автоматизация рабочего процесса. | 8 |
 | **Базовый** | `apply_unassociated_matches.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/apply_unassociated_matches.py` | Автоматизация рабочего процесса. | 17 |
+| **Базовый** | `fetch_email_8071.py` | `scratch/fetch_email_8071.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `fetch_raw_emails.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_funnel_version/scratch/fetch_raw_emails.py` | 1. Start SSH tunnel locally | 1 |
+| **Базовый** | `read_lead_emails.py` | `ARCHIVE/leads_processing_research_scratch/read_lead_emails.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `read_sales_emails.py` | `ARCHIVE/leads_processing_research_scratch/read_sales_emails.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `remote_n8n_fix.sh` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/server_ops/snapshots/remote_n8n_fix.sh` | Автоматизация рабочего процесса. | 3 |
 | **Базовый** | `remote_n8n_fix2.sh` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/server_ops/snapshots/remote_n8n_fix2.sh` | Автоматизация рабочего процесса. | 3 |
 | **Базовый** | `run_imap.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_imap.py` | Load env variables | 8 |
+| **Базовый** | `search_imap.py` | `scratch/search_imap.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `text_cleaner.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/services/text_cleaner.py` | 1. Если исходный текст совсем пустой, но есть HTML, используем его | 8 |
 | **Расширенный** | `check_drive_access.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/check_drive_access.py` | Если вы измените эти области доступа, удалите файл token.json. | 1 |
 | **Расширенный** | `check_drive_access.py` | `D:/Soft/Codex Backup/scripts/check_drive_access.py` | Если вы измените эти области доступа, удалите файл token.json. | 0 |
@@ -381,7 +401,6 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Боевой конвейер** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | Конвейер Follow-up сделок (`--assigned-to 1`, `--limit 12`, `--dry-run`): персонализированные черновики в Roundcube с КП при < 3 касаниях, перенос CRM_TODO (+4..5 дн.), эскалация звонка (TYPE_ID: 2) на сегодня через 1 час с прямым телефоном клиента при >= 3 письмах. | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_v6_backup/app/run_daily_reactivation.py` | Setup path | 1 |
 | **Базовый** | `run_daily_reactivation.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_migration_backup_20260809/app/run_daily_reactivation.py` | Setup path | 1 |
 | **Базовый** | `run_daily_reactivation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_daily_reactivation.py` | Setup path | 1 |
@@ -403,7 +422,6 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Боевой конвейер** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | Чистая синхронизация лидов и контрагентов 1С ⮂ CRM без создания сделок, задач снабжению и автоответов (Zero-Blank Lead Guard). | 0 |
 | **Расширенный** | `patch_n8n.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n.py` | Автоматизация рабочего процесса. | 8 |
 | **Расширенный** | `patch_n8n_mode.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n_mode.py` | Автоматизация рабочего процесса. | 8 |
 | **Интеграционный** | `reconcile_1c_db.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/reconcile_1c_db.py` | Автоматизация рабочего процесса. | 8 |
@@ -468,9 +486,12 @@
 | **Базовый** | `document.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tender-extraction-lab/app/schemas/document.py` | Схема для описания структуры одного чанка | 1 |
 | **Базовый** | `document.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tender-extraction-lab/app/services/document.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `document.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tender-extraction-lab/app/api/routers/document.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `download_lead_attachments.py` | `ARCHIVE/leads_processing_research_scratch/download_lead_attachments.py` | Download attachment from Lead 7680 Activity 43852 | 0 |
+| **Базовый** | `download_tender_docx.py` | `ARCHIVE/leads_processing_research_scratch/download_tender_docx.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `dump_all_contract_receipts.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/dump_all_contract_receipts.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `export_fines_and_taxes.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/export_fines_and_taxes.py` | 1. Fetch exact details for the 8 documents of "Прочее" + Doc 18 | 0 |
 | **Базовый** | `extract-audio-data.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hyperframes/skills/gsap/scripts/extract-audio-data.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `extract_bitrix_signatures.py` | `ARCHIVE/leads_processing_research_scratch/extract_bitrix_signatures.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `extract_js_context.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/extract_js_context.py` | print 1000 characters before and after | 2 |
 | **Базовый** | `extract_pdf_text.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_v6_backup/scripts/extract_pdf_text.py` | Автоматизация рабочего процесса. | 3 |
 | **Базовый** | `extract_pdf_text.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/extract_pdf_text.py` | Автоматизация рабочего процесса. | 4 |
@@ -481,8 +502,9 @@
 | **Базовый** | `find_adjustment_entities.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/find_adjustment_entities.py` | Fetch metadata document list | 0 |
 | **Базовый** | `find_aug_2026_receipts.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/find_aug_2026_receipts.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_azat_luvan.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/find_azat_luvan.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `find_deals_without_activities.py` | `ARCHIVE/leads_processing_research_scratch/find_deals_without_activities.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `find_doc84_movs.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/find_doc84_movs.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `find_incoming_emails.py` | `scratch/find_incoming_emails.py` | Query all incoming email activities | 0 |
+| **Базовый** | `find_mail.py` | `scratch/find_mail.py` | Let's search activities where SUBJECT, DESCRIPTION, or COMMUNICATIONS contain '315' or 'liderair' | 0 |
 | **Базовый** | `find_salary_entities.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/find_salary_entities.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_salary_payments.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/find_salary_payments.py` | Search РасходСоСчета | 0 |
 | **Базовый** | `find_vz_registers.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/find_vz_registers.py` | Автоматизация рабочего процесса. | 0 |
@@ -508,6 +530,7 @@
 | **Базовый** | `inspect_contract_952.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/inspect_contract_952.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_contractor_all_regs.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/inspect_contractor_all_regs.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_cross_vz_details.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/inspect_cross_vz_details.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `inspect_deals_no_activities.py` | `ARCHIVE/leads_processing_research_scratch/inspect_deals_no_activities.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_desktop_files.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/inspect_desktop_files.py` | xtract strings in {"#", "..."} clean unescaped | 0 |
 | **Базовый** | `inspect_details_123.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/inspect_details_123.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_doc26.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/inspect_doc26.py` | Автоматизация рабочего процесса. | 0 |
@@ -614,6 +637,7 @@
 | **Расширенный** | `check_17_docs_movements.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_17_docs_movements.py` | ap by recorder GUID | 0 |
 | **Расширенный** | `check_2026_regs.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_2026_regs.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_84_92_96.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_84_92_96.py` | Check doc 84 and 92 | 0 |
+| **Расширенный** | `check_act_mailbox.py` | `ARCHIVE/leads_processing_research_scratch/check_act_mailbox.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_adj_debt_meta.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_adj_debt_meta.py` | Fetch metadata / sample of Document_КорректировкаДолга | 0 |
 | **Расширенный** | `check_cilin_register_details.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_cilin_register_details.py` | Catalog_Валюты | 0 |
 | **Расширенный** | `check_cny_rates.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_cny_rates.py` | Fetch currency rates for CNY | 0 |
@@ -622,13 +646,13 @@
 | **Расширенный** | `check_cross_vzaimozachet.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_cross_vzaimozachet.py` | Fetch contracts currency map | 0 |
 | **Расширенный** | `check_doc84_flags.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_doc84_flags.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_doc96_updated.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_doc96_updated.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `check_file_and_acts.py` | `scratch/check_file_and_acts.py` | Let's check disk or file 107738 | 0 |
 | **Расширенный** | `check_manual_adj.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_manual_adj.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_movements_84_96.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_movements_84_96.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_movements_all_postuplenie.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_movements_all_postuplenie.py` | Find their ref keys | 0 |
 | **Расширенный** | `check_mxl_headers.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_mxl_headers.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_ops_articles.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_ops_articles.py` | Also check articles | 0 |
 | **Расширенный** | `check_owner_naming.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_owner_naming.py` | Автоматизация рабочего процесса. | 0 |
-| **Расширенный** | `check_petroship_acts.py` | `scratch/check_petroship_acts.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_pnl_by_org.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_pnl_by_org.py` | Check organizations | 0 |
 | **Расширенный** | `check_posted_vz.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_posted_vz.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_recorder_name.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_recorder_name.py` | Автоматизация рабочего процесса. | 0 |
@@ -640,6 +664,7 @@
 | **Расширенный** | `check_upr_entries_26.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_upr_entries_26.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_vz_recordsets.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_vz_recordsets.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_vz_registers.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/check_vz_registers.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `create_tender_excel.py` | `ARCHIVE/leads_processing_research_scratch/create_tender_excel.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `deep_parse_mxl_and_excel.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/deep_parse_mxl_and_excel.py` | Let's inspect text lines or tokens In 1C MXL UTF-8 text format, cells are often formatted as strings | 0 |
 | **Расширенный** | `dissect_excel_math.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/dissect_excel_math.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `dump_debts_excel.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/dump_debts_excel.py` | Print all rows with non-empty content | 0 |
@@ -709,6 +734,8 @@
 | **Базовый** | `audit_archived_transcripts.py` | `scripts/audit_archived_transcripts.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `audit_archived_transcripts.py` | `D:/Soft/Codex Backup/scripts/audit_archived_transcripts.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `audit_archived_transcripts.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/audit_archived_transcripts.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `audit_c_drive_bloat.py` | `scripts/audit_c_drive_bloat.py` | UTF-8 encoding | 0 |
+| **Базовый** | `audit_save_and_softe.py` | `scripts/audit_save_and_softe.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `auth_manager.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/mixpanel-headless/skills/mixpanelyst/scripts/auth_manager.py` | !/usr/bin/env python3 Plugin auth manager — JSON wrapper around the mixpanel_headless auth namespaces. | 0 |
 | **Базовый** | `author_grasp_line.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/simready-conform-profile/references/FET_005_SIMULATE_GRASP_PHYSICS/scripts/author_grasp_line.py` | SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. SPDX-License-Identifier: Apache-2.0 | 0 |
 | **Базовый** | `b1c2d3e4f5a6_add_knowledge_base.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/alembic/versions/b1c2d3e4f5a6_add_knowledge_base.py` | add knowledge_base | 8 |
@@ -726,15 +753,14 @@
 | **Базовый** | `capture_sim_memgraph.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/build-ios-apps/skills/ios-memgraph-leaks/scripts/capture_sim_memgraph.sh` | !/usr/bin/env bash | 0 |
 | **Базовый** | `chart_builders.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/morningstar/skills/fund-summarizer/scripts/chart_builders.py` | Chart color constants matching template CSS variables. | 0 |
 | **Базовый** | `chunk_kb.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/chunk_kb.py` | Add root project path to sys.path | 8 |
-| **Базовый** | `cleanup_codex_root.py` | `scripts/cleanup_codex_root.py` | 1. Move old .bak files | 0 |
+| **Базовый** | `cleanup_codex_root.py` | `ARCHIVE/migration_scripts_2026-09-29/cleanup_codex_root.py` | 1. Move old .bak files | 0 |
 | **Базовый** | `clear_tmp.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/vps/clear_tmp.sh` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `clear_tmp.sh` | `D:/Soft/Codex Backup/scripts/vps/clear_tmp.sh` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `collect_ios_dsyms.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/build-ios-apps/skills/ios-ettrace-performance/scripts/collect_ios_dsyms.sh` | !/usr/bin/env bash | 0 |
 | **Базовый** | `comments_add.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/comments_add.py` | !/usr/bin/env python3 Add one or more Word comments to paragraphs matched by substring. | 0 |
 | **Базовый** | `comments_strip.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/comments_strip.py` | !/usr/bin/env python3 Remove all comments from a DOCX (ranges + parts). | 0 |
-| **Базовый** | `compare_codex_dirs.py` | `scripts/compare_codex_dirs.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `compare_codex_dirs.py` | `ARCHIVE/migration_scripts_2026-09-29/compare_codex_dirs.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `compare_codex_dirs.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/compare_codex_dirs.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `compare_projects.ps1` | `scratch/compare_projects.ps1` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `compare_projects.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scratch/compare_projects.ps1` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `compare_snapshots.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/local_inventory/inventory/compare_snapshots.ps1` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `compare_snapshots.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/compare_snapshots.ps1` | Автоматизация рабочего процесса. | 3 |
@@ -769,11 +795,12 @@
 | **Базовый** | `deploy_files.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/scratch/deploy_files.ps1` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `detect_tectonic.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/bundled-marketplaces/openai-bundled/plugins/latex/scripts/detect_tectonic.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `detect_texlive.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/bundled-marketplaces/openai-bundled/plugins/latex/scripts/detect_texlive.py` | !/usr/bin/env python3 | 0 |
-| **Базовый** | `diff_personal_shared.py` | `scripts/diff_personal_shared.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `diff_personal_shared.py` | `ARCHIVE/migration_scripts_2026-09-29/diff_personal_shared.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `diff_personal_shared.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/diff_personal_shared.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `diff_subdirs.py` | `scripts/diff_subdirs.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `diff_subdirs.py` | `ARCHIVE/migration_scripts_2026-09-29/diff_subdirs.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `diff_subdirs.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/diff_subdirs.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `docx_table_to_csv.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/docx_table_to_csv.py` | !/usr/bin/env python3 Export a DOCX table to CSV. | 0 |
+| **Базовый** | `download_7680_file.py` | `ARCHIVE/leads_processing_research_scratch/download_7680_file.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `download_project_specific_assets.py` | `projects/tilda_migration/download_project_specific_assets.py` | FTP Config | 0 |
 | **Базовый** | `download_project_specific_assets.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/download_project_specific_assets.py` | FTP Config | 1 |
 | **Базовый** | `download_resources.py` | `projects/tilda_migration/download_resources.py` | Paths | 0 |
@@ -783,22 +810,26 @@
 | **Базовый** | `dump_chat_md.py` | `D:/Soft/Codex Backup/scripts/dump_chat_md.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `dump_chat_md.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/dump_chat_md.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `dump_match_results.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/dump_match_results.py` | Автоматизация рабочего процесса. | 8 |
+| **Базовый** | `dump_spec_section.py` | `ARCHIVE/leads_processing_research_scratch/dump_spec_section.py` | don't stop immediately if it's within the spec | 0 |
 | **Базовый** | `env.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/alembic/env.py` | this is the Alembic Config object, which provides access to the values within the .ini file in use. | 8 |
 | **Базовый** | `estimate_cost.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/vision-trainer/scripts/estimate_cost.py` | !/usr/bin/env python3 /// script | 0 |
 | **Базовый** | `estimate_cost.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/llm-trainer/scripts/estimate_cost.py` | !/usr/bin/env python3 /// script | 0 |
-| **Базовый** | `execute_codex_unification.py` | `scripts/execute_codex_unification.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `execute_codex_unification.py` | `ARCHIVE/migration_scripts_2026-09-29/execute_codex_unification.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `execute_codex_unification.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/execute_codex_unification.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `execute_compression.py` | `scripts/execute_compression.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `execute_compression.py` | `D:/Soft/Codex Backup/scripts/execute_compression.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `execute_compression.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/execute_compression.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `execute_deals_and_tasks.py` | `ARCHIVE/leads_processing_research_scratch/execute_deals_and_tasks.py` | xecute full conversion for Lead 7680 (AO Ilya Muromets) | 0 |
+| **Базовый** | `execute_infamed_lead.py` | `ARCHIVE/leads_processing_research_scratch/execute_infamed_lead.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `execute_lmstudio_and_dism.py` | `scripts/execute_lmstudio_and_dism.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `explore_htdocs.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/explore_htdocs.py` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `explore_www.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/explore_www.py` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `export_data.bat` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/export_data.bat` | Автоматизация рабочего процесса. | 8 |
 | **Базовый** | `export_data.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/export_data.ps1` | nforce UTF-8 output | 8 |
 | **Базовый** | `export_installed_programs.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/local_inventory/inventory/export_installed_programs.ps1` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `export_installed_programs.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/export_installed_programs.ps1` | Автоматизация рабочего процесса. | 3 |
-| **Базовый** | `export_sprint_chat.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/export_sprint_chat.py` | !/usr/bin/env python3 | 1 |
-| **Базовый** | `export_sprint_chat.py` | `D:/Soft/Codex Backup/scripts/export_sprint_chat.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `export_sprint_chat.py` | `scripts/export_sprint_chat.py` | !/usr/bin/env python3 | 1 |
+| **Базовый** | `export_sprint_chat.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/export_sprint_chat.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `fetch_comments.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/github/skills/gh-address-comments/scripts/fetch_comments.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `fetch_raw_emails.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scratch/fetch_raw_emails.py` | 1. Start SSH tunnel locally | 2 |
 | **Базовый** | `fields_materialize.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/fields_materialize.py` | !/usr/bin/env python3 Materialize (freeze) common Word fields into plain text. | 0 |
@@ -813,20 +844,22 @@
 | **Базовый** | `find_live_footer_imgs.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/find_live_footer_imgs.py` | Find all images in the document and print the last few | 1 |
 | **Базовый** | `find_live_footer_logo.py` | `projects/tilda_migration/find_live_footer_logo.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_live_footer_logo.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/find_live_footer_logo.py` | Автоматизация рабочего процесса. | 1 |
-| **Базовый** | `find_locking_processes.py` | `scripts/find_locking_processes.py` | start Manager API to find process locking a file | 0 |
+| **Базовый** | `find_locking_processes.py` | `ARCHIVE/migration_scripts_2026-09-29/find_locking_processes.py` | start Manager API to find process locking a file | 0 |
 | **Базовый** | `find_more_paths.py` | `projects/tilda_migration/find_more_paths.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_more_paths.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/find_more_paths.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `find_nikolaevna.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/scratch/find_nikolaevna.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `find_path_occurrences.py` | `scripts/find_path_occurrences.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `find_path_occurrences.py` | `ARCHIVE/migration_scripts_2026-09-29/find_path_occurrences.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_path_occurrences.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/find_path_occurrences.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `find_petroship_mail.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/scratch/find_petroship_mail.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `find_step.py` | `scratch/find_step.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `finepdfs-stats.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/jobs/scripts/finepdfs-stats.py` | /// script quires-python = ">=3.12" | 0 |
 | **Базовый** | `finngen_phewas.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/life-science-research/skills/finngen-phewas-skill/scripts/finngen_phewas.py` | !/usr/bin/env python3 finngen-phewas | 0 |
 | **Базовый** | `fix_icons_and_footer.py` | `projects/tilda_migration/fix_icons_and_footer.py` | FTP Config | 0 |
 | **Базовый** | `fix_icons_and_footer.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/fix_icons_and_footer.py` | FTP Config | 1 |
+| **Базовый** | `fix_task_4668.py` | `ARCHIVE/leads_processing_research_scratch/fix_task_4668.py` | 1. Add proper comment to task 4668 with [USER=30] mention and direct link to file | 0 |
 | **Базовый** | `flatten_ref_fields.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/flatten_ref_fields.py` | !/usr/bin/env python3 Flatten REF/PAGEREF fields to literal text runs. | 0 |
 | **Базовый** | `footnotes_report.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/footnotes_report.py` | !/usr/bin/env python3 Report footnotes/endnotes usage in a DOCX. | 0 |
-| **Базовый** | `force_delete_old_dirs.ps1` | `scripts/force_delete_old_dirs.ps1` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `force_delete_old_dirs.ps1` | `ARCHIVE/migration_scripts_2026-09-29/force_delete_old_dirs.ps1` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `genebass_gene_burden.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/life-science-research/skills/genebass-gene-burden-skill/scripts/genebass_gene_burden.py` | !/usr/bin/env python3 genebass-gene-burden | 0 |
 | **Базовый** | `generate-responses.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/jobs/scripts/generate-responses.py` | /// script quires-python = ">=3.10" | 0 |
 | **Базовый** | `generate_all_commands_reference.py` | `scripts/generate_all_commands_reference.py` | !/usr/bin/env python3 | 0 |
@@ -845,6 +878,7 @@
 | **Базовый** | `generate_rod_letter.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/generate_rod_letter.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `generate_three_letters.py` | `D:/Soft/Codex Backup/scripts/generate_three_letters.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `generate_three_letters.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/generate_three_letters.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `get_today_leads.py` | `ARCHIVE/leads_processing_research_scratch/get_today_leads.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `github_utils.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/skills/.system/skill-installer/scripts/github_utils.py` | !/usr/bin/env python3 Shared GitHub helpers for skill install scripts. | 0 |
 | **Базовый** | `google_docs_title_sanitize.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/google_docs_title_sanitize.py` | !/usr/bin/env python3 Remove Word Title-style rule/border residue from Google Docs-targeted DOCX files. | 0 |
 | **Базовый** | `gtex_eqtl.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/life-science-research/skills/gtex-eqtl-skill/scripts/gtex_eqtl.py` | !/usr/bin/env python3 gtex-eqtl | 0 |
@@ -858,23 +892,27 @@
 | **Базовый** | `init_skill.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/skills/.system/skill-creator/scripts/init_skill.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `insert_ref_fields.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/insert_ref_fields.py` | !/usr/bin/env python3 Insert Word cross-references (REF fields) by replacing lightweight markers. | 0 |
 | **Базовый** | `insert_toc.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/insert_toc.py` | !/usr/bin/env python3 Insert a Table of Contents (TOC) field at a placeholder paragraph. | 0 |
-| **Базовый** | `inspect_codex_folders.py` | `scripts/inspect_codex_folders.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `inspect_codex_folders.py` | `ARCHIVE/migration_scripts_2026-09-29/inspect_codex_folders.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_codex_folders.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/inspect_codex_folders.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `inspect_codex_home.py` | `scripts/inspect_codex_home.py` | Let's inspect processes whose CurrentWorkingDirectory or Executable is in C:\Codex | 0 |
+| **Базовый** | `inspect_codex_home.py` | `ARCHIVE/migration_scripts_2026-09-29/inspect_codex_home.py` | Let's inspect processes whose CurrentWorkingDirectory or Executable is in C:\Codex | 0 |
 | **Базовый** | `inspect_codex_home.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/inspect_codex_home.py` | Let's inspect processes whose CurrentWorkingDirectory or Executable is in C:\codex_home | 0 |
 | **Базовый** | `inspect_days_6_7_cost.py` | `scripts/inspect_days_6_7_cost.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_days_6_7_cost.py` | `D:/Soft/Codex Backup/scripts/inspect_days_6_7_cost.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_days_6_7_cost.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/inspect_days_6_7_cost.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `inspect_deal.py` | `scratch/inspect_deal.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `inspect_equipment_spec.py` | `ARCHIVE/leads_processing_research_scratch/inspect_equipment_spec.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_form_html.py` | `projects/tilda_migration/inspect_form_html.py` | print first 3000 chars of block HTML | 0 |
 | **Базовый** | `inspect_form_html.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/inspect_form_html.py` | print first 3000 chars of block HTML | 1 |
 | **Базовый** | `inspect_forms_detail.py` | `projects/tilda_migration/inspect_forms_detail.py` | Let's find all divs with class 't-form' | 0 |
 | **Базовый** | `inspect_forms_detail.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/inspect_forms_detail.py` | Let's find all divs with class 't-form' | 1 |
 | **Базовый** | `inspect_images.py` | `projects/tilda_migration/inspect_images.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_images.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/inspect_images.py` | Автоматизация рабочего процесса. | 1 |
-| **Базовый** | `inspect_lead_17766.py` | `scratch/inspect_lead_17766.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `inspect_lead_7680.py` | `ARCHIVE/leads_processing_research_scratch/inspect_lead_7680.py` | Get Lead 7680 | 0 |
+| **Базовый** | `inspect_lead_details.py` | `ARCHIVE/leads_processing_research_scratch/inspect_lead_details.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `inspect_reports_detail.py` | `scripts/inspect_reports_detail.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_reports_detail.py` | `D:/Soft/Codex Backup/scripts/inspect_reports_detail.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `inspect_reports_detail.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/inspect_reports_detail.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `inspect_signatures_and_kpp.py` | `ARCHIVE/leads_processing_research_scratch/inspect_signatures_and_kpp.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `install-skill-from-github.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/skills/.system/skill-installer/scripts/install-skill-from-github.py` | !/usr/bin/env python3 Install a skill from a GitHub repo path into $CODEX_HOME/skills. | 0 |
 | **Базовый** | `install_texlive.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/bundled-marketplaces/openai-bundled/plugins/latex/scripts/install_texlive.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `internal_nav.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/internal_nav.py` | !/usr/bin/env python3 Add internal navigation aids to a DOCX (bookmarks + internal hyperlinks). | 0 |
@@ -993,14 +1031,15 @@
 | **Базовый** | `run_server_backup.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/vps/run_server_backup.sh` | ???????????? ?????????????? ???????????? ?? ?????????????????????????????? ???????????????????????? SQLite | 2 |
 | **Базовый** | `run_server_backup_new.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/scratch/run_server_backup_new.sh` | Скрипт полного бэкапа и автоматического обслуживания SQLite | 0 |
 | **Базовый** | `run_summaries_batch.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_summaries_batch.py` | Get up to limit unique from_emails that have unprocessed matched emails | 8 |
+| **Базовый** | `safe_system_cleaner.py` | `scripts/safe_system_cleaner.py` | UTF-8 | 0 |
 | **Базовый** | `sam_segmentation_training.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/vision-trainer/scripts/sam_segmentation_training.py` | /// script dependencies = [ | 0 |
 | **Базовый** | `scaffold.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/wix/skills/wix-headless/scripts/scaffold.sh` | !/usr/bin/env bash Scaffold a new Wix Managed Headless project using the CLI's preset blank template. | 0 |
-| **Базовый** | `schedule_reboot_cleanup.py` | `scripts/schedule_reboot_cleanup.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `schedule_reboot_cleanup.py` | `ARCHIVE/migration_scripts_2026-09-29/schedule_reboot_cleanup.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `schemas.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/api/schemas.py` | Автоматизация рабочего процесса. | 8 |
-| **Базовый** | `scratch_b24_fetch.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/HR/scratch_b24_fetch.py` | Автоматизация рабочего процесса. | 1 |
-| **Базовый** | `scratch_b24_fetch.py` | `D:/Soft/Codex Backup/projects/HR/scratch_b24_fetch.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `scratch_b24_fetch.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/HR/scratch_b24_fetch.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `scratch_print_all.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/HR/scratch_print_all.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `script_utils.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/shared/script_utils.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
+| **Базовый** | `search_all_folders.py` | `scratch/search_all_folders.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_chat_history.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/search_chat_history.py` | !/usr/bin/env python3 | 1 |
 | **Базовый** | `search_chat_history.py` | `D:/Soft/Codex Backup/scripts/search_chat_history.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `search_imap_accurate.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/scratch/search_imap_accurate.py` | Автоматизация рабочего процесса. | 0 |
@@ -1038,6 +1077,7 @@
 | **Базовый** | `tilda_session.py` | `projects/tilda_migration/tilda_session.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `tilda_session.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/tilda_session.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `tpmi_phewas.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/life-science-research/skills/tpmi-phewas-skill/scripts/tpmi_phewas.py` | !/usr/bin/env python3 tpmi-phewas | 0 |
+| **Базовый** | `trace_session.py` | `scratch/trace_session.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `train_dpo_example.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/llm-trainer/scripts/train_dpo_example.py` | !/usr/bin/env python3 /// script | 0 |
 | **Базовый** | `train_grpo_example.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/llm-trainer/scripts/train_grpo_example.py` | !/usr/bin/env python3 /// script | 0 |
 | **Базовый** | `train_sft_example.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/llm-trainer/scripts/train_sft_example.py` | !/usr/bin/env python3 /// script | 0 |
@@ -1069,8 +1109,8 @@
 | **Расширенный** | `accept_tracked_changes.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/accept_tracked_changes.py` | !/usr/bin/env python3 Accept/reject tracked changes in a DOCX by patching OOXML. | 0 |
 | **Расширенный** | `add_tracked_replacements.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/add_tracked_replacements.py` | !/usr/bin/env python3 Create tracked-change *replacements* in a DOCX by OOXML patching. | 0 |
 | **Расширенный** | `applypatch.bat` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/tmp/arg0/codex-arg0m5FXJK/applypatch.bat` | Автоматизация рабочего процесса. | 1 |
-| **Расширенный** | `b24_daily_analytics_sync.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/vps/b24_daily_analytics_sync.py` | !/usr/bin/env python3 | 2 |
-| **Расширенный** | `b24_daily_analytics_sync.py` | `D:/Soft/Codex Backup/scripts/vps/b24_daily_analytics_sync.py` | !/usr/bin/env python3 | 0 |
+| **Расширенный** | `b24_daily_analytics_sync.py` | `scripts/vps/b24_daily_analytics_sync.py` | !/usr/bin/env python3 | 1 |
+| **Расширенный** | `b24_daily_analytics_sync.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/vps/b24_daily_analytics_sync.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `build_sprint_evaluation.py` | `scripts/build_sprint_evaluation.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `build_sprint_evaluation.py` | `D:/Soft/Codex Backup/scripts/build_sprint_evaluation.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `build_sprint_evaluation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/build_sprint_evaluation.py` | !/usr/bin/env python3 | 0 |
@@ -1080,6 +1120,7 @@
 | **Расширенный** | `check_cursor.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/check_cursor.py` | Автоматизация рабочего процесса. | 8 |
 | **Расширенный** | `check_db.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/check_db.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_db_dates.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scratch/check_db_dates.py` | Автоматизация рабочего процесса. | 4 |
+| **Расширенный** | `check_deal_mail.py` | `scratch/check_deal_mail.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/validate-usd-minimum/scripts/check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
 | **Расширенный** | `check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/simready-validate/scripts/check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
 | **Расширенный** | `check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/simready-conform-profile/scripts/check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
@@ -1100,26 +1141,34 @@
 | **Расширенный** | `check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/content-agents/scripts/check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
 | **Расширенный** | `check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/content-agents/references/texture-agent-client/scripts/check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 2 |
 | **Расширенный** | `check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/assemble-package-source/scripts/check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
+| **Расширенный** | `check_disk_and_task.py` | `ARCHIVE/leads_processing_research_scratch/check_disk_and_task.py` | Check storages | 0 |
 | **Расширенный** | `check_dns.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/check_dns.py` | Автоматизация рабочего процесса. | 2 |
 | **Расширенный** | `check_drafts.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/check_drafts.py` | Автоматизация рабочего процесса. | 8 |
 | **Расширенный** | `check_folders.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/check_folders.py` | Автоматизация рабочего процесса. | 8 |
 | **Расширенный** | `check_form_tag.py` | `projects/tilda_migration/check_form_tag.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_form_tag.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/check_form_tag.py` | Автоматизация рабочего процесса. | 1 |
 | **Расширенный** | `check_interconnect.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/dynamo-interconnect-check/scripts/check_interconnect.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
-| **Расширенный** | `check_locked_files.py` | `scripts/check_locked_files.py` | Try opening in r+ mode (or appending 0 bytes) to see if file is locked | 0 |
+| **Расширенный** | `check_lead_15960.py` | `scratch/check_lead_15960.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `check_leads_and_docx.py` | `ARCHIVE/leads_processing_research_scratch/check_leads_and_docx.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `check_locked_files.py` | `ARCHIVE/migration_scripts_2026-09-29/check_locked_files.py` | Try opening in r+ mode (or appending 0 bytes) to see if file is locked | 0 |
 | **Расширенный** | `check_locked_files.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/check_locked_files.py` | Try opening in r+ mode (or appending 0 bytes) to see if file is locked | 0 |
 | **Расширенный** | `check_matched_levels.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/check_matched_levels.py` | Автоматизация рабочего процесса. | 8 |
+| **Расширенный** | `check_muromets_all.py` | `ARCHIVE/leads_processing_research_scratch/check_muromets_all.py` | 1. DaData | 0 |
 | **Расширенный** | `check_public_site.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/check_public_site.py` | Автоматизация рабочего процесса. | 2 |
+| **Расширенный** | `check_range.py` | `scratch/check_range.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_reg_env.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/check_reg_env.py` | Автоматизация рабочего процесса. | 1 |
 | **Расширенный** | `check_router_health.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/dynamo-router-starter/scripts/check_router_health.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
-| **Расширенный** | `check_shared_locks.py` | `scripts/check_shared_locks.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `check_sales_inbox.py` | `ARCHIVE/leads_processing_research_scratch/check_sales_inbox.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `check_shared_locks.py` | `ARCHIVE/migration_scripts_2026-09-29/check_shared_locks.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_shared_locks.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/check_shared_locks.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_sintez_emails.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scratch/check_sintez_emails.py` | Автоматизация рабочего процесса. | 4 |
 | **Расширенный** | `check_sintez_owner_emails.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scratch/check_sintez_owner_emails.py` | Автоматизация рабочего процесса. | 4 |
+| **Расширенный** | `check_template_details.py` | `ARCHIVE/leads_processing_research_scratch/check_template_details.py` | Also check column dimensions, styles, fonts, etc. | 0 |
 | **Расширенный** | `check_today.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/scratch/check_today.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `check_uac.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/check_uac.py` | Автоматизация рабочего процесса. | 1 |
 | **Расширенный** | `comments_apply_patch.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/comments_apply_patch.py` | !/usr/bin/env python3 Apply lifecycle edits to existing Word comments. | 0 |
 | **Расширенный** | `content_agent_check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/references/content-agents/scripts/content_agent_check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
+| **Расширенный** | `create_alfa_laval_excel.py` | `ARCHIVE/leads_processing_research_scratch/create_alfa_laval_excel.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `create_rod_excel.py` | `scripts/create_rod_excel.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `create_rod_excel.py` | `D:/Soft/Codex Backup/scripts/create_rod_excel.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `create_rod_excel.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/create_rod_excel.py` | Автоматизация рабочего процесса. | 0 |
@@ -1130,15 +1179,16 @@
 | **Расширенный** | `insert_note.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/plugins/cache/openai-primary-runtime/documents/26.601.10930/skills/documents/scripts/insert_note.py` | !/usr/bin/env python3 Insert a true footnote or endnote into a DOCX by patching OOXML. | 0 |
 | **Расширенный** | `inspect_eval_uv.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/community-evals/scripts/inspect_eval_uv.py` | /// script quires-python = ">=3.10" | 0 |
 | **Расширенный** | `inspect_pr_checks.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/github/skills/gh-fix-ci/scripts/inspect_pr_checks.py` | !/usr/bin/env python3 | 0 |
+| **Расширенный** | `inspect_template_excel.py` | `ARCHIVE/leads_processing_research_scratch/inspect_template_excel.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `inspect_vllm_uv.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/community-evals/scripts/inspect_vllm_uv.py` | /// script quires-python = ">=3.10" | 0 |
 | **Расширенный** | `lighteval_vllm_uv.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/hugging-face/skills/community-evals/scripts/lighteval_vllm_uv.py` | /// script quires-python = ">=3.10" | 0 |
 | **Расширенный** | `post_write_figma_parity_check.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/figma/scripts/post_write_figma_parity_check.sh` | !/usr/bin/env bash Draft hook example for future plugin hook runtimes. | 0 |
+| **Расширенный** | `read_24_25_xls.py` | `ARCHIVE/leads_processing_research_scratch/read_24_25_xls.py` | Filter completely empty rows | 0 |
 | **Расширенный** | `sample.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/plugin-eval/fixtures/ts-python-sample/src/sample.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `sanity_check.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/sanity_check.py` | Автоматизация рабочего процесса. | 7 |
 | **Расширенный** | `sanity_check.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/scripts/sanity_check.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `scratch_check_specific.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/HR/scratch_check_specific.py` | Автоматизация рабочего процесса. | 1 |
-| **Расширенный** | `scratch_filter_notes.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/HR/scratch_filter_notes.py` | Автоматизация рабочего процесса. | 1 |
-| **Расширенный** | `scratch_filter_notes.py` | `D:/Soft/Codex Backup/projects/HR/scratch_filter_notes.py` | Автоматизация рабочего процесса. | 0 |
+| **Расширенный** | `scratch_filter_notes.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/HR/scratch_filter_notes.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `search_raw_system.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/search_raw_system.py` | Check if it's a RUN_COMMAND tool call | 8 |
 | **Расширенный** | `simready_package_check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/shared/simready_package_check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
 | **Расширенный** | `sync-skills.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/render/scripts/sync-skills.sh` | !/usr/bin/env bash | 0 |
@@ -1153,12 +1203,13 @@
 | **Диагностический** | `box_rest.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/box/skills/box/scripts/box_rest.py` | !/usr/bin/env python3 Minimal Box REST smoke-test helper using only the Python standard library. | 0 |
 | **Диагностический** | `check_google_location.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/diagnostics/check_google_location.py` | Save html to examine | 8 |
 | **Диагностический** | `diag_check.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/scratch/diag_check.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `diagnose_acls.py` | `scripts/diagnose_acls.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `diagnose_acls.py` | `ARCHIVE/migration_scripts_2026-09-29/diagnose_acls.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `diagnose_acls.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/diagnose_acls.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `diagnose_codex_consolidation.py` | `scripts/diagnose_codex_consolidation.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `diagnose_codex_consolidation.py` | `ARCHIVE/migration_scripts_2026-09-29/diagnose_codex_consolidation.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `diagnose_codex_consolidation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/diagnose_codex_consolidation.py` | Автоматизация рабочего процесса. | 0 |
-| **Диагностический** | `diagnose_remaining_locks.py` | `scripts/diagnose_remaining_locks.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `diagnose_remaining_locks.py` | `ARCHIVE/migration_scripts_2026-09-29/diagnose_remaining_locks.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `find-polluter.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/superpowers/skills/systematic-debugging/find-polluter.sh` | !/usr/bin/env bash Bisection script to find which test creates unwanted files/state | 0 |
+| **Диагностический** | `get_new_leads.py` | `ARCHIVE/leads_processing_research_scratch/get_new_leads.py` | Let's get statuses first to see what status ID corresponds to "Входящие" / "Не обработан" | 0 |
 | **Диагностический** | `heapprofd_reports.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/test-android-apps/skills/android-performance/scripts/heapprofd_reports.sh` | !/usr/bin/env bash | 0 |
 | **Диагностический** | `jql_builder.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/atlassian-rovo/skills/generate-status-report/scripts/jql_builder.py` | !/usr/bin/env python3 | 0 |
 | **Диагностический** | `llm_service_mock_testing.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/services/llm_service_mock_testing.py` | Автоматизация рабочего процесса. | 8 |
@@ -1180,12 +1231,13 @@
 | **Диагностический** | `run_test_summaries.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scratch/run_test_summaries.py` | Автоматизация рабочего процесса. | 4 |
 | **Диагностический** | `setup_test_matches.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/setup_test_matches.py` | 1. Create a dummy owner | 8 |
 | **Диагностический** | `simpleperf_hotspots.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/test-android-apps/skills/android-performance/scripts/simpleperf_hotspots.sh` | !/usr/bin/env bash | 0 |
-| **Диагностический** | `test_admin_and_delete.py` | `scripts/test_admin_and_delete.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `test_admin_and_delete.py` | `ARCHIVE/migration_scripts_2026-09-29/test_admin_and_delete.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_admin_and_delete.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/test_admin_and_delete.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_all_keys_vps.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/diagnostics/test_all_keys_vps.py` | Автоматизация рабочего процесса. | 8 |
 | **Диагностический** | `test_api.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/tests/test_api.py` | Автоматизация рабочего процесса. | 8 |
 | **Диагностический** | `test_api_endpoints.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/test_api_endpoints.py` | Load .env to get the API_SECRET_KEY | 8 |
 | **Диагностический** | `test_bcl_to_fastq_runner.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/ngs-analysis/tests/test_bcl_to_fastq_runner.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `test_bindings.py` | `scratch/test_bindings.py` | Check timeline bindings for Deal 2352 | 0 |
 | **Диагностический** | `test_bulk_rnaseq_counts_qc_runner.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/ngs-analysis/tests/test_bulk_rnaseq_counts_qc_runner.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_compile_latex_strategy.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/bundled-marketplaces/openai-bundled/plugins/latex/tests/test_compile_latex_strategy.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_container_dns.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/diagnostics/test_container_dns.py` | Автоматизация рабочего процесса. | 8 |
@@ -1205,6 +1257,7 @@
 | **Диагностический** | `test_rest_request.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/life-science-research/skills/eqtl-catalogue-skill/scripts/test_rest_request.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_sample.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/plugin-eval/fixtures/ts-python-sample/tests/test_sample.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_scrnaseq_post_count_qc_runner.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/ngs-analysis/tests/test_scrnaseq_post_count_qc_runner.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `test_smtp.py` | `ARCHIVE/leads_processing_research_scratch/test_smtp.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_subject_formatting.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/scratch/test_subject_formatting.py` | Автоматизация рабочего процесса. | 0 |
 | **Диагностический** | `test_vps_curl.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/diagnostics/test_vps_curl.py` | Автоматизация рабочего процесса. | 8 |
 | **Диагностический** | `test_vps_proxy.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/diagnostics/test_vps_proxy.py` | Force DNS resolution to 87.228.47.204 for Python urllib We do this by modifying the HTTP request host to the IP and setting Host header | 8 |
@@ -1218,6 +1271,6 @@
 | **Диагностический** | `usd_convert_cad_diagnostics.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/shared/usd_convert_cad_diagnostics.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
 | **Диагностический** | `verify.py` | `config/infra_management/scripts/verify.py` | Configuration | 0 |
 | **Диагностический** | `verify.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/config/infra_management/scripts/verify.py` | Configuration | 1 |
-| **Диагностический** | `verify_no_old_paths.py` | `scripts/verify_no_old_paths.py` | Автоматизация рабочего процесса. | 0 |
+| **Диагностический** | `verify_no_old_paths.py` | `ARCHIVE/migration_scripts_2026-09-29/verify_no_old_paths.py` | Автоматизация рабочего процесса. | 0 |
 
 ---
