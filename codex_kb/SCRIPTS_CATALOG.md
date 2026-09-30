@@ -361,6 +361,8 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Боевой конвейер** | `process_incoming_sales_leads.py` | `projects/1c_odata/scripts/process_incoming_sales_leads.py` | Монолитный конвейер полной квалификации лидов: Clear RFQ (Сделка, Задача Miss Wang, чистовой Excel, Шаблон № 66, запись 1С) vs Ambiguous (дело CRM_TODO). | 0 |
+| **Боевой генератор** | `generate_supply_rfq_excel.py` | `projects/1c_odata/scripts/generate_supply_rfq_excel.py` | Генерация чистового Excel по шаблону «Запрос КП пример заполнения.xlsx» через Openpyxl со спецификацией позиций (CN/RU, бренд, модель, кол-во), шрифтами Calibri 10 и тонкими рамками. | 0 |
 | **Базовый** | `analyze_unassociated.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/analyze_unassociated.py` | Автоматизация рабочего процесса. | 8 |
 | **Базовый** | `apply_unassociated_matches.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/apply_unassociated_matches.py` | Автоматизация рабочего процесса. | 17 |
 | **Базовый** | `fetch_raw_emails.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_funnel_version/scratch/fetch_raw_emails.py` | 1. Start SSH tunnel locally | 1 |
@@ -379,6 +381,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Боевой конвейер** | `process_today_followup_deals.py` | `projects/1c_odata/scripts/process_today_followup_deals.py` | Конвейер Follow-up сделок: персонализированные черновики в Roundcube с КП при < 3 касаниях, перенос CRM_TODO (+4..5 дн.), эскалация звонка (TYPE_ID: 2) на сегодня через 1 час при >= 3 письмах. | 0 |
 | **Базовый** | `run_daily_reactivation.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_v6_backup/app/run_daily_reactivation.py` | Setup path | 1 |
 | **Базовый** | `run_daily_reactivation.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_migration_backup_20260809/app/run_daily_reactivation.py` | Setup path | 1 |
 | **Базовый** | `run_daily_reactivation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_daily_reactivation.py` | Setup path | 1 |
@@ -400,6 +403,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Боевой конвейер** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | Чистая синхронизация лидов и контрагентов 1С ⮂ CRM без создания сделок, задач снабжению и автоответов (Zero-Blank Lead Guard). | 0 |
 | **Расширенный** | `patch_n8n.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n.py` | Автоматизация рабочего процесса. | 8 |
 | **Расширенный** | `patch_n8n_mode.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n_mode.py` | Автоматизация рабочего процесса. | 8 |
 | **Интеграционный** | `reconcile_1c_db.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/reconcile_1c_db.py` | Автоматизация рабочего процесса. | 8 |

@@ -776,46 +776,34 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             task_files = []
             
             # Проверяем наличие Excel-запроса на Рабочем столе
-            excel_found = False
+            excel_path = None
             if os.path.exists(desktop_dir):
                 for f in os.listdir(desktop_dir):
                     if f.startswith("Запрос КП") and f.endswith(".xlsx"):
                         clean_comp = re.sub(r'["«»АООООПАОЗАО]', '', company_name).strip()
                         if clean_comp and clean_comp.lower() in f.lower():
-                            efile_path = os.path.join(desktop_dir, f)
-                            excel_found = True
-                            if not dry_run:
-                                eid = upload_file_to_disk(efile_path)
-                                if eid:
-                                    task_files.append(eid)
-                            else:
-                                print(f"  [B24] (Dry-run) Загрузка Excel-файла '{f}' на Диск группы 14")
-                                task_files.append(9999906)
+                            excel_path = os.path.join(desktop_dir, f)
                             break
 
-            # Если на Рабочем столе нет чистового Excel — создаем по эталонному шаблону
-            if not excel_found:
-                master_tpl = r"D:\Документы Victus\Рабочее\Шаблоны\Заявки\Запрос КП пример заполнения.xlsx"
-                clean_comp = re.sub(r'["«»АООООПАОЗАО]', '', company_name).strip() or "Клиент"
-                clean_item = re.sub(r'[\\/*?:"<>|]', '', item_subject).strip()[:35] or "Товар"
-                gen_name = f"Запрос КП {clean_item} {clean_comp}.xlsx"
-                gen_path = os.path.join(desktop_dir, gen_name)
+            # Если на Рабочем столе нет — вызываем рабочий генератор спецификаций Excel
+            if not excel_path:
                 try:
-                    if os.path.exists(master_tpl):
-                        import shutil
-                        if not dry_run:
-                            shutil.copy2(master_tpl, gen_path)
-                            print(f"  [EXCEL] Создан файл по эталонному шаблону: {gen_name}")
-                            eid = upload_file_to_disk(gen_path)
-                            if eid:
-                                task_files.append(eid)
-                        else:
-                            print(f"  [EXCEL] (Dry-run) Генерация файла по шаблону '{gen_name}' и загрузка на Диск группы 14")
-                            task_files.append(9999906)
-                    else:
-                        print(f"  [WARN] Шаблон не найден: {master_tpl}")
-                except Exception as e_tpl:
-                    print(f"  [WARN] Ошибка генерации Excel по шаблону: {e_tpl}")
+                    # Импортируем из того же каталога scripts
+                    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                    from generate_supply_rfq_excel import generate_rfq_excel
+                    excel_path = generate_rfq_excel(company_name, item_subject_cn)
+                except Exception as e_gen:
+                    print(f"  [WARN] Ошибка вызова генератора Excel: {e_gen}")
+
+            # Загружаем чистовой Excel на Диск группы 14
+            if excel_path and os.path.exists(excel_path):
+                if not dry_run:
+                    eid = upload_file_to_disk(excel_path)
+                    if eid:
+                        task_files.append(eid)
+                else:
+                    print(f"  [B24] (Dry-run) Загрузка Excel-файла '{os.path.basename(excel_path)}' на Диск группы 14")
+                    task_files.append(9999906)
 
             # Прикрепляем оригинальные файлы клиента
             if attached_files:
@@ -828,7 +816,7 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             create_supply_task(
                 deal_id=did,
                 title=task_title,
-                description_cn=f"询价清单：{item_subject}\n客户：{company_name}",
+                description_cn=f"询价清单：{item_subject_cn}\n客户：{company_name}",
                 disk_file_ids=task_files,
                 deadline_days=4,
                 creator_id=assigned_to,
