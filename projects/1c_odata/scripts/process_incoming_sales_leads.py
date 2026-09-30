@@ -380,24 +380,55 @@ def mark_activity_read(act_id: int, dry_run: bool = False):
 # ---------------------------------------------------------
 # Снабжение Miss Wang (user/30)
 # ---------------------------------------------------------
-def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_id: int = None, deadline_days: int = 4, creator_id: int = 1, observer_ids: list = None, dry_run: bool = False) -> int:
+def upload_file_to_disk(file_path: str, folder_id: int = 27826) -> int:
+    """Загрузка файла в Битрикс24 Диск (по умолчанию папка группы 14: Товары и поставщики Китай)"""
+    if not file_path or not os.path.exists(file_path):
+        return None
+    import base64
+    fname = os.path.basename(file_path)
+    with open(file_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    r = call_b24("disk.folder.uploadfile", {
+        "id": folder_id,
+        "data": {"NAME": fname},
+        "fileContent": [fname, b64],
+        "generateUniqueName": True
+    })
+    fid = r.get("result", {}).get("ID")
+    if fid:
+        print(f"  [B24] Файл '{fname}' успешно загружен на Диск группы 14 (ID: {fid})")
+        return int(fid)
+    return None
+
+
+def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_ids: list = None, deadline_days: int = 4, creator_id: int = 1, observer_ids: list = None, dry_run: bool = False) -> int:
     deadline_dt = datetime.now() + timedelta(days=deadline_days)
     obs = observer_ids or ([1] if creator_id != 1 else [])
     prof = USER_PROFILES.get(creator_id, USER_PROFILES[1])
+    
+    file_list = []
+    if disk_file_ids:
+        if isinstance(disk_file_ids, list):
+            file_list = disk_file_ids
+        else:
+            file_list = [disk_file_ids]
+
     fields = {
         "TITLE": f"Запрос цен КНР: {title}",
         "DESCRIPTION": description_cn,
         "RESPONSIBLE_ID": 30, # Miss Wang
         "CREATED_BY": creator_id,
         "DEADLINE": deadline_dt.strftime("%Y-%m-%d 18:00:00"),
-        "UF_CRM_TASK": [f"D_{deal_id}"]
+        "UF_CRM_TASK": [f"D_{deal_id}"],
+        "GROUP_ID": 14, # Проект "Товары и поставщики Китай"
+        "TAGS": ["Поиск товара - 找货"]
     }
     if obs:
         fields["AUDITORS"] = obs
-    if disk_file_id:
-        fields["UF_TASK_WEBDAV_FILES"] = [f"n{disk_file_id}"]
+    if file_list:
+        fields["UF_TASK_WEBDAV_FILES"] = [f"n{f}" for f in file_list]
         
-    print(f"  [B24] Создание Задачи для Miss Wang (user/30) по Сделке {deal_id} (Постановщик: {prof['name']} ID {creator_id}, Наблюдатели: {obs}, дедлайн: {deadline_dt.strftime('%d.%m.%Y')})")
+    print(f"  [B24] Создание Задачи для Miss Wang (user/30) по Сделке {deal_id} (Постановщик: {prof['name']} ID {creator_id}, Наблюдатели: {obs}, дедлайн: {deadline_dt.strftime('%d.%m.%Y')}, Проект: Товары и поставщики Китай ID 14, Тег: Поиск товара - 找货)")
     if dry_run:
         print(f"  [B24] (Dry-run) В чат Задачи будет отправлен пинг-комментарий [USER=30]王女士[/USER] (Постановщик: {prof['name']} ID {creator_id}, Наблюдатель: [USER=1]Артем[/USER])")
         return 9999905
@@ -410,8 +441,10 @@ def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_
         f"请查收附件采购清单并向中国工厂询价（交货期及含税/不含税价格）：\n"
         f"{description_cn}\n\n"
     )
-    if disk_file_id:
-        comment_text += f"📎 [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{disk_file_id}/]下载采购清单 Excel 附件[/URL]\n\n"
+    if file_list:
+        for fid in file_list:
+            comment_text += f"📎 [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{fid}/]下载采购清单附件 (ID {fid})[/URL]\n"
+        comment_text += "\n"
     comment_text += f"负责人：{prof['name']}（[USER={creator_id}]{prof['full_name']}[/USER]）。\n"
     if obs:
         comment_text += f"观察员/抄送：[USER=1]Артем[/USER]。\n"
@@ -705,7 +738,21 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             ctid = enrich_or_create_contact(contact_name or "Контакт", last_name=contact_last, second_name=second_name, post="", phone=contact_phone, email=email_sender, company_id=cid, assigned_by=assigned_to, dry_run=dry_run)
 
             # 2. Сделка
-            deal_title = f"Поставка оборудования/СЗЧ — {company_name}"
+            # Маска сделки: {Предмет заявки / Номенклатура / Оборудование} — {Компания}
+            item_subject = title
+            generic_titles = ["приглашение для участия в тендере", "запрос кп", "коммерческое предложение", "заявка", "потребность"]
+            if any(gt in title.lower() for gt in generic_titles):
+                search_scope = f"{email_subject} {email_desc}".lower()
+                if "пресс" in search_scope:
+                    item_subject = "Вулканизационный пресс для автокамер 85"
+                elif "опреснител" in search_scope or "alfa laval" in search_scope:
+                    item_subject = "СЗЧ опреснителя Alfa Laval JWP-16-C40"
+                elif "gemu" in search_scope or "мембран" in search_scope:
+                    item_subject = "Поставка мембран Gemu"
+                elif "bitzer" in search_scope or "компрессор" in search_scope:
+                    item_subject = "Компрессоры BITZER"
+
+            deal_title = f"{item_subject} — {company_name}"
             did = create_crm_deal(deal_title, cid, ctid, assigned_by=assigned_to, dry_run=dry_run)
 
             # 3. Привязка письма к Сделке
@@ -722,12 +769,38 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             create_crm_todo(did, f"Контроль подготовки КП и расчета для {company_name} (Заявка из письма {email_subject})", deadline_days=3, assigned_by=assigned_to, observer_id=1, dry_run=dry_run)
 
             # 5.1 Задача снабжению Miss Wang (user/30)
-            first_disk_file_id = attached_files[0].get("id") if attached_files else None
+            desktop_dir = os.path.join(os.environ.get("USERPROFILE", r"C:\Users\Артем"), "Desktop")
+            task_files = []
+            
+            # Проверяем наличие Excel-запроса на Рабочем столе
+            if os.path.exists(desktop_dir):
+                for f in os.listdir(desktop_dir):
+                    if f.startswith("Запрос КП") and f.endswith(".xlsx"):
+                        clean_comp = re.sub(r'["«»АООООПАОЗАО]', '', company_name).strip()
+                        if clean_comp and clean_comp.lower() in f.lower():
+                            efile_path = os.path.join(desktop_dir, f)
+                            if not dry_run:
+                                eid = upload_file_to_disk(efile_path)
+                                if eid:
+                                    task_files.append(eid)
+                            else:
+                                print(f"  [B24] (Dry-run) Загрузка Excel-файла '{f}' на Диск группы 14")
+                                task_files.append(9999906)
+                            break
+
+            # Прикрепляем оригинальные файлы клиента
+            if attached_files:
+                for af in attached_files:
+                    af_id = af.get("id")
+                    if af_id and af_id not in task_files:
+                        task_files.append(af_id)
+
+            task_title = f"{item_subject} — {company_name}"
             create_supply_task(
                 deal_id=did,
-                title=f"{company_name} ({title})",
-                description_cn=f"询价清单：{title}\n客户：{company_name}",
-                disk_file_id=first_disk_file_id,
+                title=task_title,
+                description_cn=f"询价清单：{item_subject}\n客户：{company_name}",
+                disk_file_ids=task_files,
                 deadline_days=4,
                 creator_id=assigned_to,
                 observer_ids=[1] if assigned_to != 1 else [],
