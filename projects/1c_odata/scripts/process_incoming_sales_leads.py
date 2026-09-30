@@ -160,6 +160,8 @@ https://longwang.ru/supplies-services-china/dostavka-is-kitaya/
 def call_b24(method: str, params: dict = None) -> dict:
     url = f"{B24_WEBHOOK}{method}"
     res = requests.post(url, json=params or {}, timeout=30)
+    if res.status_code >= 400:
+        print(f"  [B24-ERROR] {method} HTTP {res.status_code}: {res.text}")
     res.raise_for_status()
     return res.json()
 
@@ -295,7 +297,24 @@ def enrich_or_create_contact(name: str, last_name: str = "", second_name: str = 
         return int(res.get("result", 0))
 
 
+def find_deal_by_company(company_id: int) -> dict:
+    if not company_id:
+        return None
+    r = call_b24("crm.deal.list", {
+        "filter": {"COMPANY_ID": company_id, "STAGE_SEMANTIC_ID": "P"},
+        "select": ["ID", "TITLE", "STAGE_ID", "COMPANY_ID", "CONTACT_ID"]
+    })
+    items = r.get("result", [])
+    return items[0] if items else None
+
+
 def create_crm_deal(title: str, company_id: int, contact_id: int, assigned_by: int = 1, dry_run: bool = False) -> int:
+    existing = find_deal_by_company(company_id)
+    if existing:
+        did = int(existing["ID"])
+        print(f"  [B24] Найдена существующая активная Сделка ID {did} для Компании {company_id}")
+        return did
+
     fields = {
         "TITLE": title,
         "STAGE_ID": "NEW",
@@ -335,6 +354,8 @@ def create_crm_todo(deal_id: int, description: str, deadline_days: int = 2, assi
         "OWNER_TYPE_ID": 2,
         "OWNER_ID": deal_id,
         "TYPE_ID": 6, # CRM_TODO
+        "PROVIDER_ID": "CRM_TODO",
+        "PROVIDER_TYPE_ID": "TODO",
         "SUBJECT": f"Контроль расчета / КП ({prof['name']}): {description[:65]}",
         "START_TIME": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "END_TIME": deadline_dt.strftime("%Y-%m-%d 18:00:00"),
@@ -586,6 +607,21 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                 email_act = get_activity_details(int(a["ID"]))
                 break
                 
+        # Если дело-письмо уже перенесено в Сделку (например, при повторном запуске)
+        if not email_act:
+            lead_emails = lead.get("EMAIL", [])
+            lead_em = lead_emails[0].get("VALUE", "") if lead_emails and isinstance(lead_emails, list) else ""
+            if lead_em:
+                ct = find_contact_by_email(lead_em)
+                if ct and ct.get("COMPANY_ID"):
+                    deal_found = find_deal_by_company(int(ct["COMPANY_ID"]))
+                    if deal_found:
+                        deal_acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": int(deal_found["ID"])}}).get("result", [])
+                        for a in deal_acts:
+                            if a.get("PROVIDER_ID") == "CRM_EMAIL" or a.get("TYPE_ID") == "4":
+                                email_act = get_activity_details(int(a["ID"]))
+                                break
+                
         email_sender = ""
         email_subject = ""
         email_msg_id = ""
@@ -680,7 +716,7 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             # 4. Конвертация Лида в CONVERTED
             print(f"  [B24] Конвертация Лида {lid} в статус CONVERTED")
             if not dry_run:
-                call_b24("crm.lead.update", {"id": lid, "fields": {"STATUS_ID": "CONVERTED"}})
+                call_b24("crm.lead.update", {"id": lid, "fields": {"STATUS_ID": "CONVERTED", "COMPANY_ID": cid, "CONTACT_ID": ctid}})
 
             # 5. Контрольное дело CRM_TODO ответственному (с наблюдателем Артемом)
             create_crm_todo(did, f"Контроль подготовки КП и расчета для {company_name} (Заявка из письма {email_subject})", deadline_days=3, assigned_by=assigned_to, observer_id=1, dry_run=dry_run)
@@ -721,6 +757,8 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                         "OWNER_TYPE_ID": 1,
                         "OWNER_ID": lid,
                         "TYPE_ID": 6,
+                        "PROVIDER_ID": "CRM_TODO",
+                        "PROVIDER_TYPE_ID": "TODO",
                         "SUBJECT": f"Проверить заявку лида {lid}: требуется ли Сделка и расчет",
                         "RESPONSIBLE_ID": assigned_to,
                         "START_TIME": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
