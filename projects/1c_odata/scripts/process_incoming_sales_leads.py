@@ -414,7 +414,7 @@ def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_
             file_list = [disk_file_ids]
 
     fields = {
-        "TITLE": f"Запрос цен КНР: {title}",
+        "TITLE": title,  # Имя задачи = Имя сделки (строго идентично)
         "DESCRIPTION": description_cn,
         "RESPONSIBLE_ID": 30, # Miss Wang
         "CREATED_BY": creator_id,
@@ -737,22 +737,25 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
             cid = enrich_or_create_company(company_name, found_inn, phone=contact_phone, email=email_sender, assigned_by=assigned_to, dry_run=dry_run)
             ctid = enrich_or_create_contact(contact_name or "Контакт", last_name=contact_last, second_name=second_name, post="", phone=contact_phone, email=email_sender, company_id=cid, assigned_by=assigned_to, dry_run=dry_run)
 
-            # 2. Сделка
-            # Маска сделки: {Предмет заявки / Номенклатура / Оборудование} — {Компания}
-            item_subject = title
-            generic_titles = ["приглашение для участия в тендере", "запрос кп", "коммерческое предложение", "заявка", "потребность"]
-            if any(gt in title.lower() for gt in generic_titles):
-                search_scope = f"{email_subject} {email_desc}".lower()
-                if "пресс" in search_scope:
-                    item_subject = "Вулканизационный пресс для автокамер 85"
-                elif "опреснител" in search_scope or "alfa laval" in search_scope:
-                    item_subject = "СЗЧ опреснителя Alfa Laval JWP-16-C40"
-                elif "gemu" in search_scope or "мембран" in search_scope:
-                    item_subject = "Поставка мембран Gemu"
-                elif "bitzer" in search_scope or "компрессор" in search_scope:
-                    item_subject = "Компрессоры BITZER"
+            # 2. Сделка и Задача (Каноническая маска: {Компания}, {Товар на китайском / бренд + категория CN + модель})
+            # Имя задачи = Имя сделки (строго идентично, без дублирования на русском)
+            item_subject_cn = title
+            search_scope = f"{title} {email_subject} {email_desc}".lower()
+            if "пресс" in search_scope:
+                item_subject_cn = '85" 内胎硫化机'
+            elif "опреснител" in search_scope or "alfa laval" in search_scope:
+                item_subject_cn = "Alfa Laval 造水机配件 JWP-16-C40"
+            elif "gemu" in search_scope or "мембран" in search_scope:
+                if "602" in search_scope or "1507" in search_scope:
+                    item_subject_cn = "GEMU 隔膜阀 602 10D17F35400TM 1507"
+                else:
+                    item_subject_cn = "GEMU 隔膜 (MG10, MG25, MG40)"
+            elif "bitzer" in search_scope or "компрессор" in search_scope:
+                item_subject_cn = "BITZER 压缩机"
+            elif "endress" in search_scope or "cps41e" in search_scope:
+                item_subject_cn = "Endress+Hauser pH 电极 CPS41E-BA7ASB2"
 
-            deal_title = f"{item_subject} — {company_name}"
+            deal_title = f"{company_name}, {item_subject_cn}"
             did = create_crm_deal(deal_title, cid, ctid, assigned_by=assigned_to, dry_run=dry_run)
 
             # 3. Привязка письма к Сделке
@@ -795,7 +798,7 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                     if af_id and af_id not in task_files:
                         task_files.append(af_id)
 
-            task_title = f"{item_subject} — {company_name}"
+            task_title = deal_title  # Имя задачи = Имя сделки
             create_supply_task(
                 deal_id=did,
                 title=task_title,
