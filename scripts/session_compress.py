@@ -55,11 +55,11 @@ def run_git(args, desc, cwd_dir):
     env["ALLOW_EXTERNAL_PUSH"] = "1"
     
     cmd = [git_path] + args
-    if "push" in args:
-        cmd = [git_path, "-c", f"core.sshCommand=ssh -i {ssh_key_path} -o IdentitiesOnly=yes"] + args
-        
     print(f"Git command: {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd=str(cwd_dir), env=env, capture_output=True, text=True)
+    if result.returncode != 0 and "push" in args:
+        cmd_fallback = [git_path, "-c", f"core.sshCommand=ssh -i {ssh_key_path} -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes"] + args
+        result = subprocess.run(cmd_fallback, cwd=str(cwd_dir), env=env, capture_output=True, text=True)
     if result.returncode == 0:
         print(f"SUCCESS: {desc}")
         if result.stdout:
