@@ -261,23 +261,27 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
             email_acts = [a for a in all_acts if a.get("TYPE_ID") == "4"]
             outgoing_count = sum(1 for m in email_acts if m.get("DIRECTION") == "2" or "Re:" in m.get("SUBJECT", ""))
             
-            # Поиск последнего исходящего письма менеджера и вложений КП
+            # Поиск последнего исходящего/входящего письма и вложений КП
             last_mgr_email = None
+            last_any_email = None
             kp_files = []
             
             for ea in email_acts:
+                if not last_any_email:
+                    last_any_email = call_b24("crm.activity.get", {"id": ea.get("ID")})
+                    
                 if ea.get("DIRECTION") == "2" and not last_mgr_email:
-                    # Полные данные письма
                     full_ea = call_b24("crm.activity.get", {"id": ea.get("ID")})
                     last_mgr_email = full_ea
                     
-                if ea.get("DIRECTION") == "2":
-                    full_ea = call_b24("crm.activity.get", {"id": ea.get("ID")})
-                    flist = full_ea.get("FILES") or []
-                    for f in flist:
-                        fid = f.get("id")
-                        if fid and fid not in [k["id"] for k in kp_files]:
-                            kp_files.append({"id": fid, "activity_id": ea.get("ID")})
+                full_ea = call_b24("crm.activity.get", {"id": ea.get("ID")})
+                flist = full_ea.get("FILES") or []
+                for f in flist:
+                    fid = f.get("id")
+                    if fid and fid not in [k["id"] for k in kp_files]:
+                        kp_files.append({"id": fid, "activity_id": ea.get("ID")})
+
+            chosen_email = last_mgr_email or last_any_email
 
             # Правило 7: Если персональный файл КП не найден во всей истории, прикрепляем презентацию и референс-лист
             if not kp_files:
@@ -326,10 +330,10 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
                 "outgoing_count": outgoing_count,
                 "last_touch_date": last_touch_date.strftime("%Y-%m-%d") if last_touch_date else "Неизвестно",
                 "days_since_touch": (now - last_touch_date).days if last_touch_date else 999,
-                "last_mgr_email_id": last_mgr_email.get("ID") if last_mgr_email else None,
-                "last_mgr_subject": last_mgr_email.get("SUBJECT") if last_mgr_email else None,
-                "last_mgr_message_id": (last_mgr_email.get("SETTINGS", {}).get("MESSAGE_HEADERS", {}).get("Message-Id") if last_mgr_email else None),
-                "last_mgr_body_html": last_mgr_email.get("DESCRIPTION") if last_mgr_email else "",
+                "last_mgr_email_id": chosen_email.get("ID") if chosen_email else None,
+                "last_mgr_subject": chosen_email.get("SUBJECT") if chosen_email else None,
+                "last_mgr_message_id": (chosen_email.get("SETTINGS", {}).get("MESSAGE_HEADERS", {}).get("Message-Id") if chosen_email else None),
+                "last_mgr_body_html": chosen_email.get("DESCRIPTION") if chosen_email else "",
                 "kp_files": kp_files,
                 "clean_history": clean_history,
                 "clean_calls": clean_calls
@@ -343,87 +347,295 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
     return candidate_deals, excluded_deals
 
 
-def create_followup_draft_in_imap(deal_data: dict, ai_letter_text: str, ai_letter_html: str, custom_subject: str = None, attach_kp: bool = True) -> str:
+class SelfCheckError(Exception):
+    """Исключение при непрохождении аппаратного предпроверочного контроля письма."""
+    pass
+
+
+def sanitize_quoted_html(raw_html: str) -> str:
     """
-    Создает черновик follow-up в IMAP Roundcube с соблюдением всех 5 правил:
-    - Ответ в цепочке (In-Reply-To, References, цитирование переписки)
-    - Осмысленная тема письма (Meaningful Subject Guard)
-    - Прикрепление скачанного КП
-    - Эталонная подпись Битрикс24
+    Очищает цитируемый HTML от полных тегов <!DOCTYPE>, <html>, <head>, <meta>, <style>, <script>,
+    чтобы избежать вложенных документов, ломающих MIME и триггерящих антиспам-фильтры промышленных серверов (Kaspersky, DrWeb, ПЗМ).
     """
-    to_email = deal_data.get("to_email")
-    if not to_email:
-        raise ValueError(f"У сделки #{deal_data.get('deal_id')} нет email")
-        
+    if not raw_html:
+        return ""
+    soup = BeautifulSoup(raw_html, "html.parser")
+    for tag in soup.find_all(["script", "style", "meta", "link", "title", "head"]):
+        tag.decompose()
+    body = soup.find("body")
+    inner_html = body.decode_contents() if body else str(soup)
+    return inner_html.strip()
+
+
+def sanitize_quoted_text(raw_html: str, clean_preview: str = "") -> str:
+    """
+    Извлекает чистый читаемый текст исходного сообщения для text/plain версии письма.
+    """
+    if raw_html:
+        soup = BeautifulSoup(raw_html, "html.parser")
+        for tag in soup.find_all(["script", "style", "meta", "link", "blockquote", "head"]):
+            tag.decompose()
+        text = soup.get_text("\n")
+        lines = [line.strip() for line in text.split("\n") if line.strip()]
+        cleaned = "\n".join(lines)
+        if len(cleaned) > 40:
+            return cleaned
+    return clean_preview or "Нет доступного текста предыдущего письма."
+
+
+def download_and_validate_pdf_attachments(deal_data: dict, max_files: int = 2) -> list:
+    """
+    Скачивает и валидирует вложения.
+    Белый список: СТРОГО .pdf!
+    Если персональный PDF КП отсутствует (или были только .docx / .jpg), подключает корпоративный PDF референс-листа (ID 89762).
+    Возвращает list of tuples: [(filename, bytes), ...]
+    """
+    valid_attachments = []
+    raw_kp_files = deal_data.get("kp_files") or []
+    
+    for kpf in raw_kp_files:
+        fid = kpf.get("id")
+        if not fid:
+            continue
+        fname, fbytes = download_b24_disk_file(fid)
+        if not fname or not fbytes:
+            continue
+            
+        # Проверка белого списка .pdf
+        if fname.lower().endswith(".pdf") and len(fbytes) >= 5120:
+            if fbytes.startswith(b"%PDF"):
+                valid_attachments.append((fname, fbytes))
+                print(f"    [PDF OK] Прикреплен КП/спецификация: '{fname}' ({len(fbytes)} байт)")
+            else:
+                print(f"    [WARN] Файл '{fname}' не прошел валидацию сигнатуры %PDF, пропущен")
+        else:
+            print(f"    [SECURITY GATE FILTER] Файл '{fname}' отклонен: вложения разрешены СТРОГО в формате .pdf (защита от отлупов 550 security reason)")
+
+        if len(valid_attachments) >= max_files:
+            break
+            
+    # Если валидный PDF так и не найден — подключаем гарантированный корпоративный референс-лист
+    if not valid_attachments:
+        print(f"    [FALLBACK] В истории сделки #{deal_data.get('deal_id')} не найдено валидных PDF КП. Подключаем официальную презентацию и референс-лист (ID {FALLBACK_REFERENCE_FILE_ID})...")
+        fb_name, fb_bytes = download_b24_disk_file(FALLBACK_REFERENCE_FILE_ID)
+        if fb_name and fb_bytes and fb_bytes.startswith(b"%PDF"):
+            valid_attachments.append((fb_name, fb_bytes))
+            print(f"    [FALLBACK OK] Корпоративный референс-лист '{fb_name}' ({len(fb_bytes)} байт) успешно прикреплен")
+        else:
+            raise ValueError(f"Критический сбой: не удалось скачать даже fallback-файл референс-листа ID {FALLBACK_REFERENCE_FILE_ID} с диска Битрикс24!")
+            
+    return valid_attachments
+
+
+def pre_send_self_check(
+    deal_data: dict,
+    subject: str,
+    new_letter_text: str,
+    new_letter_html: str,
+    quoted_text: str,
+    quoted_html: str,
+    attached_files: list,
+    sender_email: str,
+    sender_name: str
+):
+    """
+    Правило 9: Аппаратный предпроверочный контроль письма перед созданием черновика или отправкой.
+    """
+    import re
+    errors = []
+    
+    # 1. Stop-words and placeholders
+    stop_patterns = [
+        r"(?i)\b(test\s*body|test\s*subject|тестовое\s*тело|тестовая\s*тема|undefined|null|lorem\s*ipsum|заглушка|рыба|тут\s*текст)\b"
+    ]
+    combined_content = f"{subject}\n{new_letter_text}\n{new_letter_html}".lower()
+    for pat in stop_patterns:
+        if re.search(pat, combined_content):
+            errors.append(f"Обнаружено недопустимое стоп-слово / заглушка по шаблону '{pat}'")
+
+    # 2. Subject validation
+    if not subject or len(subject.strip()) < 10:
+        errors.append(f"Тема письма слишком короткая или пустая: '{subject}' (минимум 10 символов)")
+    if subject.strip().lower() in ["re: запрос", "re: заявка", "re: заказ", "re: (без темы)", "re: без темы"]:
+        errors.append(f"Мусорная/неявная тема письма: '{subject}'! Тема должна отражать оборудование и контрагента.")
+
+    # 3. Thread quotation validation
+    if not quoted_html or len(quoted_html.strip()) < 50:
+        errors.append(f"Отсутствует или слишком короткая HTML-цитата предыдущей переписки (длина: {len(quoted_html.strip()) if quoted_html else 0} < 50 симв.)")
+    if not quoted_text or len(quoted_text.strip()) < 30:
+        errors.append("Отсутствует или слишком короткая текстовая цитата (plain text) в теле письма")
+    forbidden_tags = ["<!doctype", "<html", "<head", "<meta", "<script"]
+    for ft in forbidden_tags:
+        if ft in quoted_html.lower():
+            errors.append(f"Цитата HTML содержит недопустимый сырой тег '{ft}', ломающий MIME-структуру и блокируемый шлюзом безопасности")
+
+    # 4. Attachments validation (PDF-ONLY WHITE LIST)
+    if not attached_files:
+        errors.append("В письме отсутствуют вложения! (Правило 1 и 9)")
+    for fname, fbytes in attached_files:
+        if not fname.lower().endswith(".pdf"):
+            errors.append(f"Вложение '{fname}' нарушает политику безопасности: разрешены СТРОГО файлы .pdf! (.docx/.doc/.xls запрещены)")
+        if len(fbytes) < 5120:
+            errors.append(f"Вложение '{fname}' повреждено или имеет подозрительно малый размер: {len(fbytes)} байт (< 5 КБ)")
+        if not fbytes.startswith(b"%PDF"):
+            errors.append(f"Вложение '{fname}' не является валидным PDF-документом (отсутствует сигнатура %PDF)")
+
+    # 5. Sender identity validation
+    if sender_email.lower().strip() != "sales@longwang.ru":
+        errors.append(f"Неверный ящик отправителя: '{sender_email}' (разрешен строго sales@longwang.ru)")
+    if "salman@longwang.ru" in f"{sender_name} {new_letter_text}".lower():
+        errors.append("В тексте нового письма обнаружен адрес 'salman@longwang.ru'! Отправка разрешена строго с sales@longwang.ru")
+
+    # 6. Deal stage safety
+    stage = deal_data.get("stage")
+    if stage not in ALLOWED_STAGES:
+        errors.append(f"Сделка #{deal_data.get('deal_id')} находится в стадии '{stage}' (запрещено для авто-follow-up, только менеджер лично)")
+
+    # 7. Recipient email validation
+    to_email = deal_data.get("to_email", "").strip()
+    if not to_email or "@" not in to_email or "." not in to_email:
+        errors.append(f"Некорректный email получателя: '{to_email}'")
+
+    if errors:
+        raise SelfCheckError("PRE-SEND SELF-CHECK СБОЙ! Письмо заблокировано:\n  - " + "\n  - ".join(errors))
+    
+    print(f"    [SELF-CHECK OK] Все 7 проверок пройдены успешно (PDF-only, цитата валидна, ящик sales, стоп-слов нет)")
+    return True
+
+
+def build_mime_email(deal_data: dict, ai_letter_text: str, ai_letter_html: str, custom_subject: str, valid_attachments: list) -> tuple:
+    """
+    Собирает валидное multipart/mixed письмо с цитатой, эталонной подписью и PDF вложениями,
+    и прогоняет его через pre_send_self_check.
+    """
+    to_email = deal_data.get("to_email", "").strip()
+    
+    # Формирование осмысленной темы
     if custom_subject:
         clean_subj = custom_subject if custom_subject.startswith("Re:") else f"Re: {custom_subject}"
     else:
         last_subj = deal_data.get("last_mgr_subject") or ""
         clean_cand = last_subj.replace("Re:", "").replace("RE:", "").replace("Fwd:", "").replace("FW:", "").strip()
-        # Проверяем неявные / мусорные темы
         is_generic = not clean_cand or clean_cand.lower() in ["запрос", "заявка", "заказ", "(без темы)", "кп", "без темы"] or len(clean_cand) < 4
         if is_generic:
             entity = deal_data.get("company_name") or deal_data.get("contact_name") or ""
             clean_subj = f"Re: {deal_data.get('title', 'Поставка оборудования')} — {entity}".strip(" —")
         else:
             clean_subj = f"Re: {clean_cand}"
-    
+
+    # Подготовка цитирования
+    raw_body_html = deal_data.get("last_mgr_body_html") or ""
+    sanitized_quote_html = sanitize_quoted_html(raw_body_html)
+    quote_text_body = sanitize_quoted_text(raw_body_html, deal_data.get("title", ""))
+
+    last_subj_display = deal_data.get("last_mgr_subject") or clean_subj
+    last_touch_date = deal_data.get("last_touch_date") or datetime.now().strftime("%Y-%m-%d")
+
+    quoted_html_block = f"""
+    <br><br>
+    <div class="gmail_quote">
+      <div dir="ltr" class="gmail_attr">
+        -------- Исходное сообщение --------<br>
+        <b>Тема:</b> {last_subj_display}<br>
+        <b>Дата:</b> {last_touch_date}<br>
+        <b>От:</b> {SENDER_NAME} &lt;{SENDER_EMAIL}&gt;<br>
+        <b>Кому:</b> {to_email}<br>
+      </div>
+      <br>
+      <blockquote style="margin: 0 0 0 5px; padding: 5px 5px 5px 8px; border-left: 4px solid #e2e3e5;">
+        {sanitized_quote_html}
+      </blockquote>
+    </div>
+    """
+
+    quoted_text_block = (
+        f"\n\n-------- Исходное сообщение --------\n"
+        f"Тема: {last_subj_display}\n"
+        f"Дата: {last_touch_date}\n"
+        f"От: {SENDER_NAME} <{SENDER_EMAIL}>\n"
+        f"Кому: {to_email}\n\n"
+        f"{quote_text_body}\n"
+    )
+
+    full_html = f"<div style='font-family: Arial, sans-serif; font-size: 14px;'>{ai_letter_html}</div>{BITRIX_SIGNATURE_HTML}{quoted_html_block}"
+    full_text = f"{ai_letter_text}\n{BITRIX_SIGNATURE_TEXT}\n{quoted_text_block}".strip()
+
+    # ОБЯЗАТЕЛЬНЫЙ АППАРАТНЫЙ SELF-CHECK
+    pre_send_self_check(
+        deal_data=deal_data,
+        subject=clean_subj,
+        new_letter_text=ai_letter_text,
+        new_letter_html=ai_letter_html,
+        quoted_text=quote_text_body,
+        quoted_html=sanitized_quote_html,
+        attached_files=valid_attachments,
+        sender_email=SENDER_EMAIL,
+        sender_name=SENDER_NAME
+    )
+
     from email.headerregistry import Address
     msg = EmailMessage()
     msg["From"] = Address(SENDER_NAME, "sales", "longwang.ru")
-    msg["To"] = to_email.strip()
+    msg["To"] = to_email
     msg["Subject"] = clean_subj
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain="longwang.ru")
     msg["Reply-To"] = SENDER_EMAIL
+    msg["Sender"] = SENDER_EMAIL
     
-    # Threading headers
     parent_msg_id = deal_data.get("last_mgr_message_id")
     if parent_msg_id:
         msg["In-Reply-To"] = parent_msg_id
         msg["References"] = parent_msg_id
         
-    # Формируем тело с подписью и цитированием предыдущей переписки
-    quoted_html = ""
-    if deal_data.get("last_mgr_body_html"):
-        quoted_html = f"""
-        <br><br>
-        <div class="gmail_quote">
-          <div dir="ltr" class="gmail_attr">
-            -------- Исходное сообщение --------<br>
-            <b>Тема:</b> {deal_data.get('last_mgr_subject')}<br>
-            <b>Дата:</b> {deal_data.get('last_touch_date')}<br>
-            <b>От:</b> {SENDER_NAME} &lt;{SENDER_EMAIL}&gt;<br>
-            <b>Кому:</b> {to_email}<br>
-          </div>
-          <br>
-          <blockquote style="margin: 0 0 0 5px; padding: 5px 5px 5px 8px; border-left: 4px solid #e2e3e5;">
-            {deal_data.get('last_mgr_body_html')}
-          </blockquote>
-        </div>
-        """
-        
-    full_html = f"<div style='font-family: Arial, sans-serif; font-size: 14px;'>{ai_letter_html}</div>{BITRIX_SIGNATURE_HTML}{quoted_html}"
-    full_text = f"{ai_letter_text}\n{BITRIX_SIGNATURE_TEXT}\n\n-------- Исходное сообщение --------\nТема: {deal_data.get('last_mgr_subject')}\n"
-    
+    # Задаем текстовую часть и HTML-альтернативу
     msg.set_content(full_text)
     msg.add_alternative(full_html, subtype="html")
+
+    # Прикрепляем валидные PDF вложения
+    for fname, fbytes in valid_attachments:
+        msg.add_attachment(fbytes, maintype="application", subtype="pdf", filename=fname)
+
+    return msg, clean_subj, full_text, full_html
+
+
+def save_sent_email_to_imap(msg_bytes: bytes) -> bool:
+    """
+    Сохраняет копию отправленного через SMTP письма в папку 'Sent' на сервере Hostland IMAP.
+    """
+    try:
+        with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as imap:
+            imap.login(SENDER_EMAIL, SENDER_PASS)
+            for sent_folder in ["Sent", "&BB4EQgQ,BEAEMAQyBDsENQQ9BD0ESwQ1-", "INBOX.Sent", "Отправленные"]:
+                res, _ = imap.select(sent_folder)
+                if res == "OK":
+                    imap.append(sent_folder, "\\Seen", imaplib.Time2Internaldate(time.time()), msg_bytes)
+                    print(f"    [IMAP SENT OK] Копия письма сохранена в '{sent_folder}'")
+                    return True
+    except Exception as e:
+        print(f"    [WARN] Не удалось сохранить копию в IMAP Sent: {e}")
+    return False
+
+
+def create_followup_draft_in_imap(deal_data: dict, ai_letter_text: str, ai_letter_html: str, custom_subject: str = None, attach_kp: bool = True) -> tuple:
+    """
+    Создает черновик follow-up в IMAP Roundcube с полным предпроверочным контролем:
+    - Ответ в цепочке (In-Reply-To, References, цитирование переписки)
+    - Осмысленная тема письма (Meaningful Subject Guard)
+    - Прикрепление только валидных PDF вложений
+    - Эталонная подпись Битрикс24
+    - Предпроверочный Self-Check
+    """
+    valid_attachments = download_and_validate_pdf_attachments(deal_data) if attach_kp else []
+    msg, clean_subj, full_text, full_html = build_mime_email(
+        deal_data=deal_data,
+        ai_letter_text=ai_letter_text,
+        ai_letter_html=ai_letter_html,
+        custom_subject=custom_subject,
+        valid_attachments=valid_attachments
+    )
     
-    # Прикрепление ранее отправленного КП (Правило 1)
-    attached_names = []
-    if attach_kp and deal_data.get("kp_files"):
-        for kpf in deal_data["kp_files"][:2]: # Прикрепляем найденные КП
-            fid = kpf.get("id")
-            fname, fbytes = download_b24_disk_file(fid)
-            if fname and fbytes:
-                # Определение типа
-                subtype = "pdf" if fname.lower().endswith(".pdf") else "octet-stream"
-                msg.add_attachment(fbytes, maintype="application", subtype=subtype, filename=fname)
-                attached_names.append(fname)
-                print(f"    [ВЛОЖЕНИЕ ПРИКРЕПЛЕНО] Файл '{fname}' ({len(fbytes)} байт) прикреплен к черновику")
-                
     msg_bytes = msg.as_bytes()
-    
     with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as imap:
         imap.login(SENDER_EMAIL, SENDER_PASS)
         for folder in ["Drafts", IMAP_DRAFTS_FOLDER]:
@@ -432,7 +644,102 @@ def create_followup_draft_in_imap(deal_data: dict, ai_letter_text: str, ai_lette
             except Exception:
                 pass
                 
-    return msg["Message-ID"], attached_names
+    attached_names = [name for name, _ in valid_attachments]
+    return msg["Message-ID"], attached_names, clean_subj
+
+
+def send_followup_email_live(deal_data: dict, ai_letter_text: str, ai_letter_html: str, custom_subject: str = None, attach_kp: bool = True) -> tuple:
+    """
+    Отправляет follow-up письмо напрямую через SMTP клиенту с соблюдением всех правил:
+    - Ответ в цепочке (In-Reply-To, References, цитирование переписки)
+    - Осмысленная тема письма (Meaningful Subject Guard)
+    - Прикрепление только валидных PDF вложений
+    - Эталонная подпись Битрикс24
+    - Аппаратный Self-Check перед отправкой
+    - Сохранение копии в IMAP Sent
+    """
+    import smtplib
+    valid_attachments = download_and_validate_pdf_attachments(deal_data) if attach_kp else []
+    msg, clean_subj, full_text, full_html = build_mime_email(
+        deal_data=deal_data,
+        ai_letter_text=ai_letter_text,
+        ai_letter_html=ai_letter_html,
+        custom_subject=custom_subject,
+        valid_attachments=valid_attachments
+    )
+    
+    with smtplib.SMTP_SSL("mail.hostland.ru", 465, timeout=25) as server:
+        server.login(SENDER_EMAIL, SENDER_PASS)
+        server.send_message(msg)
+        
+    msg_bytes = msg.as_bytes()
+    save_sent_email_to_imap(msg_bytes)
+    
+    attached_names = [name for name, _ in valid_attachments]
+    return msg["Message-ID"], attached_names, clean_subj, full_html
+
+
+def record_crm_followup_success(deal_id: int, to_email: str, subject: str, attached_names: list, summary_data: dict, assigned_by: int = 1):
+    """
+    Правило 10: Фиксирует успешную отправку follow-up письма в CRM:
+    - Подробный аналитический комментарий в таймлайне (crm.timeline.comment.add);
+    - Закрепление комментария в топе (crm.timeline.item.pin);
+    - Постановка контрольного дела (TODO) на +4 дня (crm.activity.todo.add).
+    КАТЕГОРИЧЕСКИ НЕ ВЫЗЫВАЕТ crm.activity.add с TYPE_ID: 4, чтобы исключить повторную отправку
+    письма почтовым движком Битрикс24 от имени salman@longwang.ru!
+    """
+    summary = summary_data.get("summary", "").strip()
+    recommendation = summary_data.get("recommendation", "").strip()
+    should_close = summary_data.get("should_close", False)
+    close_reason_text = summary_data.get("close_reason_text", "").strip()
+    
+    att_str = ", ".join(attached_names) if attached_names else "нет"
+    parts = [
+        "🤖 [ИИ-Анализ и Follow-up]",
+        f"✉️ Отправлено письмо клиенту: {to_email}",
+        f"📋 Тема: {subject}",
+        f"📎 Прикрепленные файлы (PDF): {att_str}",
+        f"📌 РЕЗЮМЕ ПО СДЕЛКЕ: {summary}",
+        f"💡 РЕКОМЕНДАЦИЯ МЕНЕДЖЕРУ: {recommendation}"
+    ]
+    if should_close:
+        parts.append("\n⚠️ РЕКОМЕНДАЦИЯ: ЗАКРЫТЬ СДЕЛКУ")
+        if close_reason_text:
+            parts.append(f'📋 Текст для копирования в карточку отказа:\n"{close_reason_text}"')
+            
+    full_comment = "\n".join(parts)
+    
+    try:
+        res = call_b24("crm.timeline.comment.add", {
+            "fields": {
+                "ENTITY_ID": deal_id,
+                "ENTITY_TYPE": "deal",
+                "COMMENT": full_comment
+            }
+        })
+        comment_id = res.get("ID") if isinstance(res, dict) else res
+        if comment_id:
+            call_b24("crm.timeline.item.pin", {
+                "ownerTypeId": 2,
+                "ownerId": deal_id,
+                "id": int(comment_id)
+            })
+            print(f"    [PINNED COMMENT OK] Аналитический комментарий #{comment_id} закреплен вверху таймлайна сделки")
+    except Exception as e:
+        print(f"    [WARN] Не удалось закрепить комментарий: {e}")
+        
+    try:
+        control_date = (datetime.now() + timedelta(days=4)).strftime("%Y-%m-%d 12:00:00")
+        call_b24("crm.activity.todo.add", {
+            "ownerTypeId": 2,
+            "ownerId": deal_id,
+            "description": f"Контроль ответа на follow-up: {subject[:40]}",
+            "deadline": control_date,
+            "responsibleId": assigned_by
+        })
+        print(f"    [CRM TODO OK] Контрольное дело поставлено Артему на {control_date}")
+    except Exception as e:
+        print(f"    [WARN] Не удалось поставить CRM todo: {e}")
 
 
 def post_and_pin_deal_summary_comment(deal_id: int, summary_data: dict) -> bool:
@@ -479,126 +786,10 @@ def post_and_pin_deal_summary_comment(deal_id: int, summary_data: dict) -> bool:
     return False
 
 
-def send_followup_email_live(deal_data: dict, ai_letter_text: str, ai_letter_html: str, custom_subject: str = None, attach_kp: bool = True):
-    """
-    Отправляет follow-up письмо напрямую через SMTP клиенту с соблюдением всех правил:
-    - Ответ в цепочке (In-Reply-To, References, цитирование переписки)
-    - Осмысленная тема письма (Meaningful Subject Guard)
-    - Прикрепление скачанного КП / референс-листа
-    - Эталонная подпись Битрикс24
-    """
-    import smtplib
-    to_email = deal_data.get("to_email")
-    if not to_email:
-        raise ValueError(f"У сделки #{deal_data.get('deal_id')} нет email")
-        
-    if custom_subject:
-        clean_subj = custom_subject if custom_subject.startswith("Re:") else f"Re: {custom_subject}"
-    else:
-        last_subj = deal_data.get("last_mgr_subject") or ""
-        clean_cand = last_subj.replace("Re:", "").replace("RE:", "").replace("Fwd:", "").replace("FW:", "").strip()
-        is_generic = not clean_cand or clean_cand.lower() in ["запрос", "заявка", "заказ", "(без темы)", "кп", "без темы"] or len(clean_cand) < 4
-        if is_generic:
-            entity = deal_data.get("company_name") or deal_data.get("contact_name") or ""
-            clean_subj = f"Re: {deal_data.get('title', 'Поставка оборудования')} — {entity}".strip(" —")
-        else:
-            clean_subj = f"Re: {clean_cand}"
-    
-    from email.headerregistry import Address
-    msg = EmailMessage()
-    msg["From"] = Address(SENDER_NAME, "sales", "longwang.ru")
-    msg["To"] = to_email.strip()
-    msg["Subject"] = clean_subj
-    msg["Date"] = formatdate(localtime=True)
-    msg["Message-ID"] = make_msgid(domain="longwang.ru")
-    msg["Reply-To"] = SENDER_EMAIL
-    
-    parent_msg_id = deal_data.get("last_mgr_message_id")
-    if parent_msg_id:
-        msg["In-Reply-To"] = parent_msg_id
-        msg["References"] = parent_msg_id
-        
-    quoted_html = ""
-    if deal_data.get("last_mgr_body_html"):
-        quoted_html = f"""
-        <br><br>
-        <div class="gmail_quote">
-          <div dir="ltr" class="gmail_attr">
-            -------- Исходное сообщение --------<br>
-            <b>Тема:</b> {deal_data.get('last_mgr_subject')}<br>
-            <b>Дата:</b> {deal_data.get('last_touch_date')}<br>
-            <b>От:</b> {SENDER_NAME} &lt;{SENDER_EMAIL}&gt;<br>
-            <b>Кому:</b> {to_email}<br>
-          </div>
-          <br>
-          <blockquote style="margin: 0 0 0 5px; padding: 5px 5px 5px 8px; border-left: 4px solid #e2e3e5;">
-            {deal_data.get('last_mgr_body_html')}
-          </blockquote>
-        </div>
-        """
-        
-    full_html = f"<div style='font-family: Arial, sans-serif; font-size: 14px;'>{ai_letter_html}</div>{BITRIX_SIGNATURE_HTML}{quoted_html}"
-    full_text = f"{ai_letter_text}\n{BITRIX_SIGNATURE_TEXT}\n\n-------- Исходное сообщение --------\nТема: {deal_data.get('last_mgr_subject')}\n"
-    
-    msg.set_content(full_text)
-    msg.add_alternative(full_html, subtype="html")
-    
-    attached_names = []
-    if attach_kp and deal_data.get("kp_files"):
-        for kpf in deal_data["kp_files"][:2]:
-            fid = kpf.get("id")
-            fname, fbytes = download_b24_disk_file(fid)
-            if fname and fbytes:
-                subtype = "pdf" if fname.lower().endswith(".pdf") else "octet-stream"
-                msg.add_attachment(fbytes, maintype="application", subtype=subtype, filename=fname)
-                attached_names.append(fname)
-                
-    with smtplib.SMTP_SSL("mail.hostland.ru", 465, timeout=20) as server:
-        server.login(SENDER_EMAIL, SENDER_PASS)
-        server.send_message(msg)
-        
-    return msg["Message-ID"], attached_names, clean_subj, full_html
-
-
-def record_crm_activity_and_todo(deal_id: int, to_email: str, subject: str, body_html: str, assigned_by: int = 1):
-    """
-    Фиксирует отправленное письмо в таймлайне и ставит контрольное задание.
-    """
-    try:
-        call_b24("crm.activity.add", {
-            "fields": {
-                "OWNER_TYPE_ID": 2,
-                "OWNER_ID": deal_id,
-                "TYPE_ID": 4,
-                "COMMUNICATIONS": [{"VALUE": to_email, "ENTITY_ID": deal_id, "ENTITY_TYPE_ID": 2}],
-                "SUBJECT": subject,
-                "START_TIME": datetime.now().isoformat(),
-                "END_TIME": datetime.now().isoformat(),
-                "COMPLETED": "Y",
-                "DIRECTION": 2,
-                "DESCRIPTION": body_html,
-                "DESCRIPTION_TYPE": 3
-            }
-        })
-    except Exception as e:
-        print(f"    [WARN] Не удалось зафиксировать email активность: {e}")
-        
-    try:
-        control_date = (datetime.now() + timedelta(days=4)).strftime("%Y-%m-%d 12:00:00")
-        call_b24("crm.activity.todo.add", {
-            "ownerTypeId": 2,
-            "ownerId": deal_id,
-            "description": f"Контроль ответа на follow-up: {subject[:40]}",
-            "deadline": control_date,
-            "responsibleId": assigned_by
-        })
-    except Exception as e:
-        print(f"    [WARN] Не удалось поставить CRM todo: {e}")
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Follow-up deals pipeline with strict charter")
+    parser = argparse.ArgumentParser(description="Follow-up deals pipeline with strict charter & Self-Check Guard")
     parser.add_argument("--assigned-to", default="1", help="Ответственный пользователь (1 / artem)")
+    parser.add_argument("--deal-id", type=int, help="Обработать одну конкретную сделку по ID")
     parser.add_argument("--limit", "-n", type=int, default=10, help="Количество сделок")
     parser.add_argument("--cooldown", type=int, default=7, help="Кулдаун касаний в днях (по умолчанию 7)")
     parser.add_argument("--exclude-ids", help="Список ID сделок через запятую для исключения")
@@ -606,25 +797,27 @@ def main():
     parser.add_argument("--export-dossier", action="store_true", help="Сформировать досье для ИИ-модели")
     parser.add_argument("--apply-letters", help="Путь к JSON-файлу с письмами от ИИ-модели для загрузки")
     parser.add_argument("--live", action="store_true", help="Боевой запуск (реальная отправка SMTP и фиксация в CRM)")
-    parser.add_argument("--dry-run", action="store_true", default=False, help="Режим проверки")
+    parser.add_argument("--dry-run", action="store_true", default=False, help="Режим проверки (сохранение черновиков в IMAP)")
     args = parser.parse_args()
     
     exclude_list = []
     if args.exclude_ids:
         exclude_list = [x.strip() for x in args.exclude_ids.split(",") if x.strip()]
         
-    print("=======================================================")
+    print("=================================================================")
     print(f" PIPELINE: FOLLOW-UP DEALS ({'БОЕВОЙ ЗАПУСК' if args.live else 'DRY-RUN / DRAFTS'})")
     print(f" Время запуска: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f" Ответственный: {args.assigned_to}, Лимит: {args.limit}, Кулдаун: {args.cooldown} дней")
+    if args.deal_id:
+        print(f" Режим точечной обработки сделки ID: {args.deal_id}")
     if exclude_list:
         print(f" Исключенные ID: {', '.join(exclude_list)}")
-    print("=======================================================")
+    print("=================================================================")
     
     if args.apply_letters:
         dossier_path = args.dossier_output
         if not os.path.exists(dossier_path):
-            print(f"[ERR] Досье {dossier_path} не найдено. Сначала запустите сбор без --apply-letters.")
+            print(f"[ERR] Досье {dossier_path} не найдено. Сначала запустите сбор досье без --apply-letters.")
             return
             
         with open(dossier_path, "r", encoding="utf-8") as f:
@@ -634,25 +827,29 @@ def main():
             letters_data = json.load(f)
             
         candidates = dossier_data.get("candidates", [])
+        if args.deal_id:
+            candidates = [c for c in candidates if int(c["deal_id"]) == args.deal_id]
+            
         mode_desc = "БОЕВАЯ ОТПРАВКА КЛИЕНТАМ И CRM-МУТАЦИИ" if args.live else "СОХРАНЕНИЕ ЧЕРНОВИКОВ В IMAP"
-        print(f"\n[3/3] Применение писем от ИИ-модели к {len(candidates)} отобранным сделкам [{mode_desc}]...\n")
+        print(f"\n[Итерационный процессинг] Применение писем от ИИ-модели к {len(candidates)} сделкам [{mode_desc}]...\n")
         
         success_count = 0
+        failed_count = 0
         for i, c in enumerate(candidates, 1):
             did = str(c["deal_id"])
             if did not in letters_data:
-                print(f"  [WARN] Сделка #{did}: нет текста письма от модели, пропуск.")
+                print(f"  [WARN] Сделка #{did}: нет текста письма от модели в {args.apply_letters}, пропуск.")
                 continue
                 
             let = letters_data[did]
             to_email = c.get("to_email")
             title = c.get("title")
             contact = c.get("contact_name")
-            print(f">>> [{i}/{len(candidates)}] Сделка #{did} ({contact} | {to_email}): '{title}'")
+            print(f"\n>>> [Итерация {i}/{len(candidates)}] Сделка #{did} ({contact} | {to_email}): '{title}'")
             
             try:
                 if args.live:
-                    # БОЕВОЙ РЕЖИМ
+                    # БОЕВОЙ РЕЖИМ (SMTP + IMAP Sent + CRM Timeline & Todo)
                     msg_id, attached, sent_subj, sent_html = send_followup_email_live(
                         deal_data=c,
                         ai_letter_text=let["text"],
@@ -662,53 +859,59 @@ def main():
                     )
                     print(f"    [SMTP OK] Письмо отправлено на {to_email} (Msg-ID: {msg_id})")
                     if attached:
-                        print(f"    [ВЛОЖЕНИЯ] {', '.join(attached)}")
+                        print(f"    [ВЛОЖЕНИЯ PDF] {', '.join(attached)}")
                         
-                    # Фиксация в CRM: исходящее письмо + контрольная задача на +4 дня
-                    record_crm_activity_and_todo(
-                        deal_id=int(did),
-                        to_email=to_email,
-                        subject=sent_subj,
-                        body_html=sent_html,
-                        assigned_by=int(args.assigned_to)
-                    )
-                    print(f"    [CRM OK] Зафиксировано исходящее письмо и поставлен контроль на +4 дня")
-                    
-                    # Правило 8: постинг и закрепление аналитического комментария
+                    # Фиксация в CRM через комментарий и задачу без повторной отправки из Б24
                     summary_obj = {
                         "summary": let.get("summary", ""),
                         "recommendation": let.get("recommendation", ""),
                         "should_close": let.get("should_close", False),
                         "close_reason_text": let.get("close_reason_text", "")
                     }
-                    post_and_pin_deal_summary_comment(deal_id=int(did), summary_data=summary_obj)
-                    print(f"    [PINNED COMMENT OK] Аналитическое резюме и вердикт ИИ закреплены в топе сделки")
+                    record_crm_followup_success(
+                        deal_id=int(did),
+                        to_email=to_email,
+                        subject=sent_subj,
+                        attached_names=attached,
+                        summary_data=summary_obj,
+                        assigned_by=int(args.assigned_to)
+                    )
                 else:
-                    # РЕЖИМ ЧЕРНОВИКОВ (DRY-RUN)
-                    msg_id, attached = create_followup_draft_in_imap(
+                    # РЕЖИМ ЧЕРНОВИКОВ (DRY-RUN В IMAP)
+                    msg_id, attached, sent_subj = create_followup_draft_in_imap(
                         deal_data=c,
                         ai_letter_text=let["text"],
                         ai_letter_html=let["html"],
                         custom_subject=let.get("subject"),
                         attach_kp=True
                     )
-                    print(f"    [OK] Черновик сохранен в IMAP Roundcube (Msg-ID: {msg_id})")
+                    print(f"    [IMAP DRAFT OK] Черновик сохранен в IMAP Roundcube (Msg-ID: {msg_id})")
                     if attached:
-                        print(f"    [КП ПРИКРЕПЛЕНО] {', '.join(attached)}")
+                        print(f"    [ВЛОЖЕНИЯ PDF] {', '.join(attached)}")
                 success_count += 1
+            except SelfCheckError as sce:
+                print(f"    [SELF-CHECK BLOCKED] Сделка #{did} заблокирована: {sce}")
+                failed_count += 1
             except Exception as e:
                 print(f"    [ERR] Ошибка обработки сделки #{did}: {e}")
+                failed_count += 1
                 
         print("\n================== ИТОГ ВЫПОЛНЕНИЯ ==================")
         print(f"Успешно обработано: {success_count} из {len(candidates)}")
+        if failed_count > 0:
+            print(f"Заблокировано / Ошибок: {failed_count}")
         return
 
+    # Режим сбора досье
     candidates, excluded = collect_dossier_deals_without_activities(
         assigned_by=int(args.assigned_to),
         max_deals=args.limit,
         cooldown_days=args.cooldown,
         exclude_ids=exclude_list
     )
+    
+    if args.deal_id:
+        candidates = [c for c in candidates if int(c["deal_id"]) == args.deal_id]
     
     os.makedirs(os.path.dirname(args.dossier_output) or ".", exist_ok=True)
     dossier_path = args.dossier_output
@@ -725,4 +928,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

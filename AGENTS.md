@@ -31,6 +31,7 @@
 - **Приоритет доработки:** Если аналогичный или смежный скрипт уже существует в проекте — **ДОРАБАТЫВАТЬ ЕГО**, а не писать новый с нуля.
 - Прежде чем писать что-то заново, запустить быстрый поисковый скрипт по истории сессий/базе знаний или переспросить пользователя.
 - **Защита версий (Script Retention Guard):** Промежуточные и отлаживаемые скрипты категорически запрещено удалять — перемещать в `ARCHIVE/leads_processing_research_scratch/`.
+- **Snapshot Before Edit Guard:** Перед модификацией любого боевого скрипта текущая стабильная версия обязательно архивируется в локальный `scripts/archive/` проекта с сохранением возможности мгновенного отката.
 
 ---
 
@@ -59,7 +60,7 @@
 | **«конец чата»** (`/compress`, `/end-session`, `!конец`) | `py scripts/session_compress.py` | **Zero-Prose Guard**. Синхронизация правил, очистка `scratch/`, формирование `.ai/SESSION_SUMMARY.md`, `git push origin master`. |
 | **«почисти и проверь мой ПК (ноутбук)»** | `py scripts/check_and_clean_pc.py` | Диагностика GPU Код 43, MPO, фантомов SIMULATED, BCD F8, свободного места. |
 | **«полная ревизия и форматирование гравити»** | `py scripts/full_gravity_audit.py` | Сканирование контуров, отсев vendor, пересборка `SCRIPTS_CATALOG.md` и памяток на Рабочем столе. |
-| **«follow up deals today»** (`follow up сделки [ответственный] [лимит]`) | `py projects/1c_odata/scripts/process_today_followup_deals.py` | **Dry-run по умолчанию**. Обязательное прикрепление КП/референс-листа, кулдаун 7 дн, подпись ящика из Б24, запрет сделок «В работе» (только pre-sale), закрепленный комментарий-резюме со стратегическим вердиктом ИИ вверху таймлайна. Читать: [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md). |
+| **«follow up deals today»** (`follow up сделки [ответственный] [лимит]`) | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run по умолчанию**. Обязательный аппаратный Self-Check, белый список PDF, кулдаун 7 дн, подпись ящика из Б24, запрет сделок «В работе» (только pre-sale), закрепленный комментарий-резюме со стратегическим вердиктом ИИ вверху таймлайна. Читать: [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md). Архив версий: [scripts/archive/](file:///C:/Codex/projects/1c_odata/scripts/archive/). |
 | **«обработай лидов [ящик] [ответственный]»** (`/process-sales-leads`) | `py projects/1c_odata/scripts/process_incoming_sales_leads.py` | **Параметры обязательны!** **Dry-run по умолчанию**. Ветвление Clear RFQ vs Ambiguous, задачи Miss Wang `[USER=30]`, Шаблон № 66, отметка прочитанным. Читать: [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md). |
 | **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Параметры обязательны!** Чистая сверка 1С и Б24 без создания сделок и задач. Читать: [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md). |
 
