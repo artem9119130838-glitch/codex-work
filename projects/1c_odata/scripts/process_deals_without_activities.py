@@ -422,6 +422,46 @@ def create_followup_draft_in_imap(deal_data: dict, ai_letter_text: str, ai_lette
     return msg["Message-ID"], attached_names
 
 
+def post_and_pin_deal_summary_comment(deal_id: int, summary_data: dict) -> bool:
+    """
+    Правило 8: Добавляет в таймлайн сделки аналитическое резюме от ИИ,
+    стратегический вердикт и закрепляет его вверху таймлайна.
+    """
+    summary = summary_data.get("summary", "").strip()
+    recommendation = summary_data.get("recommendation", "").strip()
+    should_close = summary_data.get("should_close", False)
+    close_reason_text = summary_data.get("close_reason_text", "").strip()
+    
+    parts = [
+        "🤖 [ИИ-Анализ и Follow-up]",
+        f"📌 РЕЗЮМЕ ПО СДЕЛКЕ: {summary}",
+        f"💡 РЕКОМЕНДАЦИЯ МЕНЕДЖЕРУ: {recommendation}"
+    ]
+    if should_close:
+        parts.append("\n⚠️ РЕКОМЕНДАЦИЯ: ЗАКРЫТЬ СДЕЛКУ")
+        if close_reason_text:
+            parts.append(f'📋 Текст для копирования в карточку отказа:\n"{close_reason_text}"')
+            
+    full_comment = "\n".join(parts)
+    
+    res = call_b24("crm.timeline.comment.add", {
+        "fields": {
+            "ENTITY_ID": deal_id,
+            "ENTITY_TYPE": "deal",
+            "COMMENT": full_comment
+        }
+    })
+    comment_id = res.get("ID") if isinstance(res, dict) else res
+    if comment_id:
+        try:
+            call_b24("crm.timeline.item.pin", {"id": int(comment_id)})
+            return True
+        except Exception as e:
+            print(f"    [WARN] Не удалось закрепить комментарий #{comment_id}: {e}")
+            return True
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Follow-up deals pipeline with strict charter")
     parser.add_argument("--assigned-to", default="1", help="Ответственный пользователь (1 / artem)")
