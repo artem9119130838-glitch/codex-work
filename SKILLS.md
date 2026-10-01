@@ -28,6 +28,8 @@
     * *Когда вызывать:* Разграничение доступов: Единый Git (`Codex` — Read/Write), защита от утечек секретов, сброс флага Read-Only (`stat.S_IWRITE`) при удалении деревьев Git на Windows.
 11. **[metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md) — Аналитика и безопасность Metabase**
     * *Когда вызывать:* Построение SQL-воронок продаж, бэкап H2-базы Metabase, права доступа в Community Free версии.
+12. **[desktop_and_folder_cleanup](file:///C:/Users/Artem/.gemini/config/skills/desktop_and_folder_cleanup/SKILL.md) — Наведение порядка на рабочем столе и в папках**
+    * *Когда вызывать:* Команды «наведи порядок на рабочем столе / в папке...», разбор хаоса в файлах, скриптовая классификация, двухэтапный аудит (Dry-Run -> Боевой запуск), раскладка ВЭД-отправок по 6 стандартным подпапкам, защита вайтлистов и создание памятки пользователю.
 
 ---
 
