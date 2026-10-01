@@ -89,6 +89,71 @@ def clean_html_to_text(html_content: str) -> str:
     lines = [line.strip() for line in text.split("\n") if line.strip()]
     return "\n".join(lines)
 
+ALLOWED_STAGES = ["NEW", "PREPARATION", "PREPAYMENT_INVOICE", "EXECUTING", "FINAL_INVOICE"]
+FALLBACK_REFERENCE_FILE_ID = 89762 # Диск Б24: Презентация и референс-лист.pdf
+
+
+def get_cross_entity_activities(deal_id, lead_id=None, contact_id=None, to_email=None):
+    """
+    Правило 7: Сквозной поиск переписки и файлов (Сделка -> Лид -> Контакт -> Поиск лидов по email).
+    """
+    acts = call_b24("crm.activity.list", {
+        "filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": deal_id},
+        "order": {"START_TIME": "DESC"},
+        "select": ["ID", "SUBJECT", "START_TIME", "TYPE_ID", "DIRECTION", "DESCRIPTION"]
+    }) or []
+    
+    seen_ids = {a.get("ID") for a in acts}
+    
+    # 1. Проверяем привязанный Лид
+    if lead_id:
+        lead_acts = call_b24("crm.activity.list", {
+            "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id},
+            "order": {"START_TIME": "DESC"},
+            "select": ["ID", "SUBJECT", "START_TIME", "TYPE_ID", "DIRECTION", "DESCRIPTION"]
+        }) or []
+        for la in lead_acts:
+            if la.get("ID") not in seen_ids:
+                acts.append(la)
+                seen_ids.add(la.get("ID"))
+                
+    # 2. Если писем нет в сделке и лиде, ищем в Контакте
+    has_emails = any(a.get("TYPE_ID") == "4" for a in acts)
+    if not has_emails and contact_id:
+        contact_acts = call_b24("crm.activity.list", {
+            "filter": {"OWNER_TYPE_ID": 3, "OWNER_ID": contact_id},
+            "order": {"START_TIME": "DESC"},
+            "select": ["ID", "SUBJECT", "START_TIME", "TYPE_ID", "DIRECTION", "DESCRIPTION"]
+        }) or []
+        for ca in contact_acts:
+            if ca.get("ID") not in seen_ids:
+                acts.append(ca)
+                seen_ids.add(ca.get("ID"))
+                
+    # 3. Если всё еще нет писем, но известен email - ищем связанные лиды по email
+    has_emails = any(a.get("TYPE_ID") == "4" for a in acts)
+    if not has_emails and to_email:
+        search_leads = call_b24("crm.lead.list", {
+            "filter": {"=EMAIL": to_email},
+            "select": ["ID"]
+        }) or []
+        for sl in search_leads:
+            sl_id = sl.get("ID")
+            sl_acts = call_b24("crm.activity.list", {
+                "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": sl_id},
+                "order": {"START_TIME": "DESC"},
+                "select": ["ID", "SUBJECT", "START_TIME", "TYPE_ID", "DIRECTION", "DESCRIPTION"]
+            }) or []
+            for sla in sl_acts:
+                if sla.get("ID") not in seen_ids:
+                    acts.append(sla)
+                    seen_ids.add(sla.get("ID"))
+                    
+    # Сортируем все найденные дела по убыванию времени
+    acts.sort(key=lambda x: x.get("START_TIME") or "", reverse=True)
+    return acts
+
+
 def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldown_days=7):
     """
     Сканирует сделки Артема без активных дел с соблюдением 7-дневного кулдауна
@@ -115,6 +180,19 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
             
         for d in deals:
             did = d["ID"]
+            stage_id = d.get("STAGE_ID")
+            
+            # Правило 6: Запрет follow-up для сделок «В работе» и на исполнении (только ручная связь менеджера)
+            if stage_id not in ALLOWED_STAGES:
+                excluded_deals.append({
+                    "deal_id": did,
+                    "title": d.get("TITLE"),
+                    "stage": stage_id,
+                    "reason": f"Стадия '{stage_id}' запрещена для авто-follow-up (в работе / исполнение, только ручная связь менеджера)"
+                })
+                print(f"  [X] Сделка #{did} ИСКЛЮЧЕНА (стадия '{stage_id}' запрещена для авто-follow-up)")
+                continue
+
             # Проверяем активные незавершенные дела
             pending_acts = call_b24("crm.activity.list", {
                 "filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": did, "COMPLETED": "N"},
@@ -123,21 +201,24 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
             if pending_acts:
                 continue # Есть активные дела, пропускаем
                 
-            # Проверяем дату последнего касания (любое дело: письмо, звонок, задача)
-            all_acts = call_b24("crm.activity.list", {
-                "filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": did},
-                "order": {"START_TIME": "DESC"},
-                "select": ["ID", "SUBJECT", "START_TIME", "TYPE_ID", "DIRECTION", "DESCRIPTION"]
-            })
-            
+            cid = d.get("CONTACT_ID")
+            coid = d.get("COMPANY_ID")
             lead_id = d.get("LEAD_ID")
-            if lead_id:
-                lead_acts = call_b24("crm.activity.list", {
-                    "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id},
-                    "order": {"START_TIME": "DESC"},
-                    "select": ["ID", "SUBJECT", "START_TIME", "TYPE_ID", "DIRECTION", "DESCRIPTION"]
-                })
-                all_acts.extend(lead_acts)
+            contact = call_b24("crm.contact.get", {"id": cid}) if cid else {}
+            company = call_b24("crm.company.get", {"id": coid}) if coid else {}
+            
+            emails = contact.get("EMAIL", [])
+            to_email = emails[0].get("VALUE") if emails else None
+            if not to_email and company:
+                to_email = company.get("EMAIL", [{}])[0].get("VALUE")
+                
+            phones = contact.get("PHONE", [])
+            phone_val = phones[0].get("VALUE") if phones else None
+            if not phone_val and company:
+                phone_val = company.get("PHONE", [{}])[0].get("VALUE")
+
+            # Правило 7: Сквозной сбор переписки (сделка -> лид -> контакт -> поиск по email)
+            all_acts = get_cross_entity_activities(deal_id=did, lead_id=lead_id, contact_id=cid, to_email=to_email)
                 
             last_touch_date = None
             last_touch_desc = "Нет касаний"
@@ -168,21 +249,6 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
             # Сделка подошла! Собираем глубокое досье
             print(f"  [+] Сделка #{did} ОТОБРАНА для follow-up: '{d.get('TITLE')}' (касание было {(now - last_touch_date).days if last_touch_date else 'давнее'} дн. назад)")
             
-            cid = d.get("CONTACT_ID")
-            coid = d.get("COMPANY_ID")
-            contact = call_b24("crm.contact.get", {"id": cid}) if cid else {}
-            company = call_b24("crm.company.get", {"id": coid}) if coid else {}
-            
-            emails = contact.get("EMAIL", [])
-            to_email = emails[0].get("VALUE") if emails else None
-            if not to_email and company:
-                to_email = company.get("EMAIL", [{}])[0].get("VALUE")
-                
-            phones = contact.get("PHONE", [])
-            phone_val = phones[0].get("VALUE") if phones else None
-            if not phone_val and company:
-                phone_val = company.get("PHONE", [{}])[0].get("VALUE")
-                
             # История писем
             email_acts = [a for a in all_acts if a.get("TYPE_ID") == "4"]
             outgoing_count = sum(1 for m in email_acts if m.get("DIRECTION") == "2" or "Re:" in m.get("SUBJECT", ""))
@@ -204,6 +270,15 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
                         fid = f.get("id")
                         if fid and fid not in [k["id"] for k in kp_files]:
                             kp_files.append({"id": fid, "activity_id": ea.get("ID")})
+
+            # Правило 7: Если персональный файл КП не найден во всей истории, прикрепляем презентацию и референс-лист
+            if not kp_files:
+                kp_files.append({
+                    "id": FALLBACK_REFERENCE_FILE_ID,
+                    "activity_id": None,
+                    "name": "Презентация и референс-лист.pdf",
+                    "is_fallback": True
+                })
                             
             # Собираем очищенную историю
             clean_history = []
