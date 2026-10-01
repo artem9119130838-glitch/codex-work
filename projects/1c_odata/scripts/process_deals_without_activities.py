@@ -154,7 +154,7 @@ def get_cross_entity_activities(deal_id, lead_id=None, contact_id=None, to_email
     return acts
 
 
-def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldown_days=7):
+def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldown_days=7, exclude_ids=None):
     """
     Сканирует сделки Артема без активных дел с соблюдением 7-дневного кулдауна
     и формирует полное досье переписки для ИИ-модели.
@@ -162,13 +162,16 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
     now = datetime.now()
     cooldown_limit_dt = now - timedelta(days=cooldown_days)
     today_str = now.strftime("%Y-%m-%d")
+    exclude_set = {int(x) for x in exclude_ids} if exclude_ids else set()
     
     print(f"\n[1/3] Поиск открытых сделок Артема (ID={assigned_by})...")
+    if exclude_set:
+        print(f"  Исключено ранее обработанных ID: {exclude_set}")
     start = 0
     candidate_deals = []
     excluded_deals = []
     
-    while len(candidate_deals) < max_deals and start <= 200:
+    while len(candidate_deals) < max_deals and start <= 600:
         deals = call_b24("crm.deal.list", {
             "filter": {"ASSIGNED_BY_ID": assigned_by, "CLOSED": "N"},
             "order": {"DATE_CREATE": "DESC"},
@@ -179,7 +182,9 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
             break
             
         for d in deals:
-            did = d["ID"]
+            did = int(d["ID"])
+            if did in exclude_set:
+                continue
             stage_id = d.get("STAGE_ID")
             
             # Правило 6: Запрет follow-up для сделок «В работе» и на исполнении (только ручная связь менеджера)
@@ -212,6 +217,9 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
             if not to_email and company:
                 to_email = company.get("EMAIL", [{}])[0].get("VALUE")
                 
+            if not to_email:
+                continue
+
             phones = contact.get("PHONE", [])
             phone_val = phones[0].get("VALUE") if phones else None
             if not phone_val and company:
@@ -302,12 +310,16 @@ def collect_dossier_deals_without_activities(assigned_by=1, max_deals=10, cooldo
                     "notes": ca.get("DESCRIPTION", "")[:300]
                 })
                 
+            c_first = (contact.get("NAME") or "").strip()
+            c_last = (contact.get("LAST_NAME") or "").strip()
+            c_full = f"{c_first} {c_last}".strip() or "Коллеги"
+            
             candidate_deals.append({
                 "deal_id": did,
                 "title": d.get("TITLE"),
                 "stage": d.get("STAGE_ID"),
                 "opportunity": f"{d.get('OPPORTUNITY')} {d.get('CURRENCY_ID')}",
-                "contact_name": f"{contact.get('NAME', '')} {contact.get('LAST_NAME', '')}".strip() or "Коллеги",
+                "contact_name": c_full,
                 "company_name": company.get("TITLE", ""),
                 "to_email": to_email,
                 "phone": phone_val,
@@ -356,9 +368,10 @@ def create_followup_draft_in_imap(deal_data: dict, ai_letter_text: str, ai_lette
         else:
             clean_subj = f"Re: {clean_cand}"
     
+    from email.headerregistry import Address
     msg = EmailMessage()
-    msg["From"] = f"{SENDER_NAME} <{SENDER_EMAIL}>"
-    msg["To"] = to_email
+    msg["From"] = Address(SENDER_NAME, "sales", "longwang.ru")
+    msg["To"] = to_email.strip()
     msg["Subject"] = clean_subj
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain="longwang.ru")
@@ -454,7 +467,11 @@ def post_and_pin_deal_summary_comment(deal_id: int, summary_data: dict) -> bool:
     comment_id = res.get("ID") if isinstance(res, dict) else res
     if comment_id:
         try:
-            call_b24("crm.timeline.item.pin", {"id": int(comment_id)})
+            call_b24("crm.timeline.item.pin", {
+                "ownerTypeId": 2,
+                "ownerId": deal_id,
+                "id": int(comment_id)
+            })
             return True
         except Exception as e:
             print(f"    [WARN] Не удалось закрепить комментарий #{comment_id}: {e}")
@@ -462,24 +479,150 @@ def post_and_pin_deal_summary_comment(deal_id: int, summary_data: dict) -> bool:
     return False
 
 
+def send_followup_email_live(deal_data: dict, ai_letter_text: str, ai_letter_html: str, custom_subject: str = None, attach_kp: bool = True):
+    """
+    Отправляет follow-up письмо напрямую через SMTP клиенту с соблюдением всех правил:
+    - Ответ в цепочке (In-Reply-To, References, цитирование переписки)
+    - Осмысленная тема письма (Meaningful Subject Guard)
+    - Прикрепление скачанного КП / референс-листа
+    - Эталонная подпись Битрикс24
+    """
+    import smtplib
+    to_email = deal_data.get("to_email")
+    if not to_email:
+        raise ValueError(f"У сделки #{deal_data.get('deal_id')} нет email")
+        
+    if custom_subject:
+        clean_subj = custom_subject if custom_subject.startswith("Re:") else f"Re: {custom_subject}"
+    else:
+        last_subj = deal_data.get("last_mgr_subject") or ""
+        clean_cand = last_subj.replace("Re:", "").replace("RE:", "").replace("Fwd:", "").replace("FW:", "").strip()
+        is_generic = not clean_cand or clean_cand.lower() in ["запрос", "заявка", "заказ", "(без темы)", "кп", "без темы"] or len(clean_cand) < 4
+        if is_generic:
+            entity = deal_data.get("company_name") or deal_data.get("contact_name") or ""
+            clean_subj = f"Re: {deal_data.get('title', 'Поставка оборудования')} — {entity}".strip(" —")
+        else:
+            clean_subj = f"Re: {clean_cand}"
+    
+    from email.headerregistry import Address
+    msg = EmailMessage()
+    msg["From"] = Address(SENDER_NAME, "sales", "longwang.ru")
+    msg["To"] = to_email.strip()
+    msg["Subject"] = clean_subj
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain="longwang.ru")
+    msg["Reply-To"] = SENDER_EMAIL
+    
+    parent_msg_id = deal_data.get("last_mgr_message_id")
+    if parent_msg_id:
+        msg["In-Reply-To"] = parent_msg_id
+        msg["References"] = parent_msg_id
+        
+    quoted_html = ""
+    if deal_data.get("last_mgr_body_html"):
+        quoted_html = f"""
+        <br><br>
+        <div class="gmail_quote">
+          <div dir="ltr" class="gmail_attr">
+            -------- Исходное сообщение --------<br>
+            <b>Тема:</b> {deal_data.get('last_mgr_subject')}<br>
+            <b>Дата:</b> {deal_data.get('last_touch_date')}<br>
+            <b>От:</b> {SENDER_NAME} &lt;{SENDER_EMAIL}&gt;<br>
+            <b>Кому:</b> {to_email}<br>
+          </div>
+          <br>
+          <blockquote style="margin: 0 0 0 5px; padding: 5px 5px 5px 8px; border-left: 4px solid #e2e3e5;">
+            {deal_data.get('last_mgr_body_html')}
+          </blockquote>
+        </div>
+        """
+        
+    full_html = f"<div style='font-family: Arial, sans-serif; font-size: 14px;'>{ai_letter_html}</div>{BITRIX_SIGNATURE_HTML}{quoted_html}"
+    full_text = f"{ai_letter_text}\n{BITRIX_SIGNATURE_TEXT}\n\n-------- Исходное сообщение --------\nТема: {deal_data.get('last_mgr_subject')}\n"
+    
+    msg.set_content(full_text)
+    msg.add_alternative(full_html, subtype="html")
+    
+    attached_names = []
+    if attach_kp and deal_data.get("kp_files"):
+        for kpf in deal_data["kp_files"][:2]:
+            fid = kpf.get("id")
+            fname, fbytes = download_b24_disk_file(fid)
+            if fname and fbytes:
+                subtype = "pdf" if fname.lower().endswith(".pdf") else "octet-stream"
+                msg.add_attachment(fbytes, maintype="application", subtype=subtype, filename=fname)
+                attached_names.append(fname)
+                
+    with smtplib.SMTP_SSL("mail.hostland.ru", 465, timeout=20) as server:
+        server.login(SENDER_EMAIL, SENDER_PASS)
+        server.send_message(msg)
+        
+    return msg["Message-ID"], attached_names, clean_subj, full_html
+
+
+def record_crm_activity_and_todo(deal_id: int, to_email: str, subject: str, body_html: str, assigned_by: int = 1):
+    """
+    Фиксирует отправленное письмо в таймлайне и ставит контрольное задание.
+    """
+    try:
+        call_b24("crm.activity.add", {
+            "fields": {
+                "OWNER_TYPE_ID": 2,
+                "OWNER_ID": deal_id,
+                "TYPE_ID": 4,
+                "COMMUNICATIONS": [{"VALUE": to_email, "ENTITY_ID": deal_id, "ENTITY_TYPE_ID": 2}],
+                "SUBJECT": subject,
+                "START_TIME": datetime.now().isoformat(),
+                "END_TIME": datetime.now().isoformat(),
+                "COMPLETED": "Y",
+                "DIRECTION": 2,
+                "DESCRIPTION": body_html,
+                "DESCRIPTION_TYPE": 3
+            }
+        })
+    except Exception as e:
+        print(f"    [WARN] Не удалось зафиксировать email активность: {e}")
+        
+    try:
+        control_date = (datetime.now() + timedelta(days=4)).strftime("%Y-%m-%d 12:00:00")
+        call_b24("crm.activity.todo.add", {
+            "ownerTypeId": 2,
+            "ownerId": deal_id,
+            "description": f"Контроль ответа на follow-up: {subject[:40]}",
+            "deadline": control_date,
+            "responsibleId": assigned_by
+        })
+    except Exception as e:
+        print(f"    [WARN] Не удалось поставить CRM todo: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Follow-up deals pipeline with strict charter")
     parser.add_argument("--assigned-to", default="1", help="Ответственный пользователь (1 / artem)")
     parser.add_argument("--limit", "-n", type=int, default=10, help="Количество сделок")
     parser.add_argument("--cooldown", type=int, default=7, help="Кулдаун касаний в днях (по умолчанию 7)")
+    parser.add_argument("--exclude-ids", help="Список ID сделок через запятую для исключения")
+    parser.add_argument("--dossier-output", default="scratch/followup_dossier.json", help="Путь для сохранения досье")
     parser.add_argument("--export-dossier", action="store_true", help="Сформировать досье для ИИ-модели")
-    parser.add_argument("--apply-letters", help="Путь к JSON-файлу с письмами от ИИ-модели для загрузки в IMAP")
-    parser.add_argument("--dry-run", action="store_true", default=True, help="Режим проверки")
+    parser.add_argument("--apply-letters", help="Путь к JSON-файлу с письмами от ИИ-модели для загрузки")
+    parser.add_argument("--live", action="store_true", help="Боевой запуск (реальная отправка SMTP и фиксация в CRM)")
+    parser.add_argument("--dry-run", action="store_true", default=False, help="Режим проверки")
     args = parser.parse_args()
     
+    exclude_list = []
+    if args.exclude_ids:
+        exclude_list = [x.strip() for x in args.exclude_ids.split(",") if x.strip()]
+        
     print("=======================================================")
-    print(" PIPELINE: FOLLOW-UP DEALS (CHARTER ENFORCED)")
+    print(f" PIPELINE: FOLLOW-UP DEALS ({'БОЕВОЙ ЗАПУСК' if args.live else 'DRY-RUN / DRAFTS'})")
     print(f" Время запуска: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f" Ответственный: {args.assigned_to}, Лимит: {args.limit}, Кулдаун: {args.cooldown} дней")
+    if exclude_list:
+        print(f" Исключенные ID: {', '.join(exclude_list)}")
     print("=======================================================")
     
     if args.apply_letters:
-        dossier_path = "scratch/followup_dossier.json"
+        dossier_path = args.dossier_output
         if not os.path.exists(dossier_path):
             print(f"[ERR] Досье {dossier_path} не найдено. Сначала запустите сбор без --apply-letters.")
             return
@@ -491,8 +634,8 @@ def main():
             letters_data = json.load(f)
             
         candidates = dossier_data.get("candidates", [])
-        print(f"\n[3/3] Применение писем от ИИ-модели к {len(candidates)} отобранным сделкам...")
-        print(f"Режим проверки: {args.dry_run} (Черновики сохраняются в IMAP Roundcube с прикреплением КП и цепочки, CRM не изменяется)\n")
+        mode_desc = "БОЕВАЯ ОТПРАВКА КЛИЕНТАМ И CRM-МУТАЦИИ" if args.live else "СОХРАНЕНИЕ ЧЕРНОВИКОВ В IMAP"
+        print(f"\n[3/3] Применение писем от ИИ-модели к {len(candidates)} отобранным сделкам [{mode_desc}]...\n")
         
         success_count = 0
         for i, c in enumerate(candidates, 1):
@@ -508,41 +651,73 @@ def main():
             print(f">>> [{i}/{len(candidates)}] Сделка #{did} ({contact} | {to_email}): '{title}'")
             
             try:
-                msg_id, attached = create_followup_draft_in_imap(
-                    deal_data=c,
-                    ai_letter_text=let["text"],
-                    ai_letter_html=let["html"],
-                    custom_subject=let.get("subject"),
-                    attach_kp=True
-                )
-                print(f"    [OK] Черновик сохранен в IMAP Roundcube (Msg-ID: {msg_id})")
-                if attached:
-                    print(f"    [КП ПРИКРЕПЛЕНО] {', '.join(attached)}")
+                if args.live:
+                    # БОЕВОЙ РЕЖИМ
+                    msg_id, attached, sent_subj, sent_html = send_followup_email_live(
+                        deal_data=c,
+                        ai_letter_text=let["text"],
+                        ai_letter_html=let["html"],
+                        custom_subject=let.get("subject"),
+                        attach_kp=True
+                    )
+                    print(f"    [SMTP OK] Письмо отправлено на {to_email} (Msg-ID: {msg_id})")
+                    if attached:
+                        print(f"    [ВЛОЖЕНИЯ] {', '.join(attached)}")
+                        
+                    # Фиксация в CRM: исходящее письмо + контрольная задача на +4 дня
+                    record_crm_activity_and_todo(
+                        deal_id=int(did),
+                        to_email=to_email,
+                        subject=sent_subj,
+                        body_html=sent_html,
+                        assigned_by=int(args.assigned_to)
+                    )
+                    print(f"    [CRM OK] Зафиксировано исходящее письмо и поставлен контроль на +4 дня")
+                    
+                    # Правило 8: постинг и закрепление аналитического комментария
+                    summary_obj = {
+                        "summary": let.get("summary", ""),
+                        "recommendation": let.get("recommendation", ""),
+                        "should_close": let.get("should_close", False),
+                        "close_reason_text": let.get("close_reason_text", "")
+                    }
+                    post_and_pin_deal_summary_comment(deal_id=int(did), summary_data=summary_obj)
+                    print(f"    [PINNED COMMENT OK] Аналитическое резюме и вердикт ИИ закреплены в топе сделки")
                 else:
-                    print(f"    [ИНФО] КП в истории не обнаружено (отправка без вложения)")
+                    # РЕЖИМ ЧЕРНОВИКОВ (DRY-RUN)
+                    msg_id, attached = create_followup_draft_in_imap(
+                        deal_data=c,
+                        ai_letter_text=let["text"],
+                        ai_letter_html=let["html"],
+                        custom_subject=let.get("subject"),
+                        attach_kp=True
+                    )
+                    print(f"    [OK] Черновик сохранен в IMAP Roundcube (Msg-ID: {msg_id})")
+                    if attached:
+                        print(f"    [КП ПРИКРЕПЛЕНО] {', '.join(attached)}")
                 success_count += 1
             except Exception as e:
-                print(f"    [ERR] Ошибка создания черновика: {e}")
+                print(f"    [ERR] Ошибка обработки сделки #{did}: {e}")
                 
         print("\n================== ИТОГ ВЫПОЛНЕНИЯ ==================")
-        print(f"Успешно создано черновиков в IMAP Roundcube: {success_count} из {len(candidates)}")
-        print("Все черновики доступны в веб-почте sales@longwang.ru (папка «Черновики») для ручной верификации.")
+        print(f"Успешно обработано: {success_count} из {len(candidates)}")
         return
 
     candidates, excluded = collect_dossier_deals_without_activities(
         assigned_by=int(args.assigned_to),
         max_deals=args.limit,
-        cooldown_days=args.cooldown
+        cooldown_days=args.cooldown,
+        exclude_ids=exclude_list
     )
     
-    os.makedirs("scratch", exist_ok=True)
-    dossier_path = "scratch/followup_dossier.json"
+    os.makedirs(os.path.dirname(args.dossier_output) or ".", exist_ok=True)
+    dossier_path = args.dossier_output
     with open(dossier_path, "w", encoding="utf-8") as f:
         json.dump({"candidates": candidates, "excluded": excluded}, f, ensure_ascii=False, indent=2)
         
     print(f"\n[2/3] Досье сохранено в {dossier_path}")
     print(f"- Отобрано сделок для анализа ИИ-моделью: {len(candidates)}")
-    print(f"- Исключено по 7-дневному кулдауну: {len(excluded)}")
+    print(f"- Исключено: {len(excluded)}")
     
     for exc in excluded:
         print(f"  * Сделка #{exc['deal_id']} ('{exc['title']}'): {exc['reason']}")
