@@ -724,8 +724,7 @@
 | **Базовый** | `analyze_csv.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/analyze_csv.py` | Автоматизация рабочего процесса. | 8 |
 | **Базовый** | `analyze_flamegraph_json.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/build-ios-apps/skills/ios-ettrace-performance/scripts/analyze_flamegraph_json.py` | !/usr/bin/env python3 Summarize ETTrace processed flamegraph JSON for performance triage. | 0 |
 | **Базовый** | `analyze_forms.py` | `projects/tilda_migration/analyze_forms.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `analyze_forms.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/tilda_migration/analyze_forms.py` | Автоматизация рабочего процесса. | 1 |
-| **Базовый** | `analyze_sprint.py` | `scripts/analyze_sprint.py` | !/usr/bin/env python3 | 0 |
+| **Канонический** | `mine_crm_incidents.py` | `scripts/mine_crm_incidents.py` | Канонический инструмент аудита чатов и сбора инцидентов Битрикс24 (Incident Miner) | 0 |
 | **Базовый** | `analyze_sprint.py` | `D:/Soft/Codex Backup/scripts/analyze_sprint.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `analyze_sprint.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/analyze_sprint.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `apply_final_fixes.py` | `projects/tilda_migration/apply_final_fixes.py` | FTP Config | 0 |
@@ -828,7 +827,6 @@
 | **Базовый** | `export_data.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/export_data.ps1` | nforce UTF-8 output | 8 |
 | **Базовый** | `export_installed_programs.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/local_inventory/inventory/export_installed_programs.ps1` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `export_installed_programs.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/export_installed_programs.ps1` | Автоматизация рабочего процесса. | 3 |
-| **Базовый** | `export_sprint_chat.py` | `scripts/export_sprint_chat.py` | !/usr/bin/env python3 | 1 |
 | **Базовый** | `export_sprint_chat.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/export_sprint_chat.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `fetch_comments.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/github/skills/gh-address-comments/scripts/fetch_comments.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `fetch_raw_emails.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scratch/fetch_raw_emails.py` | 1. Start SSH tunnel locally | 2 |

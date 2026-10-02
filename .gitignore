@@ -2,8 +2,9 @@
 
 data/raw_sample/
 legacy/
-archive/
-ARCHIVE/
+/archive/
+!projects/1c_odata/scripts/archive/
+/ARCHIVE/
 __pycache__/
 _cache_blocks/
 model_outputs/
