@@ -49,6 +49,8 @@ from email.message import EmailMessage
 from email.header import decode_header
 from email.utils import formatdate, make_msgid
 from datetime import datetime, timedelta
+import urllib.request
+import urllib.error
 import requests
 
 # Настройка кодировки консоли
@@ -330,27 +332,66 @@ def create_crm_deal(title: str, company_id: int, contact_id: int, assigned_by: i
     return int(res.get("result", 0))
 
 
-def bind_activity_to_deal(act_id: int, deal_id: int, company_id: int, contact_id: int, email: str = None, dry_run: bool = False):
+def bind_activity_to_deal(act_id: int, deal_id: int, company_id: int = None, contact_id: int = None, email: str = None, dry_run: bool = False):
+    """
+    Привязка дела-письма к Сделке, Компании и Контакту в CRM Битрикс24.
+    Использует официальный метод crm.activity.binding.add взамен устаревшего и сбойного
+    обновления поля COMMUNICATIONS в crm.activity.update.
+    """
     print(f"  [B24] Привязка дела-письма ID {act_id} к Сделке {deal_id}, Компании {company_id}, Контакту {contact_id}")
-    if not dry_run and act_id:
-        comms = []
-        if contact_id:
-            comms.append({"ENTITY_ID": contact_id, "ENTITY_TYPE_ID": 3, "TYPE": "EMAIL", "VALUE": email or ""})
-        if deal_id:
-            comms.append({"ENTITY_ID": deal_id, "ENTITY_TYPE_ID": 2, "TYPE": "EMAIL", "VALUE": email or ""})
-        try:
-            call_b24("crm.activity.update", {"id": act_id, "fields": {"COMMUNICATIONS": comms}})
-        except Exception:
-            pass
+    if dry_run:
+        print(f"  [B24] (Dry-run) crm.activity.binding.add: Deal {deal_id} (entityTypeId: 2), Company {company_id} (entityTypeId: 4), Contact {contact_id} (entityTypeId: 3)")
+        return
 
-        if contact_id:
-            try:
-                call_b24("crm.deal.contact.items.set", {
-                    "id": deal_id,
-                    "items": [{"CONTACT_ID": contact_id, "SORT": 10, "IS_PRIMARY": "Y"}]
-                })
-            except Exception:
-                pass
+    if not act_id:
+        return
+
+    # 1. Привязка к Сделке (entityTypeId: 2)
+    if deal_id:
+        try:
+            call_b24("crm.activity.binding.add", {
+                "activityId": act_id,
+                "entityTypeId": 2,
+                "entityId": deal_id
+            })
+            print(f"  [B24] Дело-письмо {act_id} успешно привязано к Сделке {deal_id}")
+        except Exception as e:
+            print(f"  [B24-ERROR] Ошибка привязки дела {act_id} к Сделке {deal_id}: {e}")
+
+    # 2. Привязка к Компании (entityTypeId: 4)
+    if company_id:
+        try:
+            call_b24("crm.activity.binding.add", {
+                "activityId": act_id,
+                "entityTypeId": 4,
+                "entityId": company_id
+            })
+            print(f"  [B24] Дело-письмо {act_id} успешно привязано к Компании {company_id}")
+        except Exception as e:
+            print(f"  [B24-ERROR] Ошибка привязки дела {act_id} к Компании {company_id}: {e}")
+
+    # 3. Привязка к Контакту (entityTypeId: 3)
+    if contact_id:
+        try:
+            call_b24("crm.activity.binding.add", {
+                "activityId": act_id,
+                "entityTypeId": 3,
+                "entityId": contact_id
+            })
+            print(f"  [B24] Дело-письмо {act_id} успешно привязано к Контакту {contact_id}")
+        except Exception as e:
+            print(f"  [B24-ERROR] Ошибка привязки дела {act_id} к Контакту {contact_id}: {e}")
+
+    # 4. Установка основного контакта в Сделке
+    if deal_id and contact_id:
+        try:
+            call_b24("crm.deal.contact.items.set", {
+                "id": deal_id,
+                "items": [{"CONTACT_ID": contact_id, "SORT": 10, "IS_PRIMARY": "Y"}]
+            })
+        except Exception as e:
+            print(f"  [B24-ERROR] Ошибка установки контакта {contact_id} в сделке {deal_id}: {e}")
+
 
 
 def create_crm_todo(deal_id: int, description: str, deadline_days: int = 2, assigned_by: int = 1, observer_id: int = 1, dry_run: bool = False) -> int:
@@ -466,19 +507,121 @@ def create_supply_task(deal_id: int, title: str, description_cn: str, disk_file_
 
 
 # ---------------------------------------------------------
-# Шаблон № 66 (Почтовый автоответ)
+# Шаблон № 66 (Почтовый автоответ) и Аппаратный Self-Check
 # ---------------------------------------------------------
-def send_template_66_reply(to_email: str, original_subject: str, assigned_user_id: int = 1, message_id_ref: str = None, dry_run: bool = False):
+class SelfCheckError(Exception):
+    """Исключение при нарушении стандартов аппаратной предпроверки (Pre-Send Self-Check)"""
+    pass
+
+
+def pre_send_self_check_template_66(
+    to_email: str,
+    subject: str,
+    text_body: str,
+    html_body: str,
+    sender_email: str,
+    assigned_user_id: int,
+    is_clear_rfq_flag: bool
+) -> bool:
+    """
+    Аппаратный предпроверочный контроль автоответа по Шаблону № 66 (Pre-Send Self-Check).
+    Блокирует отправку при обнаружении любых нарушений регламента LEAD_PROCESSING_POLICY.
+    """
+    errors = []
+
+    # 1. Qualification Gatekeeper (СТРОГО Ветка А / Clear RFQ)
+    if not is_clear_rfq_flag:
+        errors.append("Шаблон № 66 ЗАПРЕЩЕН для неоднозначных обращений (Ambiguous / Ветка Б)!")
+
+    # 2. Recipient Safety
+    clean_to = (to_email or "").strip().lower()
+    if not clean_to or "@" not in clean_to or "." not in clean_to:
+        errors.append(f"Некорректный email получателя: '{to_email}'")
+
+    internal_domains = ["@longwang.ru", "sales@longwang.ru", "salman@longwang.ru", "artem@longwang.ru"]
+    for idom in internal_domains:
+        if idom in clean_to:
+            errors.append(f"Попытка отправки автоответа на внутренний корпоративный адрес: '{clean_to}'! Заблокировано.")
+
+    forbidden_recipients = ["mailer-daemon", "noreply", "no-reply", "postmaster", "bounce"]
+    for fr in forbidden_recipients:
+        if fr in clean_to:
+            errors.append(f"Адрес получателя '{clean_to}' является системным/роботным ({fr})! Отправка запрещена.")
+
+    # 3. Sender Identity Safety
+    clean_from = (sender_email or "").strip().lower()
+    if clean_from != "sales@longwang.ru":
+        errors.append(f"Недопустимый ящик отправителя: '{sender_email}' (разрешен строго 'sales@longwang.ru')")
+
+    if assigned_user_id in (1, 38) and "salman@longwang.ru" in f"{text_body} {html_body}".lower():
+        errors.append("В тексте шаблона обнаружена утечка адреса 'salman@longwang.ru' для ответственного Артема/Александры!")
+
+    # 4. Subject Validation
+    clean_subj = (subject or "").strip()
+    if not clean_subj or len(clean_subj) < 5:
+        errors.append(f"Тема письма слишком короткая или пустая: '{clean_subj}'")
+    junk_subjects = ["re: ", "re: (без темы)", "re: без темы", "re: undefined", "re: null", "(без темы)"]
+    if clean_subj.lower() in junk_subjects:
+        errors.append(f"Мусорная/недопустимая тема автоответа: '{clean_subj}'")
+
+    # 5. Anti-Placeholder & Anti-Stopwords
+    stop_patterns = [
+        r"(?i)\b(test\s*body|test\s*subject|тестовое\s*тело|тестовая\s*тема|undefined|null|lorem\s*ipsum|заглушка|рыба|тут\s*текст)\b"
+    ]
+    combined_content = f"{clean_subj}\n{text_body}\n{html_body}".lower()
+    for pat in stop_patterns:
+        if re.search(pat, combined_content):
+            errors.append(f"В теле автоответа обнаружено стоп-слово / заглушка по шаблону '{pat}'")
+
+    # 6. Template Content Integrity
+    required_phrases = [
+        "Ваш заказ принят",
+        "передали в работу коллегам",
+        "Будем держать вас в курсе по срокам"
+    ]
+    for rp in required_phrases:
+        if rp.lower() not in text_body.lower():
+            errors.append(f"В теле письма отсутствует обязательная фраза канонического Шаблона № 66: '{rp}'")
+
+    prof = USER_PROFILES.get(assigned_user_id, USER_PROFILES[1])
+    if prof["name"].lower() not in text_body.lower():
+        errors.append(f"В подписи автоответа отсутствует имя ответственного менеджера '{prof['name']}'")
+
+    if errors:
+        raise SelfCheckError("PRE-SEND SELF-CHECK СБОЙ (Шаблон № 66)! Отправка заблокирована:\n  - " + "\n  - ".join(errors))
+
+    print(f"  [SELF-CHECK OK] Все 6 проверок Шаблона № 66 пройдены успешно (валидный получатель, ящик sales, отсутствие стоп-слов, соответствие Ветке А)")
+    return True
+
+
+def send_template_66_reply(to_email: str, original_subject: str, assigned_user_id: int = 1, message_id_ref: str = None, is_clear_rfq_flag: bool = True, dry_run: bool = False) -> bool:
     subject = original_subject if original_subject.lower().startswith("re:") else f"Re: {original_subject}"
     prof = USER_PROFILES.get(assigned_user_id, USER_PROFILES[1])
     sender_name = prof["name"]
+
+    text_body, html_body = get_template_66_content(assigned_user_id)
+
+    # Запуск аппаратного Pre-Send Self-Check
+    try:
+        pre_send_self_check_template_66(
+            to_email=to_email,
+            subject=subject,
+            text_body=text_body,
+            html_body=html_body,
+            sender_email=MAIL_USER,
+            assigned_user_id=assigned_user_id,
+            is_clear_rfq_flag=is_clear_rfq_flag
+        )
+    except SelfCheckError as sce:
+        print(f"  [SELF-CHECK BLOCKED] {sce}")
+        return False
+
     print(f"  [SMTP] Отправка автоответа Шаблоном № 66 от имени '{sender_name}' на {to_email} (Тема: {subject})")
     if dry_run:
-        print(f"  [SMTP] (Dry-run) Отправка пропущена (Подпись: {prof['full_name']}, Получатель: {to_email})")
+        print(f"  [SMTP] (Dry-run) Отправка проверена Self-Check и пропущена (Подпись: {prof['full_name']}, Получатель: {to_email})")
         return True
 
     try:
-        text_body, html_body = get_template_66_content(assigned_user_id)
         msg = EmailMessage()
         msg["From"] = f"{prof['name']} LongWang <{MAIL_USER}>"
         msg["To"] = to_email
@@ -573,6 +716,102 @@ def sync_1c_lead(title: str, company_name: str, inn: str, email: str, phone: str
 
 
 # ---------------------------------------------------------
+# ИИ-переводчик номенклатуры на китайский язык (LLM Supply Guard)
+# ---------------------------------------------------------
+def get_llm_api_keys() -> list[str]:
+    """Получение пула API-ключей Gemini из окружения и локальных конфигурационных файлов"""
+    keys = []
+    for var in ["GEMINI_API_KEY", "LLM_API_KEY"]:
+        val = os.getenv(var, "").strip()
+        if val:
+            for k in val.split(","):
+                k = k.strip().strip('"\'')
+                if k and k not in keys:
+                    keys.append(k)
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_candidates = [
+        os.path.join(script_dir, "..", ".env"),
+        os.path.join(script_dir, "..", "..", "..", ".env"),
+        os.path.join(script_dir, "..", "..", "..", "ARCHIVE", "codex_shared_archive", "n8n_email_ai_v6_backup", ".env")
+    ]
+    for p in env_candidates:
+        norm_p = os.path.normpath(p)
+        if os.path.exists(norm_p):
+            try:
+                with open(norm_p, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        if line.startswith("LLM_API_KEY=") or line.startswith("GEMINI_API_KEY="):
+                            raw = line.split("=", 1)[1].strip().strip('"\'')
+                            for k in raw.split(","):
+                                k = k.strip()
+                                if k and k not in keys:
+                                    keys.append(k)
+            except Exception:
+                pass
+    return keys
+
+
+def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email_desc: str = "") -> str:
+    """
+    Поштучный вызов LLM (Gemini 2.5 Flash / 1.5 Flash) для формирования канонического наименования
+    оборудования на китайском языке по маске: {Бренд латиницей} + {Категория CN} + {Модель/Артикул}.
+    Исключает захардкоженные списки и предотвращает домысливание параметров (Правило 4 LEAD_PROCESSING_POLICY).
+    """
+    keys = get_llm_api_keys()
+    if not keys:
+        print("  [AI-WARN] API ключи LLM не обнаружены в окружении, сохраняется исходное название")
+        return title
+
+    desc_sample = re.sub(r'<[^>]+>', ' ', email_desc or "")
+    desc_sample = " ".join(desc_sample.split())[:500]
+
+    prompt = f"""Ты — главный технический эксперт по закупкам промышленного оборудования в Китае (ВЭД, отдел снабжения).
+Твоя задача — перевести номенклатуру из заявки клиента на китайский язык для отдела снабжения Miss Wang.
+
+ФОРМАТ НАИМЕНОВАНИЯ:
+{{Бренд латиницей}} + {{Категория оборудования на китайском}} + {{Серия / Модель / Артикул латиницей/цифрами}}
+Примеры:
+- 'Мембранный клапан GEMU 602 10D17F35400TM 1507' -> 'GEMU 隔膜阀 602 10D17F35400TM 1507'
+- 'Запасные части опреснителя Alfa Laval JWP-16-C40' -> 'Alfa Laval 造水机配件 JWP-16-C40'
+- 'Компрессор BITZER 4NES-20Y' -> 'BITZER 压缩机 4NES-20Y'
+- 'pH-электрод Endress+Hauser CPS41E-BA7ASB2' -> 'Endress+Hauser pH 电极 CPS41E-BA7ASB2'
+- '85-дюймовый вулканизатор камер' -> '85" 内胎硫化机'
+
+ЖЕСТКИЕ ПРАВИЛА:
+1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдумывать или дописывать артикулы, бренды или параметры, которых нет в заявке клиента! (Правило 4 LEAD_PROCESSING_POLICY).
+2. Зарубежные бренды (GEMU, Danfoss, SMC, Alfa Laval, BITZER и др.) оставляй на латинице.
+3. Категорию оборудования переводи на китайский (клапан -> 阀/隔膜阀, компрессор -> 压缩机, насос -> 泵, датчик -> 传感器, фильтр -> 过滤器, редуктор -> 减速机, запчасти -> 配件).
+4. Оставляй все оригинальные буквенно-цифровые маркировки, артикулы и номера моделей в точности как у клиента.
+5. Верни СТРОГО одну строку с итоговым наименованием. Без кавычек, без Markdown-разметки, без русских пояснений и вступительных фраз.
+
+ДАННЫЕ ЗАЯВКИ:
+Заголовок: {title}
+Тема письма: {email_subject}
+Фрагмент текста письма: {desc_sample}
+"""
+
+    models = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    for key in keys:
+        for model in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    res_data = json.loads(resp.read().decode("utf-8"))
+                    text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    clean_text = text.replace('"', '').replace("'", "").replace("`", "").strip()
+                    if clean_text:
+                        return clean_text
+            except Exception:
+                continue
+
+    return title
+
+
+# ---------------------------------------------------------
 # Эвристика квалификации (Clear RFQ vs Ambiguous)
 # ---------------------------------------------------------
 def is_clear_rfq(title: str, comments: str, desc: str, files_count: int) -> tuple[bool, str]:
@@ -604,9 +843,9 @@ def is_clear_rfq(title: str, comments: str, desc: str, files_count: int) -> tupl
 # ---------------------------------------------------------
 # Главный конвейер
 # ---------------------------------------------------------
-def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, specific_lead_id: int = None, dry_run: bool = False):
+def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, specific_lead_id: int = None, limit: int = None, dry_run: bool = False):
     print("=" * 80)
-    print(f"ЗАПУСК КОНВЕЙЕРА: ящик={mailbox}, ответственный={assigned_to}, lead_id={specific_lead_id}, dry_run={dry_run}")
+    print(f"ЗАПУСК КОНВЕЙЕРА: ящик={mailbox}, ответственный={assigned_to}, lead_id={specific_lead_id}, limit={limit}, dry_run={dry_run}")
     print("=" * 80)
     
     leads_to_process = []
@@ -627,6 +866,9 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
         items = r.get("result", [])
         print(f"Найдено незавершенных лидов для пользователя ID {assigned_to}: {len(items)}")
         leads_to_process = items
+        if limit:
+            leads_to_process = leads_to_process[:limit]
+            print(f"Применен лимит выборки: {limit} лидов")
 
     if not leads_to_process:
         print("Нет подходящих лидов для обработки.")
@@ -746,28 +988,16 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
 
             # 2. Сделка и Задача (Каноническая маска: {Компания}, {Товар на китайском / бренд + категория CN + модель})
             # Имя задачи = Имя сделки (строго идентично, без дублирования на русском)
-            item_subject_cn = title
-            search_scope = f"{title} {email_subject} {email_desc}".lower()
-            if "пресс" in search_scope:
-                item_subject_cn = '85" 内胎硫化机'
-            elif "опреснител" in search_scope or "alfa laval" in search_scope:
-                item_subject_cn = "Alfa Laval 造水机配件 JWP-16-C40"
-            elif "gemu" in search_scope or "мембран" in search_scope:
-                if "602" in search_scope or "1507" in search_scope:
-                    item_subject_cn = "GEMU 隔膜阀 602 10D17F35400TM 1507"
-                else:
-                    item_subject_cn = "GEMU 隔膜 (MG10, MG25, MG40)"
-            elif "bitzer" in search_scope or "компрессор" in search_scope:
-                item_subject_cn = "BITZER 压缩机"
-            elif "endress" in search_scope or "cps41e" in search_scope:
-                item_subject_cn = "Endress+Hauser pH 电极 CPS41E-BA7ASB2"
+            # Поштучный вызов LLM для перевода номенклатуры на китайский язык
+            item_subject_cn = translate_nomenclature_to_chinese(title, email_subject, email_desc)
+            print(f"  [AI-TRANSLATION] Номенклатура на китайском: '{item_subject_cn}'")
 
             deal_title = f"{company_name}, {item_subject_cn}"
             did = create_crm_deal(deal_title, cid, ctid, assigned_by=assigned_to, dry_run=dry_run)
 
-            # 3. Привязка письма к Сделке
+            # 3. Привязка письма к Сделке через официальный crm.activity.binding.add
             if act_id:
-                bind_activity_to_deal(act_id, did, cid, ctid, email=email_sender, dry_run=dry_run)
+                bind_activity_to_deal(act_id, did, cid, ctid, dry_run=dry_run)
                 mark_activity_read(act_id, dry_run=dry_run)
 
             # 4. Конвертация Лида в CONVERTED
@@ -792,22 +1022,28 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                             excel_path = os.path.join(desktop_dir, f)
                             break
 
-            # Если на Рабочем столе нет — вызываем рабочий генератор спецификаций Excel
+            # Если на Рабочем столе нет — вызываем рабочий генератор спецификаций Excel (в live режиме)
             if not excel_path:
-                try:
-                    # Импортируем из того же каталога scripts
-                    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-                    from generate_supply_rfq_excel import generate_rfq_excel
-                    excel_path = generate_rfq_excel(company_name, item_subject_cn)
-                except Exception as e_gen:
-                    print(f"  [WARN] Ошибка вызова генератора Excel: {e_gen}")
+                if not dry_run:
+                    try:
+                        # Импортируем из того же каталога scripts
+                        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                        from generate_supply_rfq_excel import generate_rfq_excel
+                        excel_path = generate_rfq_excel(company_name, item_subject_cn)
+                    except Exception as e_gen:
+                        print(f"  [WARN] Ошибка вызова генератора Excel: {e_gen}")
+                else:
+                    clean_item_name = re.sub(r'[\\/*?:"<>|]', '', item_subject_cn)[:30]
+                    excel_path = os.path.join(desktop_dir, f"Запрос КП {clean_item_name} {company_name}.xlsx")
+                    print(f"  [EXCEL-GEN] (Dry-run) Формирование спецификации: '{os.path.basename(excel_path)}'")
 
             # Загружаем чистовой Excel на Диск группы 14
-            if excel_path and os.path.exists(excel_path):
+            if excel_path:
                 if not dry_run:
-                    eid = upload_file_to_disk(excel_path)
-                    if eid:
-                        task_files.append(eid)
+                    if os.path.exists(excel_path):
+                        eid = upload_file_to_disk(excel_path)
+                        if eid:
+                            task_files.append(eid)
                 else:
                     print(f"  [B24] (Dry-run) Загрузка Excel-файла '{os.path.basename(excel_path)}' на Диск группы 14")
                     task_files.append(9999906)
@@ -831,9 +1067,16 @@ def process_leads(mailbox: str = "sales@longwang.ru", assigned_to: int = 1, spec
                 dry_run=dry_run
             )
 
-            # 6. Автоответ Шаблоном № 66 клиенту
+            # 6. Автоответ Шаблоном № 66 клиенту (с аппаратным Pre-Send Self-Check)
             if email_sender:
-                send_template_66_reply(email_sender, email_subject or title, assigned_user_id=assigned_to, message_id_ref=email_msg_id, dry_run=dry_run)
+                send_template_66_reply(
+                    to_email=email_sender,
+                    original_subject=email_subject or title,
+                    assigned_user_id=assigned_to,
+                    message_id_ref=email_msg_id,
+                    is_clear_rfq_flag=is_clear,
+                    dry_run=dry_run
+                )
 
             # 7. Синхронизация 1С:УНФ
             sync_1c_lead(title, company_name, found_inn, email_sender, contact_phone, deal_id=did, dry_run=dry_run)
@@ -880,10 +1123,11 @@ if __name__ == "__main__":
     parser.add_argument("--mailbox", default="sales@longwang.ru", help="Почтовый ящик (default: sales@longwang.ru)")
     parser.add_argument("--assigned-to", default="1", help="ID или имя ответственного (1/artem, 38/alexandra, 26/salman)")
     parser.add_argument("--lead-id", type=int, default=None, help="ID конкретного лида для точечной обработки")
+    parser.add_argument("--limit", type=int, default=None, help="Ограничение количества обрабатываемых лидов")
     parser.add_argument("--dry-run", action="store_true", help="Режим предпросмотра без изменения баз")
     args = parser.parse_args()
 
     user_key = str(args.assigned_to).lower()
     assigned_id = USER_MAPPING.get(user_key, int(user_key) if user_key.isdigit() else 1)
 
-    process_leads(mailbox=args.mailbox, assigned_to=assigned_id, specific_lead_id=args.lead_id, dry_run=args.dry_run)
+    process_leads(mailbox=args.mailbox, assigned_to=assigned_id, specific_lead_id=args.lead_id, limit=args.limit, dry_run=args.dry_run)

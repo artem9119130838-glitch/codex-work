@@ -1,15 +1,20 @@
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 import os
 import sys
 import re
+import argparse
 
-sys.stdout.reconfigure(encoding='utf-8')
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 MASTER_TEMPLATE_PATH = r"D:\Документы Victus\Рабочее\Шаблоны\Заявки\Запрос КП пример заполнения.xlsx"
 DESKTOP_DIR = os.path.join(os.environ.get("USERPROFILE", r"C:\Users\Артем"), "Desktop")
 
-# База готовых спецификаций по подтвержденным заявкам (наработки из архива)
+# База подтвержденных спецификаций по постоянным заказчикам (кэш эталонных позиций)
 KNOWN_SPECIFICATIONS = {
     "волтайр": [
         {
@@ -104,7 +109,6 @@ KNOWN_SPECIFICATIONS = {
 
 def build_default_item(item_subject: str, company_name: str) -> dict:
     """Генерирует базовую позицию, если нет детализированной спецификации."""
-    # Извлекаем бренд если есть латиница
     brand_match = re.search(r'\b([A-Za-z0-9\-]+)\b', item_subject)
     brand = brand_match.group(1) if brand_match else "OEM / Китай"
     
@@ -119,22 +123,56 @@ def build_default_item(item_subject: str, company_name: str) -> dict:
     }
 
 
-def generate_rfq_excel(company_name: str, item_subject: str, items: list = None, output_filename: str = None) -> str:
+def _create_fallback_workbook():
+    """Создает книгу Excel с эталонной шапкой 'Запрос КП', если внешний шаблон недоступен."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Запрос КП"
+
+    headers = [
+        "№",
+        "Бренд / Brand",
+        "Наименование (CN) / Product Name (CN)",
+        "Модель / Model / Art",
+        "Описание (RU) / Product Description (RU)",
+        "Кол-во / Qty",
+        "Цена за ед. (RMB/USD)",
+        "Сумма (RMB/USD)"
+    ]
+
+    header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin', color='B0C4DE'),
+        right=Side(style='thin', color='B0C4DE'),
+        top=Side(style='thin', color='B0C4DE'),
+        bottom=Side(style='thin', color='B0C4DE')
+    )
+
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    return wb, ws
+
+
+def generate_rfq_excel(company_name: str, item_subject: str, items: list = None, output_filename: str = None, dry_run: bool = False) -> str:
     """
     Создает чистовой Excel по эталонному шаблону Запрос КП пример заполнения.xlsx,
     заполняя позиции спецификации, шрифты Calibri 10, рамки и ширину колонок.
-    Возвращает путь к сохраненному файлу на Рабочем столе.
+    В случае отсутствия внешнего шаблона автоматически создает fallback-книгу с корпоративным стилем.
+    В режиме dry_run=True выполняет проверку валидности данных без записи файла на рабочий стол.
     """
-    if not os.path.exists(MASTER_TEMPLATE_PATH):
-        raise FileNotFoundError(f"Мастер-шаблон не найден: {MASTER_TEMPLATE_PATH}")
-
     # Очищаем наименования для имени файла
     clean_comp = re.sub(r'["«»АООООПАОЗАО]', '', company_name).strip() or "Клиент"
     clean_item = re.sub(r'[\\/*?:"<>|]', '', item_subject).strip()[:35] or "Оборудование"
 
     if not output_filename:
         output_filename = f"Запрос КП {clean_item} {clean_comp}.xlsx"
-        # Для Волтайр-Пром сохраняем каноническое имя если подходит
         if "волтайр" in company_name.lower():
             output_filename = "Запрос КП пресс для автокамер 85 Волтайр-Пром.xlsx"
         elif "муромец" in company_name.lower():
@@ -145,7 +183,6 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
     # Определяем состав позиций
     final_items = items
     if not final_items:
-        # Проверяем известную базу заявок
         low_comp = company_name.lower()
         for key, spec in KNOWN_SPECIFICATIONS.items():
             if key in low_comp:
@@ -155,10 +192,41 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
     if not final_items:
         final_items = [build_default_item(item_subject, company_name)]
 
-    # Открываем мастер-шаблон
-    wb = openpyxl.load_workbook(MASTER_TEMPLATE_PATH)
-    ws = wb.active
-    ws.title = "Запрос КП"
+    # Нормализуем элементы, если переданы строки
+    normalized_items = []
+    for idx, it in enumerate(final_items, start=1):
+        if isinstance(it, dict):
+            item_dict = dict(it)
+            item_dict["num"] = item_dict.get("num", idx)
+            normalized_items.append(item_dict)
+        elif isinstance(it, str):
+            normalized_items.append({
+                "num": idx,
+                "brand": "OEM / Китай",
+                "pname_cn": it,
+                "model": it,
+                "name_ru": it,
+                "qty": 1
+            })
+
+    if dry_run:
+        print(f"[DRY-RUN] [EXCEL-GEN] Файл был бы сохранен по пути: {output_path}")
+        print(f"[DRY-RUN] [EXCEL-GEN] Позиций к генерации: {len(normalized_items)}")
+        for it in normalized_items:
+            print(f"          - №{it.get('num')}: {it.get('pname_cn', '')} | Brand: {it.get('brand')} | Qty: {it.get('qty')}")
+        return output_path
+
+    # Загружаем мастер-шаблон или создаем fallback
+    if os.path.exists(MASTER_TEMPLATE_PATH):
+        wb = openpyxl.load_workbook(MASTER_TEMPLATE_PATH)
+        ws = wb.active
+        ws.title = "Запрос КП"
+        # Очищаем строки шаблона со 2-й и далее
+        for r in range(2, ws.max_row + 1):
+            for c in range(1, ws.max_column + 1):
+                ws.cell(r, c).value = None
+    else:
+        wb, ws = _create_fallback_workbook()
 
     # Стили по стандарту create_tender_excel.py
     font_data = Font(name="Calibri", size=10)
@@ -172,13 +240,8 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
         bottom=Side(style='thin', color='D9D9D9')
     )
 
-    # Очищаем строки шаблона со 2-й и далее
-    for r in range(2, ws.max_row + 1):
-        for c in range(1, ws.max_column + 1):
-            ws.cell(r, c).value = None
-
     # Заполняем позиции
-    for idx, it in enumerate(final_items, start=2):
+    for idx, it in enumerate(normalized_items, start=2):
         ws.cell(idx, 1).value = it.get("num", idx - 1)
         ws.cell(idx, 1).font = font_num
         ws.cell(idx, 1).alignment = align_center
@@ -218,7 +281,7 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
 
     # Высоты строк
     ws.row_dimensions[1].height = 28
-    for r in range(2, len(final_items) + 2):
+    for r in range(2, len(normalized_items) + 2):
         ws.row_dimensions[r].height = 45
 
     # Ширина колонок
@@ -232,12 +295,53 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
     ws.column_dimensions['H'].width = 20
 
     wb.save(output_path)
-    print(f"[EXCEL-GEN] Успешно сформирован файл: {output_path} (позиций: {len(final_items)})")
+    print(f"[EXCEL-GEN] Успешно сформирован файл: {output_path} (позиций: {len(normalized_items)})")
     return output_path
 
 
+def run_self_check() -> bool:
+    """Аппаратный Self-Check: проверка работы как в dry-run, так и fallback генерации."""
+    print("=== [SELF-CHECK] Старт аппаратного теста generate_supply_rfq_excel.py ===")
+    test_items = [
+        {"num": 1, "brand": "ABB", "pname_cn": "变频器 ACS580", "model": "ACS580-01-045A-4", "name_ru": "Преобразователь частоты ABB 22кВт", "qty": 3},
+        {"num": 2, "brand": "Schneider", "pname_cn": "断路器 NSX100", "model": "LV429630", "name_ru": "Автоматический выключатель NSX100F", "qty": 10}
+    ]
+
+    # 1. Проверка Dry-Run
+    res_dry = generate_rfq_excel("ТестПром", "Преобразователи", items=test_items, dry_run=True)
+    if not res_dry.endswith(".xlsx"):
+        print("[FAIL] Dry-run не вернул корректный путь к xlsx")
+        return False
+    print("[PASS] Шаг 1: Dry-run режим отработал корректно без создания файла.")
+
+    # 2. Проверка Fallback книги без внешнего шаблона в памяти
+    wb_fb, ws_fb = _create_fallback_workbook()
+    if ws_fb.max_column != 8 or ws_fb.title != "Запрос КП":
+        print(f"[FAIL] Fallback workbook не соответствует эталону: col={ws_fb.max_column}, title={ws_fb.title}")
+        return False
+    print("[PASS] Шаг 2: Fallback генерация книги Excel валидна (8 колонок, стили шапки).")
+
+    print("=== [SELF-CHECK] Все проверки успешно пройдены! ===")
+    return True
+
+
 if __name__ == "__main__":
-    comp = sys.argv[1] if len(sys.argv) > 1 else "АО «Волтайр-Пром»"
-    item = sys.argv[2] if len(sys.argv) > 2 else '85" 内胎硫化机'
-    res = generate_rfq_excel(comp, item)
+    parser = argparse.ArgumentParser(description="Генератор файлов запроса КП в Китай (RFQ Excel)")
+    parser.add_argument("pos_company", nargs="?", default=None, help="Компания (позиционный аргумент)")
+    parser.add_argument("pos_item", nargs="?", default=None, help="Предмет запроса (позиционный аргумент)")
+    parser.add_argument("--company", "-c", dest="company", default=None, help="Наименование компании клиента")
+    parser.add_argument("--item", "-i", dest="item", default=None, help="Предмет заявки")
+    parser.add_argument("--output", "-o", dest="output", default=None, help="Имя выходного файла")
+    parser.add_argument("--dry-run", action="store_true", help="Сухой прогон без создания файла на диске")
+    parser.add_argument("--self-check", action="store_true", help="Запуск аппаратной самопроверки")
+
+    args = parser.parse_args()
+
+    if args.self_check:
+        success = run_self_check()
+        sys.exit(0 if success else 1)
+
+    company = args.company or args.pos_company or "АО «Волтайр-Пром»"
+    item = args.item or args.pos_item or '85" 内胎硫化机'
+    res = generate_rfq_excel(company, item, dry_run=args.dry_run, output_filename=args.output)
     print(f"Результат: {res}")

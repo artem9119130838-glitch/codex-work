@@ -3,7 +3,8 @@
 data/raw_sample/
 legacy/
 /archive/
-!projects/1c_odata/scripts/archive/
+projects/*/scripts/archive/*.py
+!projects/*/scripts/archive/README.md
 /ARCHIVE/
 __pycache__/
 _cache_blocks/
