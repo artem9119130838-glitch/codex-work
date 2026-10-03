@@ -1,14 +1,14 @@
-﻿# Assets Index
+# Assets Index
 
-Дата обновления: 2026-05-10
-
+Дата обновления: 2026-10-03
+ 
 Этот раздел хранит долгоживущие объекты, которые меняются редко и используются во многих проектах.
-
+ 
 ## Files
-
+ 
 - `SERVER_VPS.md` - Ubuntu VPS, Apache, Docker/n8n, 1C, PostgreSQL/Postgres Pro, storage and risks.
-- `LOCAL_COMPUTER.md` - локальный workspace `E:\Codex_Work`, inventory and local paths.
-- `ROUTER_AND_VPN.md` - Keenetic, WireGuard, Amnezia/EE and routing rules.
+- `LOCAL_COMPUTER.md` - локальный workspace (ноутбук HP Victus 16), инвентарь и пути.
+- `ROUTER_AND_VPN.md` - Keenetic Hero 4G, WireGuard1 («Казахстан»), реестр домашних устройств, политики маршрутизации и скрипт `scripts/keenetic_manager.py`.
 - `PHONE_ONEPLUS.md` - OnePlus, voice capture and mobile automation context.
 
 ## Rule

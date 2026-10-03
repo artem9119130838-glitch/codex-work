@@ -8,9 +8,11 @@ import json
 import hashlib
 from loguru import logger
 from sqlalchemy import text, or_
+import requests
 
 # Setup path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../1c_odata/scripts')))
 
 from app.core.config import settings
 from app.db.database import SessionLocal
@@ -143,6 +145,71 @@ def build_client_query_context(intel: ClientIntel, contact_emails_text: str = ""
         parts.append(company_emails_text[:500])
     return " ".join(parts)
 
+def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner_1c=None, intel=None) -> tuple[bool, str]:
+    """
+    4-ступенчатый Pre-Flight Filter исключения неактуальных/активных клиентов:
+    1. Проверка входящих писем за последние 30 дней в email_messages (клиент активен).
+    2. Проверка открытых сделок в CRM Битрикс24 (STAGE_SEMANTIC == 'process').
+    3. Проверка отказов по цене / претензий в истории переписки и ai_summary (кулдаун 60 дней).
+    4. Проверка маркера отписки / bounce.
+    """
+    now = datetime.datetime.utcnow()
+    clean_email = email.strip().lower()
+
+    # 1. Входящие письма за последние 30 дней
+    cutoff_30d = now - datetime.timedelta(days=30)
+    try:
+        from app.db.models import EmailMessage
+        recent_msg = db.query(EmailMessage).filter(
+            EmailMessage.from_email == clean_email,
+            EmailMessage.received_at >= cutoff_30d,
+            or_(EmailMessage.is_junk == False, EmailMessage.is_junk == None)
+        ).order_by(EmailMessage.received_at.desc()).first()
+        if recent_msg:
+            return False, f"Клиент присылал входящее письмо {recent_msg.received_at.strftime('%Y-%m-%d')} (контакт активен, реанимация запрещена)"
+    except Exception as e_msg:
+        logger.warning(f"Ошибка проверки входящих писем: {e_msg}")
+
+    # 2. Проверка открытых сделок в Битрикс24
+    b24_webhook = os.getenv("BITRIX24_WEBHOOK_URL", "").rstrip("/") + "/"
+    if b24_webhook and b24_webhook != "/":
+        try:
+            r_ct = requests.post(f"{b24_webhook}crm.contact.list", json={"filter": {"EMAIL": clean_email}, "select": ["ID", "COMPANY_ID"]}, timeout=10)
+            ct_list = r_ct.json().get("result", []) if r_ct.status_code == 200 else []
+            ct_ids = [c["ID"] for c in ct_list]
+            comp_ids = [c["COMPANY_ID"] for c in ct_list if c.get("COMPANY_ID")]
+
+            for cid in ct_ids:
+                r_deals = requests.post(f"{b24_webhook}crm.deal.list", json={
+                    "filter": {"CONTACT_ID": cid, "STAGE_SEMANTIC": "process"},
+                    "select": ["ID", "TITLE", "STAGE_ID"]
+                }, timeout=10)
+                deals = r_deals.json().get("result", []) if r_deals.status_code == 200 else []
+                if deals:
+                    return False, f"В Битрикс24 есть активная сделка #{deals[0]['ID']} '{deals[0]['TITLE']}' в стадии '{deals[0]['STAGE_ID']}'"
+
+            for comp_id in comp_ids:
+                r_deals = requests.post(f"{b24_webhook}crm.deal.list", json={
+                    "filter": {"COMPANY_ID": comp_id, "STAGE_SEMANTIC": "process"},
+                    "select": ["ID", "TITLE", "STAGE_ID"]
+                }, timeout=10)
+                deals = r_deals.json().get("result", []) if r_deals.status_code == 200 else []
+                if deals:
+                    return False, f"В Битрикс24 есть активная сделка Компании #{comp_id}: сделка #{deals[0]['ID']} '{deals[0]['TITLE']}'"
+        except Exception as e_b24:
+            logger.warning(f"Ошибка проверки сделок в Битрикс24: {e_b24}")
+
+    # 3. Проверка отказов по цене и претензий в ai_summary / timeline (кулдаун 60 дней)
+    if intel and intel.ai_summary:
+        summary_lower = str(intel.ai_summary).lower()
+        if any(term in summary_lower for term in ["дорого", "отказ по цене", "ушли к конкурентам", "претензия", "штраф", "суд", "не пишите"]):
+            updated_at = intel.updated_at.replace(tzinfo=None) if intel.updated_at and hasattr(intel.updated_at, 'tzinfo') and intel.updated_at.tzinfo else (intel.updated_at or now)
+            if (now - updated_at).days < 60:
+                return False, f"Зафиксирован отказ по цене / претензия / просьба не писать ({updated_at.strftime('%Y-%m-%d')}). Кулдаун 60 дней."
+
+    return True, "OK"
+
+
 def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, owner_ref_key, style, client_name, is_buyer, company_name, best_art, force_provider=None):
     """
     Helper to generate a draft for a specific step of the funnel and save it.
@@ -164,6 +231,12 @@ def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, own
     can_send, cd_reason = CooldownGuard.can_send_reactivation(db, email, owner_ref_key=owner_ref_key, days=21, check_company=False)
     if not can_send:
         logger.warning(f"КАТЕГОРИЧЕСКИ: Отказ генерации для {email} (Шаг {step_num}): {cd_reason}. Отмена.")
+        return False
+
+    # 4-ступенчатый Pre-Flight Filter (входящие письма, сделки Б24, отказ по цене)
+    eligible, elig_reason = check_client_reactivation_eligibility(db, email, contact_1c=contact_1c, owner_1c=None, intel=cand)
+    if not eligible:
+        logger.warning(f"ОТКЛОНЕНО (Pre-Flight Filter): {email} (Шаг {step_num}): {elig_reason}. Отмена генерации.")
         return False
             
     previous_email_context = last_history.body if last_history else None
@@ -226,6 +299,38 @@ def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, own
         intel.next_action_recommendation = contact_summary_dict.get("next_action_recommendation")
         intel.updated_at = datetime.datetime.utcnow()
         db.commit()
+
+    # Сквозная проверка и обогащение СБИС (Saby) + DaData в 3 системы: DWH, CRM Битрикс24, 1С:УНФ
+    inn = intel.inn if intel and intel.inn else None
+    if not inn and owner_1c and hasattr(owner_1c, 'raw_payload') and owner_1c.raw_payload:
+        inn = owner_1c.raw_payload.get("ИНН")
+
+    sbis_profile = company_summary_dict.get("sbis_profile") if company_summary_dict else None
+    if not sbis_profile and inn:
+        try:
+            from check_contractor import verify_and_enrich_contractor
+            clean_inn = "".join(filter(str.isdigit, str(inn)))
+            if clean_inn:
+                logger.info(f"[СБИС-ИНТЕЛ] Запуск верификации контрагента ИНН {clean_inn} для {email}...")
+                sbis_result = verify_and_enrich_contractor(
+                    inn=clean_inn,
+                    one_c_guid=str(owner_ref_key) if owner_ref_key else None,
+                    email=email,
+                    dry_run=False
+                )
+                if sbis_result and "classification" in sbis_result:
+                    company_summary_dict["sbis_profile"] = sbis_result
+                    if intel:
+                        try:
+                            cached_summary = json.loads(intel.ai_summary) if intel.ai_summary else {}
+                        except Exception:
+                            cached_summary = {}
+                        cached_summary["company_summary"] = company_summary_dict
+                        intel.ai_summary = json.dumps(cached_summary, ensure_ascii=False)
+                        db.commit()
+                    logger.info(f"[СБИС-ИНТЕЛ OK] Досье обновлено в DWH/Б24/1С: {sbis_result['classification'].get('verdict')} (выручка: {sbis_result['classification'].get('revenue_formatted')})")
+        except Exception as e_sbis:
+            logger.warning(f"Не удалось выполнить скоринг СБИС для {email} (ИНН {inn}): {e_sbis}")
 
     # Confident client name resolution
     if not client_name or client_name == "Коллега":

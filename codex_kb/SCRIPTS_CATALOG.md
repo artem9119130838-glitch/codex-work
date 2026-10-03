@@ -415,6 +415,8 @@
 | **Диагностический** | `test_pilot_reactivation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_v6_backup/archive/backup_20260805_v4plus/test_pilot_reactivation.py` | Setup path | 4 |
 | **Диагностический** | `test_pilot_reactivation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/test_pilot_reactivation.py` | Setup path | 1 |
 | **Диагностический** | `test_pilot_reactivation.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/scripts/test_pilot_reactivation.py` | Setup path | 0 |
+| **Канонический** | `update_website_knowledge_index.py` | `projects/lead_reactivation/scripts/update_website_knowledge_index.py` | Автоматический краулер и актуализатор базы знаний: сбор страниц `/useful-articles/` и `/projects/` с сайта longwang.ru, извлечение Title, H1, Description, обновление `96_articles_index.md`. Поддерживает `--dry-run`. | 0 |
+| **Канонический** | `run_daily_reactivation.py` | `projects/lead_reactivation/scripts/run_daily_reactivation.py` | Двухпоточный конвейер реанимации клиентов 1С (Поток 1: повторные касания >30 дн; Поток 2: первичный охват базы). Включает 4-ступенчатый Pre-Flight Filter (блокировка активных клиентов, сделок в Б24, кулдаун отказов по цене), интеграцию со СБИС/DaData и безопасный отсев выходных дней. | 0 |
 
 ---
 
@@ -423,9 +425,12 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Канонический** | `check_contractor.py` | `projects/1c_odata/scripts/check_contractor.py` | Единый модуль комплексной проверки и обогащения досье контрагента по ИНН (DaData API + Saby/СБИС RPC). Автоматическая классификация: Выручка, Масштаб бизнеса, ОКВЭД, Тендеры (Поставщик/Заказчик), Холдинг, Вердикт ИИ (Перепродажник/Завод/Конечник). Синхронная запись в marketing_db, Битрикс24 (COMMENTS + закрепленный комментарий таймлайна) и 1С:УНФ (Комментарий + теги) с проверкой кэша (`is_contractor_already_verified`). | 0 |
+| **Канонический** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | Сквозная синхронизация лидов 1С:УНФ и Битрикс24 (Zero-Blank Lead Guard) + модуль Bounce & Unsubscribe Guard (очистка невалидного email через `--clean-email`) + авто-обогащение через СБИС/DaData (`check_contractor.py`). Поддерживает `--dry-run`. | 0 |
 | **Расширенный** | `patch_n8n.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n.py` | Автоматизация рабочего процесса. | 8 |
 | **Расширенный** | `patch_n8n_mode.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n_mode.py` | Автоматизация рабочего процесса. | 8 |
 | **Интеграционный** | `reconcile_1c_db.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/reconcile_1c_db.py` | Автоматизация рабочего процесса. | 8 |
+
 
 ---
 
@@ -714,6 +719,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Канонический** | `keenetic_manager.py` | `scripts/keenetic_manager.py` | Комплексный аудит и CLI-управление роутером Keenetic Hero 4G (RCI API): статусы интерфейсов WAN/Wireguard1, инвентаризация и статусы хостов локальной сети, аудит политик маршрутизации и DoH/DoT DNS-прокси, пинг через туннели | 0 |
 | **Базовый** | `21ff2b48fe8d_add_ai_processed_to_email_match_results.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/alembic/versions/21ff2b48fe8d_add_ai_processed_to_email_match_results.py` | add_ai_processed_to_email_match_results | 8 |
 | **Базовый** | `FULL_moz_internal_linking_report.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/GoW Project/FULL_moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 1 |
 | **Базовый** | `FULL_moz_internal_linking_report.py` | `D:/Soft/Codex Backup/projects/GoW Project/FULL_moz_internal_linking_report.py` | Автоматизация рабочего процесса. | 0 |

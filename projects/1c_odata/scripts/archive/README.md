@@ -15,8 +15,10 @@
 | `2026-10-02_sync_to_bitrix_legacy.py` | 02.10.2026 | `sync_to_bitrix.py` | **Устаревший дубликат утилиты обогащения Б24**: перенесен в архив в рамках чистки Script Sprawl; функционал интегрирован в канонический `sync_leads_1c_bitrix.py`. |
 | `2026-10-02_sync_leads_1c_bitrix_v1_legacy.py` | 02.10.2026 | `sync_leads_1c_bitrix.py` | **Исходная версия скрипта синхронизации v1.0**: отсутствие реальных флагов `--since`, `--folder`, примитивный `argparse` без фильтров выборки. |
 | `2026-10-02_generate_supply_rfq_excel_v1_legacy.py` | 02.10.2026 | `generate_supply_rfq_excel.py` | **Исходная версия генератора Excel v1.0**: жесткая привязка к диску D: без fallback-шаблона, хардкод 4 компаний в `KNOWN_SPECIFICATIONS`. |
-
-
+| `2026-10-03_sync_leads_1c_bitrix_v2_before_bounce_clean.py` | 03.10.2026 | `sync_leads_1c_bitrix.py` | **Стабильная версия v2.0 перед добавлением Bounce & Unsubscribe Guard**: поддержка чистой синхронизации лидов Б24 и 1С:УНФ, фильтры `--since`, `--folder`, обогащение контактов и компаний. |
+| `2026-10-03_sync_leads_1c_bitrix_v3_before_sbis_enrichment.py` | 03.10.2026 | `sync_leads_1c_bitrix.py` | **Версия v3.0 перед подключением авто-скоринга СБИС**: Bounce & Unsubscribe Guard протестирован и активен. |
+| `2026-10-03_check_contractor_v1_legacy.py` | 03.10.2026 | `check_contractor.py` | **Исходная версия утилиты скоринга v1.0**: локальный скрипт без форматирования выручки, без масштаба бизнеса, без записи в Б24 и 1С. |
+| `2026-10-03_check_contractor_v2_before_cache_and_db.py` | 03.10.2026 | `check_contractor.py` | **Версия v2.0 перед интеграцией с DWH marketing_db и функцией проверки кэша**: поддержка DaData + Saby, запись в Б24 и 1С. |
 
 ---
 

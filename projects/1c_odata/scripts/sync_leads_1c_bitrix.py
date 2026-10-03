@@ -278,11 +278,28 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
             print("  [1C] (Dry-run) Создание записи в 1С пропущено")
             one_c_guid = "00000000-0000-0000-0000-000000000000"
 
+    # 3. Скоринг и верификация через СБИС (Saby) + DaData (Zero-Duplicate Guard)
+    sbis_res = None
+    if inn:
+        try:
+            from check_contractor import verify_and_enrich_contractor
+            sbis_res = verify_and_enrich_contractor(
+                inn=inn,
+                b24_company_id=b24_company_id if b24_company_id and b24_company_id != 9999901 else None,
+                b24_lead_id=lead_id,
+                one_c_guid=one_c_guid if one_c_guid and one_c_guid != "00000000-0000-0000-0000-000000000000" else None,
+                email=primary_email,
+                dry_run=dry_run
+            )
+        except Exception as e_sbis:
+            print(f"  [СБИС-WARN] Ошибка вызова модуля верификации контрагента: {e_sbis}")
+
     return {
         "lead_id": lead_id,
         "company_id": b24_company_id,
         "contact_id": b24_contact_id,
         "one_c_guid": one_c_guid,
+        "sbis_status": sbis_res.get("status") if sbis_res else "skipped",
         "status": "synced"
     }
 
@@ -363,6 +380,186 @@ def fetch_leads_from_imap(mailbox: str, folder: str = "INBOX", limit: int = 10) 
     return found_lead_ids
 
 
+def clean_invalid_email_from_systems(target_email: str, reason: str = "bounce", dry_run: bool = True) -> dict:
+    """
+    Автоматический Bounce & Unsubscribe Guard:
+    1. Ищет Контакты, Компании, Лиды в Битрикс24 CRM с данным email и удаляет адрес.
+    2. Добавляет системный комментарий в таймлайн Битрикс24.
+    3. Ищет Лиды и Контрагенты в 1С:УНФ через OData и удаляет строку АдресЭлектроннойПочты из ТЧ КонтактнаяИнформация.
+    4. Поддерживает строгий режим --dry-run.
+    """
+    clean_email = target_email.strip().lower()
+    if not clean_email or "@" not in clean_email:
+        print(f"[CLEAN-ERROR] Некорректный email для очистки: '{target_email}'")
+        return {"status": "error", "message": "invalid_email"}
+
+    print("=" * 80)
+    print("ОЧИСТКА НЕВАЛИДНОГО EMAIL (BOUNCE & UNSUBSCRIBE GUARD)")
+    print(f"Целевой email: {clean_email} | Причина: {reason} | Режим: {'DRY-RUN' if dry_run else 'БОЕВОЙ'}")
+    print("=" * 80)
+
+    summary = {
+        "email": clean_email,
+        "reason": reason,
+        "b24_contacts_updated": [],
+        "b24_companies_updated": [],
+        "b24_leads_updated": [],
+        "onec_leads_updated": [],
+        "onec_counterparties_updated": []
+    }
+
+    # 1. Битрикс24: Контакты
+    try:
+        r_ct = call_b24("crm.contact.list", {
+            "filter": {"EMAIL": clean_email},
+            "select": ["ID", "NAME", "LAST_NAME", "EMAIL"]
+        })
+        contacts = r_ct.get("result", [])
+        for ct in contacts:
+            cid = ct["ID"]
+            cur_emails = ct.get("EMAIL", [])
+            new_emails = [e for e in cur_emails if e.get("VALUE", "").strip().lower() != clean_email]
+            print(f"  [B24 Contact #{cid}] Найден email {clean_email}. Очистка (осталось {len(new_emails)} адресов)...")
+            if not dry_run:
+                call_b24("crm.contact.update", {"id": cid, "fields": {"EMAIL": new_emails}})
+                call_b24("crm.timeline.comment.add", {
+                    "fields": {
+                        "ENTITY_ID": cid,
+                        "ENTITY_TYPE": "contact",
+                        "COMMENT": f"⚠️ [Bounce & Unsubscribe Guard] Email {clean_email} удален из карточки контакта. Причина: {reason}."
+                    }
+                })
+            summary["b24_contacts_updated"].append(cid)
+    except Exception as e:
+        print(f"  [B24-ERROR] Ошибка поиска/очистки контактов: {e}")
+
+    # 2. Битрикс24: Компании
+    try:
+        r_cp = call_b24("crm.company.list", {
+            "filter": {"EMAIL": clean_email},
+            "select": ["ID", "TITLE", "EMAIL"]
+        })
+        companies = r_cp.get("result", [])
+        for cp in companies:
+            cpid = cp["ID"]
+            cur_emails = cp.get("EMAIL", [])
+            new_emails = [e for e in cur_emails if e.get("VALUE", "").strip().lower() != clean_email]
+            print(f"  [B24 Company #{cpid} '{cp.get('TITLE', '')}'] Очистка email {clean_email}...")
+            if not dry_run:
+                call_b24("crm.company.update", {"id": cpid, "fields": {"EMAIL": new_emails}})
+                call_b24("crm.timeline.comment.add", {
+                    "fields": {
+                        "ENTITY_ID": cpid,
+                        "ENTITY_TYPE": "company",
+                        "COMMENT": f"⚠️ [Bounce & Unsubscribe Guard] Email {clean_email} удален из карточки компании. Причина: {reason}."
+                    }
+                })
+            summary["b24_companies_updated"].append(cpid)
+    except Exception as e:
+        print(f"  [B24-ERROR] Ошибка поиска/очистки компаний: {e}")
+
+    # 3. Битрикс24: Лиды
+    try:
+        r_ld = call_b24("crm.lead.list", {
+            "filter": {"EMAIL": clean_email},
+            "select": ["ID", "TITLE", "EMAIL"]
+        })
+        leads = r_ld.get("result", [])
+        for ld in leads:
+            lid = ld["ID"]
+            cur_emails = ld.get("EMAIL", [])
+            new_emails = [e for e in cur_emails if e.get("VALUE", "").strip().lower() != clean_email]
+            print(f"  [B24 Lead #{lid} '{ld.get('TITLE', '')}'] Очистка email {clean_email}...")
+            if not dry_run:
+                call_b24("crm.lead.update", {"id": lid, "fields": {"EMAIL": new_emails}})
+                call_b24("crm.timeline.comment.add", {
+                    "fields": {
+                        "ENTITY_ID": lid,
+                        "ENTITY_TYPE": "lead",
+                        "COMMENT": f"⚠️ [Bounce & Unsubscribe Guard] Email {clean_email} удален из карточки лида. Причина: {reason}."
+                    }
+                })
+            summary["b24_leads_updated"].append(lid)
+    except Exception as e:
+        print(f"  [B24-ERROR] Ошибка поиска/очистки лидов: {e}")
+
+    # 4. 1С:УНФ (Catalog_Лиды и Catalog_Контрагенты)
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    auth = (ODATA_USER, ODATA_PASS)
+
+    # 4.1. 1С Лиды
+    try:
+        r_1c_leads = requests.get(
+            f"{ODATA_BASE}/Catalog_Лиды?$format=json&$filter=substringof('{clean_email}',Description) or substringof('{clean_email}',Тема)",
+            auth=auth, headers=headers, timeout=20
+        )
+        if r_1c_leads.status_code == 200:
+            onec_leads = r_1c_leads.json().get("value", [])
+            for ol in onec_leads:
+                guid = ol.get("Ref_Key")
+                r_item = requests.get(f"{ODATA_BASE}/Catalog_Лиды(guid'{guid}')?$format=json", auth=auth, headers=headers, timeout=20)
+                if r_item.status_code == 200:
+                    item_data = r_item.json()
+                    ci_list = item_data.get("КонтактнаяИнформация", [])
+                    filtered_ci = [
+                        ci for ci in ci_list
+                        if not (ci.get("Тип") == "АдресЭлектроннойПочты" and clean_email in (ci.get("Представление", "").lower() + ci.get("ЗначенияПолей", "").lower()))
+                    ]
+                    if len(filtered_ci) != len(ci_list):
+                        for idx, row in enumerate(filtered_ci, 1):
+                            row["LineNumber"] = str(idx)
+                        print(f"  [1C Lead {guid}] Найдена запись с {clean_email}. Удаление из ТЧ КонтактнаяИнформация ({len(ci_list)} -> {len(filtered_ci)} строк)...")
+                        if not dry_run:
+                            requests.patch(
+                                f"{ODATA_BASE}/Catalog_Лиды(guid'{guid}')?$format=json",
+                                json={"КонтактнаяИнформация": filtered_ci},
+                                auth=auth, headers=headers, timeout=20
+                            )
+                        summary["onec_leads_updated"].append(guid)
+    except Exception as e:
+        print(f"  [1C-ERROR] Ошибка поиска/очистки лидов в 1С: {e}")
+
+    # 4.2. 1С Контрагенты
+    try:
+        r_1c_ca = requests.get(
+            f"{ODATA_BASE}/Catalog_Контрагенты?$format=json&$filter=substringof('{clean_email}',Description)",
+            auth=auth, headers=headers, timeout=20
+        )
+        if r_1c_ca.status_code == 200:
+            onec_cas = r_1c_ca.json().get("value", [])
+            for oca in onec_cas:
+                guid = oca.get("Ref_Key")
+                r_item = requests.get(f"{ODATA_BASE}/Catalog_Контрагенты(guid'{guid}')?$format=json", auth=auth, headers=headers, timeout=20)
+                if r_item.status_code == 200:
+                    item_data = r_item.json()
+                    ci_list = item_data.get("КонтактнаяИнформация", [])
+                    filtered_ci = [
+                        ci for ci in ci_list
+                        if not (ci.get("Тип") == "АдресЭлектроннойПочты" and clean_email in (ci.get("Представление", "").lower() + ci.get("ЗначенияПолей", "").lower()))
+                    ]
+                    if len(filtered_ci) != len(ci_list):
+                        for idx, row in enumerate(filtered_ci, 1):
+                            row["LineNumber"] = str(idx)
+                        print(f"  [1C Counterparty {guid}] Очистка email {clean_email} из КонтактнаяИнформация...")
+                        if not dry_run:
+                            requests.patch(
+                                f"{ODATA_BASE}/Catalog_Контрагенты(guid'{guid}')?$format=json",
+                                json={"КонтактнаяИнформация": filtered_ci},
+                                auth=auth, headers=headers, timeout=20
+                            )
+                        summary["onec_counterparties_updated"].append(guid)
+    except Exception as e:
+        print(f"  [1C-ERROR] Ошибка поиска/очистки контрагентов в 1С: {e}")
+
+    print("\n" + "=" * 80)
+    print("ИТОГИ ОЧИСТКИ EMAIL:")
+    print(f"  Битрикс24: Контактов: {len(summary['b24_contacts_updated'])}, Компаний: {len(summary['b24_companies_updated'])}, Лидов: {len(summary['b24_leads_updated'])}")
+    print(f"  1С:УНФ: Лидов: {len(summary['onec_leads_updated'])}, Контрагентов: {len(summary['onec_counterparties_updated'])}")
+    print(f"  Режим: {'DRY-RUN (изменения не вносились)' if dry_run else 'БОЕВОЙ (почта удалена)'}")
+    print("=" * 80)
+    return summary
+
+
 def main():
     parser = argparse.ArgumentParser(description="Каноническая синхронизация лидов 1С ⮂ Bitrix24 (Zero-Blank Lead Guard)")
     parser.add_argument("--lead-ids", nargs="+", type=int, help="Список явных ID лидов Битрикс24")
@@ -371,8 +568,15 @@ def main():
     parser.add_argument("--folder", help="Папка IMAP (например, INBOX)")
     parser.add_argument("--assigned-to", default="1", help="Ответственный пользователь (1/artem, 38/alexandra, 26/salman)")
     parser.add_argument("--limit", type=int, default=10, help="Лимит количества обрабатываемых лидов (по умолчанию 10)")
+    parser.add_argument("--clean-email", type=str, default="", help="Очистить невалидный email (Bounce / Unsubscribe) из Битрикс24 и 1С:УНФ")
+    parser.add_argument("--reason", type=str, default="bounce", choices=["bounce", "unsubscribe", "invalid"], help="Причина очистки email")
     parser.add_argument("--dry-run", action="store_true", help="Режим предпросмотра без изменения 1С и CRM")
     args = parser.parse_args()
+
+    # Быстрый роутинг: если передан флаг очистки невалидного адреса
+    if args.clean_email:
+        clean_invalid_email_from_systems(args.clean_email, reason=args.reason, dry_run=args.dry_run)
+        return
 
     user_key = str(args.assigned_to).lower()
     assigned_id = USER_MAPPING.get(user_key, int(user_key) if user_key.isdigit() else 1)
@@ -383,6 +587,7 @@ def main():
     print("=" * 80)
 
     target_lead_ids = []
+
 
     # 1. Приоритет: явный список ID
     if args.lead_ids:

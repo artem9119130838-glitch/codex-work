@@ -1,81 +1,100 @@
-﻿# Asset: Router and VPN
+# Asset: Router, VPN and Home Devices Network
 
-## Router
+Дата обновления: 2026-10-03 (Аудит и ревизия через Keenetic RCI API)
 
-- Router: Keenetic Hero 4G
-- Used for DNS routing and VPN-related traffic policies.
+## 1. Роутер Keenetic Hero 4G
 
-## WireGuard server
+- **Модель**: Keenetic Hero 4G (KN-2310), KeeneticOS 5.x / 4.x
+- **Локальный IP**: `192.168.1.1`
+- **Основной WAN**: `PPPoE0` (Российский провайдер Ростелеком / проводной интернет)
+- **Резервный WAN / Модем**: `UsbQmi0` (4G LTE)
+- **Боевой канонический скрипт управления**: `[keenetic_manager.py](file:///C:/Codex/scripts/keenetic_manager.py)` (RCI API: статус интерфейсов, инвентаризация хостов, аудит политик маршрутизации и DoH/DoT DNS, пинг через туннели).
 
-- Server public IP: `109.248.170.181`
-- Interface: `wg0`
-- VPN network: `10.10.0.0/24`
-- Server VPN IP: `10.10.0.1`
-- UDP port: `51820`
+---
 
-## 1C VPN model
+## 2. Политики маршрутизации (Connection Priorities / Policies)
 
-Target:
+| Политика | Описание | Шлюз по умолчанию (`0.0.0.0/0`) | Особенности и назначение |
+|---|---|---|---|
+| **Основная (Default)** | Провайдер РФ (PPPoE0) | `PPPoE0` (Россия) | Выборочная маршрутизация по FQDN (`domain-list0`–`domain-list7`) через `Wireguard1` |
+| **Policy1** | «Казахстан» | `Wireguard1` (`keenetic-kz`) | **Полный туннель (Full-Tunnel)** всего трафика через сервер в Казахстане (`109.248.170.181`) |
+| **Policy0** | «Amnezia VPN» | `PPPoE0` + точечные маршруты | Резервный туннель Amnezia / Wireguard |
+| **Policy2** | «VPN» | `PPPoE0` + точечные маршруты | Служебная политика |
 
-- one WireGuard profile per user/device;
-- 1C clients connect to `10.10.0.1`;
-- public 1C ports `1540-1591` closed after VPN validation.
+---
 
-For 1C-only access:
+## 3. VPN-интерфейсы
 
-```ini
-AllowedIPs = 10.10.0.0/24
-```
+### Wireguard1 (`keenetic-kz`) — Боевой туннель Казахстан
+- **Удаленный эндпоинт**: `109.248.170.181:51820` (VPS в Казахстане)
+- **Внутренний IP клиента**: `10.10.0.3/32`
+- **Шлюз / Сервер VPN**: `10.10.0.1`
+- **Статус**: Up (online, handshake активен)
+- **MTU**: `1324` (MSS clamping: `ip tcp adjust-mss pmtu`)
+- **DNS на интерфейсе**: `10.10.0.3`
 
-## Amnezia / EE / external VPN routing
+---
 
-Observed older endpoint:
+## 4. DNS-архитектура и Интернет-фильтры
 
-```text
-185.155.99.161:9455
-```
+### Глобальные апстримы роутера (`dns-proxy`):
+- `tls upstream xbox-dns.ru` (DNS over TLS)
+- `https upstream https://xbox-dns.ru/dns-query dnsm` (DNS over HTTPS)
+- *Назначение*: обход блокировки входа в Xbox Live (ошибка `0x80a40401` для консолей РФ).
+- *Нюанс*: является глобальным апстримом для всех устройств, что может вызывать задержки/сбои на CDN Google.
 
-Observed DNS:
+### Пресеты фильтрации AdGuard DNS:
+- Профиль: `dns.adguard-dns.com` (порт 853 DoT / DoH).
+- *Назначение*: блокировка рекламы и трекеров.
+- *Нюанс*: на Android TV блокирует служебные телеметрические маяки YouTube и вызовы `/videoplayback`.
 
-```text
-100.64.0.1
-8.8.4.4
-```
+---
 
-Full tunnel configs used:
+## 5. Карта домашних устройств (Hotspot Registry)
 
-```ini
-AllowedIPs = 0.0.0.0/0, ::/0
-```
+| Устройство | MAC-адрес | Локальный IP | Политика | Фильтр DNS | Примечания |
+|---|---|---|---|---|---|
+| **HP Victus 16** (Ноутбук) | `5c:60:ba:ca:f2:4f` | `192.168.1.48` | **Основная** | Стандартный | Рабочая станция, Ethernet/Wi-Fi. YouTube работает через FQDN-списки роутера + BotGuard в Chrome |
+| **MateBook** | `38:18:68:de:16:f6` | `192.168.1.119` | **Основная** | Стандартный | Ноутбук |
+| **Haier TV 55"** | `58:fd:be:1f:4d:9e` | `192.168.1.47` | **Policy1 (Казахстан)** | Без фильтрации | Китайская AOSP-прошивка. SmartTube Beta, FTP порт 2235 |
+| **Haier TV 65T11** | `d0:58:c0:c1:e1:f6` | `192.168.1.127` | **Основная** | Без фильтрации | Китайская AOSP-прошивка, провод Ethernet 1G. Нуждается в переносе в Policy1 |
+| **XBOX Console** | `3c:fa:06:7a:ce:fc` | Динамический | **Policy1 (Казахстан)** | Стандартный | Консоль в туннеле КЗ (санкции MS сняты нативно) |
+| **iPad** | `1e:4b:51:ae:e3:8f` | Динамический | **Policy1 (Казахстан)** | adguard-default | Планшет |
+| **iPad 5G** | `1a:4f:61:99:1a:5c` | Динамический | **Policy1 (Казахстан)** | Стандартный | Планшет |
+| **OnePlus 5 Ghz KZ** | `78:ed:bc:30:f5:e9` | `192.168.1.50` | **Policy1 (Казахстан)** | Стандартный | Смартфон |
+| **iPhone 17 Pro 5GHz** | `e2:78:5a:09:74:10` | `192.168.1.41` | **Основная** | Стандартный | Смартфон |
+| **iPhone 13 Pro** | `0e:bc:ca:7b:a4:89` | Динамический | **Основная** | Стандартный | Смартфон |
+| **XVR (Видеонаблюдение)**| `08:ed:ed:1b:00:65` | `192.168.1.38` | **Основная** | Стандартный | Камеры |
+| **Kyocera KM321CF4** | `00:17:c8:32:1c:f4` | `192.168.1.94` | **Основная** | Стандартный | МФУ / Принтер |
+| **Xiaomi Vacuum C102CN**| `70:c9:32:2b:1e:47` | `192.168.1.72` | **Основная** | Стандартный | Робот-пылесос |
+| **Холодильник Haier** | `68:e4:78:02:97:7c` | `192.168.1.85` | **Основная** | Стандартный | Умный дом UPlus |
 
-## Gemini / Google routing
+---
 
-Recommended narrow DNS route list:
+## 6. FQDN Списки доменов (Выборочный обход на Основной политике)
 
-```text
-gemini.google.com
-aistudio.google.com
-generativelanguage.googleapis.com
-ai.google.dev
-alkalimakersuite-pa.clients6.google.com
-makersuite.google.com
-```
+- `domain-list0` (**OpenAI / ChatGPT**): `openai.com`, `chatgpt.com`, `oaistatic.com`, `oaiusercontent.com`
+- `domain-list1` (**Прямой доступ РФ**): `gosuslugi.ru`, `rutube.ru`, `novofon.ru`, `wechat.com` -> `PPPoE0`
+- `domain-list2` (**YouTube**): `youtube.com`, `youtu.be`, `ytimg.com`, `googlevideo.com`, `yt3.ggpht.com`, `redirector.googlevideo.com` -> `Wireguard1`
+- `domain-list3` (**WhatsApp / Meta**): `whatsapp.com`, `whatsapp.net`, `fbcdn.net`, `facebook.com` -> `Wireguard1`
+- `domain-list4` (**Unsorted**): `rutracker.org`, `binance.com`, `proton.me`, `github.com` -> `Wireguard1`
+- `domain-list5` (**Gemini KZ**): `gemini.google.com`, `aistudio.google.com`, `ai.google.dev` -> `Wireguard1`
+- `domain-list6` (**Google direct**): `google.com`, `accounts.google.com`, `gstatic.com` -> `PPPoE0`
+- `domain-list7` (**Telegram**): `telegram.org`, `t.me`, `telegram-cdn.org`, подсети `91.108.0.0/16`, `149.154.0.0/16`
 
-Avoid broad Google routing unless needed:
+---
 
-```text
-google.com
-clients6.google.com
-content.googleapis.com
-onegoogle.com
-ogs.google.com
-labs.google.com
-```
+## 7. Разница между воспроизведением YouTube на ПК и SmartTube на Android TV
 
-## Known pitfalls
+### Почему ПК (Victus) работает:
+1. **Полноценный Chromium:** Браузер исполняет защитный JavaScript-код Google (BotGuard VM) и генерирует валидный криптографический токен **`po_token` (Proof of Origin Token)**.
+2. **MSE Video Engine:** Видеопоток запрашивается через стандартизированный Media Source Extensions плеер HTML5.
+3. **Согласованность:** YouTube считает запросы из Chrome легитимными, даже если трафик идет с IP хостинга.
 
-- Broad Google IP routes can break targeted Gemini routing.
-- Do not manually force Windows DNS to `10.10.0.1` unless that is the explicit design.
-- Browser Secure DNS / DoH can bypass router logic.
-- Android Private DNS can bypass router logic.
-- Reusing one WireGuard profile on multiple devices causes unstable behavior.
+### Почему SmartTube на китайском Haier TV зависает («Fixing stalled client»):
+1. **Блокировка сторонних клиентов без PoToken:** SmartTube обращается к InnerTube API напрямую без браузерного JS-движка. Google определяет неофициальный плеер и выдает HTTP 403 Forbidden или глушит видеопоток на серверах `googlevideo.com`.
+2. **Теневой бан аккаунта:** Если в SmartTube выполнен вход в Google-аккаунт, YouTube привязывает сессию к аккаунту и блокирует стриминг с серверных IP без аттестации клиента.
+3. **Решение в SmartTube:**
+   - **Смена клиента (Client Spoofing):** В `Настройки -> Плеер -> Разработчик` (или `Видео`) сменить клиент плеера с *Android TV* на **`iOS`** или **`Web`**. Клиенты iOS не требуют столь жесткого PoToken.
+   - **Выход из аккаунта / Инкогнито:** Запуск в режиме Инкогнито убирает аккаунтную блокировку.
+   - **Кодеки:** В `Настройки -> Плеер -> Видео` отключить AV1 и VP9, принудительно выбрать **AVC (H.264)** для совместимости с китайским аппаратным чипом Haier.

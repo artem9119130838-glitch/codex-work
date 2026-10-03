@@ -36,9 +36,17 @@
 * Перед взятием спящего контакта 1С в воронку реанимации выполняется проверка email в Битрикс24 (`crm.deal.list` и `crm.activity.list`).
 * Если по клиенту есть активная сделка в работе или коммуникация менеджера за последние 30 дней — контакт **исключается из автоматической реактивации**, чтобы не сбивать живой диалог менеджера.
 
+### Правило 7: Автоматический Bounce & Unsubscribe Guard (Сквозное удаление невалидной почты)
+* При фиксации ошибки доставки письма (`mailer-daemon`, `550 User not found`) или прямого отказа от коммуникации («не пишите больше», «отпишите», «компания ликвидирована»):
+  1. Немедленно вызывается процедура пайплайна [sync_leads_1c_bitrix.py](file:///C:/Codex/projects/1c_odata/scripts/sync_leads_1c_bitrix.py) с ключом `--clean-email <email> --reason <bounce|unsubscribe>`.
+  2. **В Битрикс24 CRM:** данный email удаляется из сущностей Контакта, Компании и Лида (`crm.contact.update`, `crm.company.update`, `crm.lead.update`). В таймлайн вносится системная запись об исключении адреса.
+  3. **В 1С:УНФ:** через OData PATCH из табличной части `КонтактнаяИнформация` (`Catalog_Лиды` и `Catalog_Контрагенты`) удаляется строка `АдресЭлектроннойПочты`.
+  4. **В DWH:** в `ClientIntel` проставляется статус `DO_NOT_CONTACT`, контакт навсегда блокируется от генераций и списания токенов LLM.
+
 ---
 
 ## 2. Архитектура двух потоков реанимации
+
 
 ```mermaid
 flowchart TD
@@ -87,3 +95,18 @@ flowchart TD
   * `task_type = 'lead_reactivation_draft'` — генерация черновика письма автоворонки.
   * `initiated_by = 'system_cron'`.
 * Лимиты суточного расхода контролируются переменной `DEEPSEEK_DAILY_LIMIT` (базовый лимит: 500 запросов/день).
+
+---
+
+## 5. Корпоративная RAG-база знаний и коммуникаций (`kb_leads_v1`)
+
+Пайплайн генерации писем использует каноническую базу знаний **[projects/n8n_email_ai/kb_leads_v1/](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/)**:
+1. **Оглавление и манифест базы:** [00_manifest.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/00_manifest.md)
+2. **Паспорт источников и аналитическое саммари:** [99_sources_and_notes.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/99_sources_and_notes.md)
+3. **Индекс 96 статей и кейсов:** [96_articles_index.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/96_articles_index.md) и правила селекции [95_article_selection_rules.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/95_article_selection_rules.md)
+4. **Канонические шаблоны черновиков:** [50_reactivation_templates.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/50_reactivation_templates.md) и [40_email_templates.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/40_email_templates.md)
+5. **Транскрибации реальных телефонных разговоров:**
+   * Канонические пруф-поинты: [15_proof_points_from_calls.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/15_proof_points_from_calls.md)
+   * Дословные обороты Спикера 2: [15_call_phrase_candidates_speaker2.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/15_call_phrase_candidates_speaker2.md)
+6. **Правила тональности и фильтрации:** [60_tone_rules.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/60_tone_rules.md) и [90_pre_send_checklist.md](file:///C:/Codex/projects/n8n_email_ai/kb_leads_v1/90_pre_send_checklist.md)
+
