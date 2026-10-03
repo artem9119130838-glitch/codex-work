@@ -163,6 +163,7 @@
 - [x] Решить проблему приведения типов параметров периода (`&НачалоПериода` и `&КонецПериода` в СКД) и задвоения себестоимости при интеграции пакетного SQL-запроса в отчет `KPIМенеджеров.erf`.
 - [x] Добавлена иконка MAX со ссылкой на бота и адрес почты прописью в шапку сайта [longwang.ru](http://longwang.ru) (исправлена верстка иконки в [custom.css](file:///C:/Codex/projects/GoW%20Project/themes/themes/longwang/custom.css)).
 - [x] Восстановлен доступ и сброшены пароли в Metabase: учетные данные (`admin@tender-rag.local` / `Artem12345`, `manager@tender-rag.local` / `manager12345`) и быстрая команда CLI-сброса сохранены в базе знаний и навыке `metabase_analytics_ops`.
+<<<<<<< HEAD
 - [/] Найм руководителя снабжения и ВЭД в Китае:
   * Зафиксирован отказ Nancy Qin (覃显清, Дечжоу);
   * **26.09 Согласован одновременный испытательный срок (2–3 месяца) для обоих кандидатов из Дечжоу (одобрено Дэвидом)**:
@@ -194,6 +195,7 @@
   * [x] Настроен загрузчик BCD: включена классическая клавиша `F8` (`legacy`), удален лишний дубликат меню Safe Mode, отключен таймаут загрузчика для мгновенного старта.
   * [x] Полностью заблокированы баннеры проверки лицензии Adobe Acrobat (`fix_acrobat_genuine.ps1`).
   * [/] Локализация причин черного экрана Intel Iris Xe (PSR2/DRRS/Link Training 144 Гц), подготовка чистого отката на заводской OEM-драйвер HP SP148389 (31.0.101.4502) через DDU в Safe Mode и восстановление вывода на внешний монитор MS27HQ-v1 по HDMI.
+- [x] Создание раздела личной организации `projects/personal_organization/`, единых правил `ORGANIZATION_RULES.md`, навыка `desktop_and_folder_cleanup` и скрипта `scripts/organize_desktop.py` (с двухэтапным запуском Dry-Run -> Execute и 6 стандартными подпапками ВЭД-отправок). Автоматическая очистка рабочего стола с созданием Памятки.
 
 
 - [x] Разработка и регистрация конвейера follow-up сделок: скрипты `process_today_followup_deals.py` и `deal_followup_pipeline.py` скопированы в личный контур, добавлены быстрые фразы-триггеры «follow up deals today» (или «ащддщ up deals today») в `AGENTS.md`, `GRAVITY_CONTROL_CENTER.md`, `SKILLS.md`, `email_ai_pipelines` и `SCRIPTS_CATALOG.md`.
