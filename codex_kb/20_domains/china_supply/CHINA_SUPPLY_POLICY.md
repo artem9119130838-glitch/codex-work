@@ -1,7 +1,7 @@
 # Регламент найма, мотивации, снабжения и работы с рекламациями фабрик КНР (China HR, Supply & Rework Policy)
 
 > **Статус документа:** Полный канонический свод правил управления китайским офисом снабжения, мотивации сотрудников, стандартов поставок и работы с рекламациями заводов КНР.  
-> **Связанные документы:** `projects/HR/Китайский снабженец/CHARTER_SUPPLY_LONGWANG.md` (Устав снабженца «Лун-Ван»).  
+> **Связанные документы:** `projects/HR/Китайский снабженец/CHARTER_SUPPLY_LONGWANG.md` (Устав снабженца «Лун-Ван»), [CHINA_OFFICE_MASTER_REGISTRY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_OFFICE_MASTER_REGISTRY.md) (Мастер-реестр фактов и тонкостей китайского контура).  
 > **Генератор чистовых Excel:** `projects/1c_odata/scripts/generate_supply_rfq_excel.py`.
 
 ---

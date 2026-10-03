@@ -1,0 +1,256 @@
+{
+  "name": "Production: Analytics Real-time Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analytics-b24-sync",
+        "options": {}
+      },
+      "name": "Webhook (Bitrix24)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        239,
+        304
+      ],
+      "id": "webhook-b24-sync-uuid",
+      "webhookId": "analytics-sync-endpoint-id"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.10.0.1:8000/documents/b24/crm.deal.get.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ $json.body.data.FIELDS.ID }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        443,
+        307
+      ],
+      "id": "get-deal-uuid",
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "Z8ShO3In9HTPxhE2",
+          "name": "Bitrix Proxy Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.10.0.1:8000/documents/b24/crm.company.get.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ $json.result.COMPANY_ID || 0 }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "name": "Get Company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        644,
+        294
+      ],
+      "id": "get-company-uuid",
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "Z8ShO3In9HTPxhE2",
+          "name": "Bitrix Proxy Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.10.0.1:8000/documents/b24/user.get.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ $('Get Deal').item.json.result.ASSIGNED_BY_ID || 0 }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "name": "Get User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        850,
+        286
+      ],
+      "id": "get-user-uuid",
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "Z8ShO3In9HTPxhE2",
+          "name": "Bitrix Proxy Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// console.log('starting format for deal', $('Get Deal').item.json.result?.ID);\nconst b24_deal = $('Get Deal').item.json.result || {};\nconst companyNode = $('Get Company').item.json || {};\nconst userNode = $('Get User').item.json || {};\n\nconst companyRes = companyNode.result;\nconst userRes = userNode.result;\n\nconst user = (Array.isArray(userRes) && userRes.length > 0) ? userRes[0] : null;\nconst userName = user ? `${user.NAME || ''} ${user.LAST_NAME || ''}`.trim() : (b24_deal.ASSIGNED_BY_ID || 'Неизвестно');\n\nconst companyName = companyRes && companyRes.TITLE ? companyRes.TITLE : (b24_deal.COMPANY_ID || 'Без компании');\n\nreturn {\n  deal_id: b24_deal.ID,\n  title: b24_deal.TITLE || 'Без названия',\n  stage_id: b24_deal.STAGE_ID || 'NEW',\n  date_create: b24_deal.DATE_CREATE || new Date().toISOString(),\n  date_close: b24_deal.CLOSED === 'Y' ? new Date().toISOString() : null,\n  tender_amount: parseFloat(b24_deal.OPPORTUNITY || 0),\n  customer_name: companyName,\n  responsible_name: userName,\n  raw_data: JSON.stringify(b24_deal)\n};"
+      },
+      "name": "Format Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1038,
+        294
+      ],
+      "id": "format-data-uuid"
+    },
+    {
+      "parameters": {
+        "schema": "public",
+        "table": "analytics_deal_stage_history",
+        "operation": "upsert",
+        "updateKey": "deal_id,stage_id",
+        "columns": "deal_id,stage_id",
+        "options": {}
+      },
+      "name": "Upsert Stage History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1239,
+        139
+      ],
+      "id": "upsert-stage-uuid",
+      "credentials": {
+        "postgres": {
+          "id": "c4j1ALPFXzb8Bp5M",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": "public",
+        "table": "analytics_closed_deals",
+        "operation": "upsert",
+        "updateKey": "deal_id",
+        "columns": "deal_id,title,stage_id,date_create,date_close,tender_amount,customer_name,responsible_name,raw_data",
+        "options": {}
+      },
+      "name": "Upsert Deal",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1245,
+        391
+      ],
+      "id": "upsert-deal-uuid",
+      "credentials": {
+        "postgres": {
+          "id": "c4j1ALPFXzb8Bp5M",
+          "name": "Postgres account 2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (Bitrix24)": {
+      "main": [
+        [
+          {
+            "node": "Get Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Deal": {
+      "main": [
+        [
+          {
+            "node": "Get Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company": {
+      "main": [
+        [
+          {
+            "node": "Get User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User": {
+      "main": [
+        [
+          {
+            "node": "Format Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert Stage History",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upsert Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

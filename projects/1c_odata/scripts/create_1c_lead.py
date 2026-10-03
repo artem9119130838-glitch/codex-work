@@ -27,9 +27,23 @@ import requests
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-ODATA_BASE = "http://artem.medianasoft.spb.ru/unf/odata/standard.odata"
-ODATA_USER = "odata.user"
-ODATA_PASS = os.getenv("ONEC_ODATA_PASSWORD", "n8n159753!")
+def _load_env():
+    env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+
+_load_env()
+
+ODATA_BASE = os.getenv("ONEC_ODATA_URL", "http://artem.medianasoft.spb.ru/unf/odata/standard.odata")
+ODATA_USER = os.getenv("ONEC_ODATA_USER", "odata.user")
+ODATA_PASS = os.getenv("ONEC_ODATA_PASSWORD", "")
 
 # GUID-константы 1С:УНФ
 RESPONSIBLE_ARTEM = "209d4fb0-3142-11ed-a3f1-3085a9a0f5bf"

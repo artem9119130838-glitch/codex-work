@@ -53,9 +53,11 @@
 
 ---
 
-## 6. Zero Secrets in Git Policy
+## 6. Zero Secrets in Git & Developer Key Isolation Policy
 - **Тотальный запрет на утечку секретов:** КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО публиковать и коммитить в любой Git (личный или рабочий) API-ключи, токены нейросетей, вебхуки Битрикс24, пароли ящиков IMAP/SMTP, SSH-ключи, файлы `.env` и дампы учетных записей.
 - Все секреты читаются строго из переменных окружения (`os.getenv`).
+- **Запрет скрытых дефолтных паролей (No Fallback Secrets Guard):** Категорически запрещено указывать реальные боевые пароли, ключи API или вебхуки в качестве дефолтных значений во втором аргументе: `os.getenv("VAR", "secret_pass")`. Если переменная окружения не задана, дефолт должен быть пустым `os.getenv("VAR", "")`, а боевые значения обязаны загружаться строго из изолированных локальных файлов `.env` (входящих в `.gitignore`).
+- **Developer LLM Key Isolation Guard:** Запрещено прописывать один и тот же боевой ключ LLM (DeepSeek / Gemini) одновременно в сервисах продакшена и в открытых файлах `.env` разработчиков (`/home/mikhail/`). Разработчикам выдается либо персональный ключ с жестким лимитом баланса ($5–10), либо доступ предоставляется через локальный внутренний прокси-шлюз на VPS (`http://127.0.0.1:8002`), который логирует инициатора (`initiated_by = 'mikhail'`), а настоящий ключ скрывает в контуре root.
 
 ---
 
@@ -84,7 +86,8 @@
 | follow-up, лиды, письма, КП, клиенты, продажи, реанимация | **B2B Продажи & CRM** | [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md)<br>[LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md)<br>[B2B_SALES_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_SALES_POLICY.md) |
 | 1С, УНФ, OData, реквизиты, контрагенты, скоринг, себестоимость | **ERP 1С:УНФ** | [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md)<br>Скилл: [1c_unf](file:///C:/Users/Артем/.gemini/config/skills/1c_unf/SKILL.md) |
 | тендер, ГОЗ, АСТ ГОЗ, спецификация, ЕИС, извещение | **Тендерный RAG** | [TENDER_RAG_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_RAG_POLICY.md)<br>Скилл: [tender_automation](file:///C:/Users/Артем/.gemini/config/skills/tender_automation/SKILL.md) |
-| китай, снабжение, фабрика, дечжоу, miss wang, брак, рекламация | **ВЭД & Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md) |
+| китай, снабжение, фабрика, дечжоу, miss wang, брак, рекламация | **ВЭД & Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md)<br>[CHINA_OFFICE_MASTER_REGISTRY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_OFFICE_MASTER_REGISTRY.md) |
 | регламенты, HR, аттестация, ошибки сотрудников, заместитель | **Операции & HR** | [OPERATIONS_HR_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hr_and_operations/OPERATIONS_HR_POLICY.md) |
 | vps, сервер, docker, nginx, apache, порт, бэкап, sqlite, n8n | **VPS & DevOps** | [INFRA_VPS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md)<br>Скилл: [linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md) |
 | victus, ноутбук, видеокарта, rtx, код 43, экран, mpo, дисплей, bcd | **HP Victus 16** | [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md)<br>Скилл: [windows](file:///C:/Users/Артем/.gemini/config/skills/windows/SKILL.md) |
+| metabase, дашборд, сквозная аналитика, воронка, dwh, графики, bi | **Сквозная Аналитика & BI** | [METABASE_ANALYTICS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md)<br>Скилл: [metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md) |

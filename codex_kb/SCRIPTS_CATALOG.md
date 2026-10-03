@@ -22,6 +22,7 @@
 - [12. Синхронизация лидов и компаний в 1С и Битрикс24 (Idempotent CRM)](#idempotent_crm_1c)
 - [13. Тендеры, АСТ ГОЗ и RAG-пайплайн спецификаций](#tenders_goz)
 - [14. Инфраструктура, VPS-сервер, Docker и Бэкапы](#infra_vps)
+- [15. Сквозная бизнес-аналитика и Metabase BI (DWH)](#metabase_analytics)
 
 ---
 
@@ -1272,3 +1273,13 @@
 | **Диагностический** | `verify_no_old_paths.py` | `ARCHIVE/migration_scripts_2026-09-29/verify_no_old_paths.py` | Автоматизация рабочего процесса. | 0 |
 
 ---
+
+<a id='metabase_analytics'></a>
+## 15. Сквозная бизнес-аналитика и Metabase BI (DWH)
+
+| Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
+| :--- | :--- | :--- | :--- | :--- |
+| **Канонический** | `manage_metabase_dashboards.py` | `projects/metabase_analytics/scripts/manage_metabase_dashboards.py` | Единый CLI-конвейер деплоя дашбордов (№ 4, № 5), карточек 54, 49, токенов LLM, локали ru и прав доступа через Metabase REST API. Поддерживает `--dry-run`. | 0 |
+| **Канонический** | `sync_analytics_dwh.py` | `projects/metabase_analytics/scripts/sync_analytics_dwh.py` | Боевой ETL-скрипт инкрементальной (`--days N`) и полной (`--full`) синхронизации сделок из Битрикс24 в PostgreSQL `marketing_db` с маппингом стадий и причин отказа. Поддерживает `--dry-run`. | 0 |
+| **Канонический** | `audit_llm_keys.py` | `projects/metabase_analytics/scripts/audit_llm_keys.py` | Диагностика пула API-ключей Gemini и DeepSeek: пинг, отсев мертвых (400/403), учет суточных квот (429), генерация очищенного списка ключей и синхронизация статусов с PostgreSQL. | 0 |
+| **Канонический** | `llm_tracker.py` | `projects/metabase_analytics/scripts/llm_tracker.py` | Канонический модуль сквозного трекинга токенов: автоопределение инициатора (Артем vs Михаил vs Роботы), таксономия задач, логирование в `llm_usage_logs` и умная ротация ключей SmartKeyManager. | 0 |

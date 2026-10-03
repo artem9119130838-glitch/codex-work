@@ -25,6 +25,13 @@ graph LR
    - **Контур:** Вся инфраструктура B2B — Hexagonal Architecture, Alembic, MinIO Claim Check, Circuit Breaker, DLQ, интеграция 1С:УНФ, Bitrix24, Новофон телефония, скоринг DaData/Saby, почтовый контур.
    - **Статус реализации:** В работе. Спринт 1 (Foundation & Resilience) разворачивается согласно графику; наработки контура Codex (скоринг, зеркальная синхронизация, Follow-Up сделок) полностью инвентаризированы.
 
+2. [**Автоматическая реанимация лидов 1С (Lead Reactivation Pipeline)**](file:///C:/Codex/projects/lead_reactivation/README.md)
+   - **Папка проекта:** [`C:\Codex\projects\lead_reactivation\`](file:///C:/Codex/projects/lead_reactivation/)
+   - **Манифест регламента:** [LEAD_REACTIVATION_POLICY.md](file:///C:/Codex/projects/lead_reactivation/LEAD_REACTIVATION_POLICY.md)
+   - **Дата:** `2026-10-03`
+   - **Контур:** База спящих контактов 1С:УНФ (`onec_contacts`), DWH `marketing_db`, IMAP Roundcube (`sales@longwang.ru`), CRM Битрикс24.
+   - **Статус реализации:** **В РАБОТЕ / НЕЗАВЕРШЕННЫЙ (WIP)**. Сняты лимиты 100 запросов DeepSeek, внедрен регламент обязательного вложения презентации и исторического КП, формализована карта двух воронок (Поток 1: касания 1–6 с кулдауном 21 день; Поток 2: охват базы 1С). Ведется интеграция с CRM Bitrix24 для исключения конфликтов с активными сделками.
+
 ---
 
 ## 2. Частично исполненные планы (Partially Executed / Подлежат проверке и валидации)

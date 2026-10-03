@@ -41,15 +41,29 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/").rstrip("/") + "/"
-ODATA_BASE = "http://artem.medianasoft.spb.ru/unf/odata/standard.odata"
-ODATA_USER = "odata.writer"
-ODATA_PASS = os.getenv("ONEC_ODATA_PASSWORD", "CosiN09oAr")
+def _load_env():
+    env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+
+_load_env()
+
+B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "").rstrip("/") + "/"
+ODATA_BASE = os.getenv("ONEC_ODATA_URL", "http://artem.medianasoft.spb.ru/unf/odata/standard.odata")
+ODATA_USER = os.getenv("ONEC_ODATA_USER", "odata.writer")
+ODATA_PASS = os.getenv("ONEC_ODATA_PASSWORD", "")
 
 IMAP_HOST = os.getenv("IMAP_SERVER", "mail.hostland.ru")
 IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 MAIL_USER = os.getenv("IMAP_USER", "sales@longwang.ru")
-MAIL_PASS = os.getenv("IMAP_PASSWORD", "CosiN09oAr")
+MAIL_PASS = os.getenv("IMAP_PASSWORD", "")
 
 USER_MAPPING = {
     "1": 1,
