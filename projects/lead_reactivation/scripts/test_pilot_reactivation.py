@@ -346,31 +346,43 @@ def clean_company_name(raw_name: str) -> str:
     import re
     if not raw_name:
         return ""
-    name = raw_name.strip()
+    name = str(raw_name).strip()
     if any(p in name.lower() for p in ["неизвестная", "частное лицо", "не указано", "без названия", "физическое лицо"]):
         return ""
     
-    # Strip quotes
-    name = re.sub(r'["«»]', '', name).strip()
+    # 1. Снимаем внешние и внутренние паразитные кавычки
+    name = re.sub(r'["«»“”]', '', name).strip()
     
-    legal_forms = ["ООО", "АО", "ПАО", "ЗАО", "ИП", "НПО", "ПКФ"]
+    legal_forms = ["ООО", "АО", "ПАО", "ЗАО", "ИП", "НПО", "ПКФ", "OOO"]
     found_form = None
-    clean_core = name
+    
+    # В конце: ', ООО' или ' ООО'
     for form in legal_forms:
-        pattern_end = re.compile(rf'\s+{form}$', re.IGNORECASE)
-        pattern_start = re.compile(rf'^{form}\s+', re.IGNORECASE)
-        if pattern_end.search(clean_core):
-            found_form = form.upper()
-            clean_core = pattern_end.sub('', clean_core).strip()
+        m_end = re.search(rf'[,.\s/\\-]+{form}$', name, re.IGNORECASE)
+        if m_end:
+            found_form = "ООО" if form.upper() in ["ООО", "OOO"] else form.upper()
+            name = name[:m_end.start()].strip()
             break
-        elif pattern_start.search(clean_core):
-            found_form = form.upper()
-            clean_core = pattern_start.sub('', clean_core).strip()
-            break
+            
+    # В начале: 'ООО ' или 'ООО, '
+    if not found_form:
+        for form in legal_forms:
+            m_start = re.search(rf'^{form}[,.\s/\\-]+', name, re.IGNORECASE)
+            if m_start:
+                found_form = "ООО" if form.upper() in ["ООО", "OOO"] else form.upper()
+                name = name[m_start.end():].strip()
+                break
 
-    # If clean_core is all uppercase and longer than 3 chars, convert to Title Case
-    if clean_core.isupper() and len(clean_core) > 3:
+    # 2. Чистка ядра от висячих знаков препинания и лишних пробелов
+    clean_core = re.sub(r'\s+', ' ', name).strip(" \t\r\n,.;:!?'\"-–—«»")
+    if not clean_core or len(clean_core) < 2:
+        return ""
+
+    known_acronyms = {"нтзмк", "эпк", "пзм", "рвб", "слк", "тмх", "лпз", "бсм", "аэм", "гк"}
+    if clean_core.isupper() and len(clean_core) > 3 and clean_core.lower() not in known_acronyms:
         clean_core = clean_core.title()
+    elif clean_core.lower() in known_acronyms:
+        clean_core = clean_core.upper()
         
     if found_form:
         if found_form == "ИП":
@@ -434,34 +446,55 @@ PUBLIC_EMAIL_DOMAINS = {
 def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: str) -> tuple:
     from app.services.hr_guard import HRGuard
 
-    # 1. Fetch last matched incoming message from this contact
-    msg = db.query(EmailMessage).join(
+    # 1. Поиск подлинных входящих писем от конкретного контакта
+    # КАТЕГОРИЧЕСКИ ИСКЛЮЧАЕМ:
+    # - Исходящие письма (raw_payload->>'is_sent' == True)
+    # - Папки отправленных (source_mailbox содержит 'sent' или 'отправлен')
+    # - Собственные подписи LongWang, Артема, Ци Линь
+    cand_msgs = db.query(EmailMessage).join(
         EmailMatchResult, EmailMessage.message_id == EmailMatchResult.message_id
     ).filter(
         EmailMatchResult.contact_ref_key == contact_ref_key,
         EmailMessage.is_junk == False,
         EmailMessage.from_email == email
-    ).order_by(EmailMessage.received_at.desc()).first()
+    ).order_by(EmailMessage.received_at.desc()).limit(10).all()
     
-    # Check if matched message is an HR/job applicant message
-    if msg:
-        payload = msg.raw_payload or {}
-        text_content = payload.get("cleaned_text") or payload.get("text") or payload.get("snippet") or ""
-        is_hr, _ = HRGuard.is_job_seeker(email=msg.from_email, subject=msg.subject or "", messages_text=text_content)
-        if is_hr:
-            msg = None
+    msg = None
+    for cand in cand_msgs:
+        payload = cand.raw_payload or {}
+        if payload.get("is_sent") in (True, 'true', 'True'):
+            continue
+        sm = (cand.source_mailbox or "").lower()
+        if any(f in sm for f in ["sent", "отправлен", "outbox"]):
+            continue
+        body_text = payload.get("cleaned_text") or payload.get("text") or payload.get("snippet") or ""
+        body_lower = body_text.lower()
+        if any(marker in body_lower for marker in ["longwang.ru", "с уважением, артем", "sales@longwang.ru", "ци линь", "лун-ван"]):
+            continue
+        is_hr, _ = HRGuard.is_job_seeker(email=cand.from_email, subject=cand.subject or "", messages_text=body_text)
+        if not is_hr:
+            msg = cand
+            break
 
     if not msg:
-        # 2. Try any incoming from this company (using domain), strictly excluding public providers
+        # 2. Поиск по корпоративному домену компании (только для непобличных доменов)
         domain = email.split('@')[-1].lower().strip()
         if domain and domain not in PUBLIC_EMAIL_DOMAINS:
             candidates = db.query(EmailMessage).filter(
                 EmailMessage.is_junk == False,
                 EmailMessage.from_email.like(f"%@{domain}")
-            ).order_by(EmailMessage.received_at.desc()).limit(5).all()
+            ).order_by(EmailMessage.received_at.desc()).limit(10).all()
             for cand in candidates:
-                cand_payload = cand.raw_payload or {}
-                cand_text = cand_payload.get("cleaned_text") or cand_payload.get("text") or cand_payload.get("snippet") or ""
+                payload = cand.raw_payload or {}
+                if payload.get("is_sent") in (True, 'true', 'True'):
+                    continue
+                sm = (cand.source_mailbox or "").lower()
+                if any(f in sm for f in ["sent", "отправлен", "outbox"]):
+                    continue
+                cand_text = payload.get("cleaned_text") or payload.get("text") or payload.get("snippet") or ""
+                cand_lower = cand_text.lower()
+                if any(marker in cand_lower for marker in ["longwang.ru", "с уважением, артем", "sales@longwang.ru", "ци линь", "лун-ван"]):
+                    continue
                 is_hr, _ = HRGuard.is_job_seeker(email=cand.from_email, subject=cand.subject or "", messages_text=cand_text)
                 if not is_hr:
                     msg = cand
@@ -470,14 +503,15 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
     if msg:
         import re
         subject = msg.subject or ""
-        # Remove all nested Re, Fwd, Fw, etc
         clean_subj = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]):\s*)+', '', subject, flags=re.IGNORECASE).strip()
         if not clean_subj:
             clean_subj = "Спецификация оборудования"
             
         payload = msg.raw_payload or {}
         body = payload.get("cleaned_text") or payload.get("text") or payload.get("snippet") or ""
-        
+        if not body or len(body.strip()) < 15:
+            return clean_subj, ""
+            
         date_str = msg.received_at.strftime("%d.%m.%Y, %H:%M") if msg.received_at else "Неизвестная дата"
         from_name = msg.from_name or msg.from_email
         
@@ -487,7 +521,7 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
             line_str = line.strip()
             if line_str:
                 quoted_lines.append(f"&gt; {line_str}")
-            if len(quoted_lines) >= 15: # limit to 15 non-empty lines
+            if len(quoted_lines) >= 15:
                 break
         
         quote_text = quote_header + "<br>\n" + "<br>\n".join(quoted_lines)
@@ -566,6 +600,19 @@ def save_draft_to_imap(subject: str, body: str, recipient: str, quote_text: str 
         logger.error(f"IMAP settings are incomplete (user: {user}, host: {imap_host}). Cannot save draft.")
         return False
 
+    # QUALITY GATE 1: Защита от фальшивых цитат (наших собственных исходящих писем)
+    if quote_text:
+        ql = quote_text.lower()
+        if any(m in ql for m in ["longwang.ru", "с уважением, артем", "sales@longwang.ru", "ци линь", "лун-ван"]):
+            logger.warning(f"[QUALITY GATE] В цитате для {recipient} обнаружена собственная подпись/маркер LongWang! Цитата аннулирована.")
+            quote_text = ""
+
+    # QUALITY GATE 2: Нормализация темы письма от висячих запятых и кривых названий
+    subject = re.sub(r'[,.\s]+(?:ООО|АО|ПАО|ЗАО|ИП|НПО|ПКФ)\s*$', '', subject, flags=re.IGNORECASE)
+    subject = re.sub(r'«([^»]+),\s*»', r'«\1»', subject)
+    subject = re.sub(r'"\s*([^"]+)\s*"', r'«\1»', subject)
+    subject = re.sub(r'\s+', ' ', subject).strip()
+
     try:
         # Convert Plain Text body newlines to HTML br tags
         normalized = body.strip().replace('\r\n', '\n').replace('\r', '\n')
@@ -575,7 +622,7 @@ def save_draft_to_imap(subject: str, body: str, recipient: str, quote_text: str 
         html_body = '<br><br>\n'.join(formatted_paragraphs)
         
         # Append quote block if present
-        if quote_text:
+        if quote_text and len(quote_text.strip()) > 20:
             html_body += f"<br><br><br>---<br>{quote_text}"
             
         # Create HTML email message

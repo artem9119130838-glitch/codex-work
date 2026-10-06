@@ -56,10 +56,18 @@ CI_LEGAL_ADDRESS = "5c0dc76f-23c6-11ed-91a8-a068f8f3337c"
 CI_ACTUAL_ADDRESS = "5c0dc76e-23c6-11ed-91a8-a068f8f3337c"
 CI_WEB = "5c0dc76c-23c6-11ed-91a8-a068f8f3337c"
 
-TAG_END_BUYER = "6c77607c-e770-11ef-8e46-02006df8aab5"
-TAG_PRODUCTION = "891061f8-df13-11ef-9922-02006df8aab5"
-TAG_TENDER = "052cb624-ded8-11ef-9922-02006df8aab5"
-TAG_RESELLER = "306714e0-e1f5-11ef-8db0-02006df8aab5"
+TAG_END_BUYER = "6c77607c-e770-11ef-8e46-02006df8aab5"   # Конечный покупатель
+TAG_PRODUCTION = "891061f8-df13-11ef-9922-02006df8aab5"  # Производство
+TAG_TENDER = "052cb624-ded8-11ef-9922-02006df8aab5"      # Тендер
+TAG_RESELLER = "306714e0-e1f5-11ef-8db0-02006df8aab5"    # Перепродажники
+TAG_LARGE = "7e8d7ab8-df13-11ef-9922-02006df8aab5"       # Крупный
+TAG_HOLDING = "0e89c354-fe42-11ef-8ae4-02006df8aab5"     # Холдинг
+TAG_INDIVIDUAL = "43e14fb2-67a7-11f0-875b-02006df8aab5"  # Физик
+
+# Автоматическое исправление известных опечаток GUID тегов
+TAG_TYPO_MAP = {
+    "7e8d7ab6-df13-11ef-9922-02006df8aab5": TAG_LARGE    # Опечатка 6 -> 8
+}
 
 
 def build_lead_base_payload(title, company_name=None, inn=None, comment=None):
@@ -167,11 +175,15 @@ def build_lead_patch_payload(emails=None, phone=None, legal_address=None, actual
 
     tags_rows = []
     if tag_keys:
-        for idx, t_key in enumerate(tag_keys, 1):
-            tags_rows.append({
-                "LineNumber": str(idx),
-                "Тег_Key": t_key
-            })
+        seen_tags = set()
+        for t_key in tag_keys:
+            clean_key = TAG_TYPO_MAP.get(t_key, t_key)
+            if clean_key and clean_key not in seen_tags:
+                seen_tags.add(clean_key)
+                tags_rows.append({
+                    "LineNumber": str(len(tags_rows) + 1),
+                    "Тег_Key": clean_key
+                })
 
     first_email = next(iter(seen_emails), "") if seen_emails else ""
     first_phone = next(iter(seen_phones), "") if seen_phones else ""
@@ -406,6 +418,12 @@ def execute_full_lead_creation(args):
         tag_keys.append(TAG_TENDER)
     if args.tag_reseller:
         tag_keys.append(TAG_RESELLER)
+    if args.tag_large:
+        tag_keys.append(TAG_LARGE)
+    if args.tag_holding:
+        tag_keys.append(TAG_HOLDING)
+    if args.tag_individual:
+        tag_keys.append(TAG_INDIVIDUAL)
 
     emails = []
     if args.email:
@@ -592,6 +610,9 @@ def main():
     parser.add_argument("--tag-production", action="store_true", help="Тег Производство")
     parser.add_argument("--tag-tender", action="store_true", help="Тег Тендер")
     parser.add_argument("--tag-reseller", action="store_true", help="Тег Перепродажник")
+    parser.add_argument("--tag-large", action="store_true", help="Тег Крупный")
+    parser.add_argument("--tag-holding", action="store_true", help="Тег Холдинг")
+    parser.add_argument("--tag-individual", action="store_true", help="Тег Физик")
 
     args = parser.parse_args()
     try:

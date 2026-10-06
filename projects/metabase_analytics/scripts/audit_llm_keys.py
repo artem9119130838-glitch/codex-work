@@ -3,7 +3,7 @@
 from __future__ import annotations
 """
 LLM Key Health & Quota Diagnostic Tool: audit_llm_keys.py
-Version: 2.0 (2026-10-03)
+Version: 2.1 (2026-10-05)
 
 Tests all configured Gemini and DeepSeek API keys, classifies them:
 - ACTIVE (200 OK)
@@ -145,6 +145,7 @@ def main():
     parser.add_argument("--keys", help="Comma-separated raw keys list to test directly")
     parser.add_argument("--model", default="gemini-flash-latest", help="Gemini model for testing")
     parser.add_argument("--db-sync", action="store_true", help="Sync key health status into PostgreSQL DWH")
+    parser.add_argument("--cleanup-obsolete", action="store_true", help="Remove orphaned/stale key aliases from llm_keys_status")
     parser.add_argument("--notify-b24", action="store_true", help="Send alert message to Bitrix24 chat if errors found")
     args = parser.parse_args()
 
@@ -152,10 +153,19 @@ def main():
     if args.env_file:
         env_vars = load_keys_from_env_file(args.env_file)
     else:
-        for possible_env in ["C:/Users/Артем/tender-rag-api/.env", ".env", "projects/metabase_analytics/.env"]:
+        for possible_env in [
+            "/Storage/scripts/metabase_analytics/.env",
+            "C:/Users/Артем/tender-rag-api/.env",
+            ".env",
+            "projects/metabase_analytics/.env"
+        ]:
             if os.path.exists(possible_env):
                 env_vars = load_keys_from_env_file(possible_env)
                 break
+
+    # Propagate env_vars to os.environ so PG_PASS, B24_WEBHOOK_URL etc are available
+    for k, v in env_vars.items():
+        os.environ.setdefault(k, v)
 
     gemini_keys_str = args.keys or env_vars.get("GEMINI_API_KEYS") or os.environ.get("GEMINI_API_KEYS", "")
     single_gemini = env_vars.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
@@ -175,7 +185,7 @@ def main():
 
     # 1. Audit Gemini Keys
     for idx, key in enumerate(gemini_keys, 1):
-        alias = f"gemini-key-{idx:02d}"
+        alias = f"Gemini-{idx} (..{key[-4:]})"
         masked = mask_key(key)
         print(f"Testing {alias} ({masked})...", end="", flush=True)
         status, code, latency, detail = test_gemini_key(key, args.model)
@@ -196,7 +206,7 @@ def main():
 
     # 2. Audit DeepSeek Key
     if deepseek_key:
-        alias = "deepseek-main"
+        alias = "DeepSeek-V3 Main"
         masked = mask_key(deepseek_key)
         print(f"Testing {alias} ({masked})...", end="", flush=True)
         status, code, latency, detail = test_deepseek_key(deepseek_key)
@@ -274,6 +284,11 @@ def main():
             """
             rows = [(r["alias"], r["provider"], r["masked"], r["status"], "NOW()", r["code"], r["detail"]) for r in results]
             execute_values(cursor, upsert_sql, rows)
+            if args.cleanup_obsolete:
+                valid_aliases = tuple(r["alias"] for r in results)
+                if valid_aliases:
+                    cursor.execute("DELETE FROM llm_keys_status WHERE key_alias NOT IN %s;", (valid_aliases,))
+                    print(f"[OK] Cleaned up obsolete key aliases (kept: {len(valid_aliases)}).")
             conn.commit()
             cursor.close()
             conn.close()

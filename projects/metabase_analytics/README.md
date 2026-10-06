@@ -43,13 +43,18 @@ CRM Битрикс24 (Сделки, Контакты, Компании)
 
 * **`docs/`**:
   * [METABASE_GUIDE.md](file:///C:/Codex/projects/metabase_analytics/docs/METABASE_GUIDE.md) — пошаговое руководство администратора и менеджера.
+  * [LLM_ANALYTICS_AUDIT_AND_FIX_REPORT.md](file:///C:/Codex/projects/metabase_analytics/docs/LLM_ANALYTICS_AUDIT_AND_FIX_REPORT.md) — отчет об аудите и устранении ошибок в отчетах коммерции и мониторинга LLM (05.10.2026).
 * **`sql/`**:
   * [schema.sql](file:///C:/Codex/projects/metabase_analytics/sql/schema.sql) — DDL-схемы витрин данных.
 * **`workflows/`**:
   * `n8n_analytics_sync_production.json` — сценарий n8n для real-time синхронизации сделок по вебхукам.
 * **`scripts/`**:
-  * `manage_metabase_dashboards.py` — единый боевой CLI-скрипт деплоя карточек, дашбордов и управления правами через Metabase REST API (поддерживает `--dry-run`).
+  * `manage_metabase_dashboards.py` (v2.4) — единый боевой CLI-скрипт деплоя карточек, дашбордов (включая 3-уровневую группировку LLM) и управления правами через Metabase REST API. Включает встроенные режимы самодиагностики `--action test-queries` (аппаратный тест выполнения всех карточек) и `--action db-stats` (сводка DWH). Поддерживает `--dry-run`.
+  * `audit_llm_keys.py` (v2.1) — боевой скрипт тестирования пула API-ключей Gemini и DeepSeek, синхронизации статусов в DWH (`llm_keys_status`) с автоочисткой устаревших алиасов (`--cleanup-obsolete`) и отправкой алертов в чат Битрикс24 без автоудаления. Запущен в crontab на VPS.
+  * `search_session_wishes.py` (v1.0) — канонический скрипт поиска по всей истории сессий диалогов (brain transcripts) с кластеризацией запросов, экспортом и фильтрацией.
   * `sync_analytics_dwh.py` — боевой ETL-скрипт синхронизации данных из CRM в PostgreSQL (инкремент / полный бэкфилл, `--dry-run`).
   * `archive/` — версионные снимки скриптов перед модификациями.
+
 * **`scratch/`**:
   * черновики и разовые отладочные запросы.
+

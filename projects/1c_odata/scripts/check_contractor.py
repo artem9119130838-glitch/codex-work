@@ -46,10 +46,10 @@ def _load_env():
 
 _load_env()
 
-DADATA_TOKEN = os.getenv("DADATA_TOKEN", "17c6961838d6a750aeadd323d0aa06342f7044f9")
-DADATA_SECRET = os.getenv("DADATA_SECRET", "84677c7916912e5ae132b4b7359d4f5ad0b69927")
-SABY_LOGIN = os.getenv("SABY_LOGIN", "top-gk@yandex.ru")
-SABY_PASS = os.getenv("SABY_USER_PASSWORD", "Artem159753!")
+DADATA_TOKEN = os.getenv("DADATA_TOKEN", "")
+DADATA_SECRET = os.getenv("DADATA_SECRET", "")
+SABY_LOGIN = os.getenv("SABY_LOGIN", "")
+SABY_PASS = os.getenv("SABY_USER_PASSWORD", "")
 
 B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "").rstrip("/") + "/"
 ODATA_BASE = os.getenv("ONEC_ODATA_URL", "http://artem.medianasoft.spb.ru/unf/odata/standard.odata")

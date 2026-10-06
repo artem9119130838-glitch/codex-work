@@ -48,7 +48,7 @@ IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 SENDER_EMAIL = os.getenv("IMAP_USER", "sales@longwang.ru")
 SENDER_PASS = os.getenv("IMAP_PASSWORD", "")
 SENDER_NAME = "Артем Петров Long Wang, ООО Ци Линь"
-IMAP_DRAFTS_FOLDER = "&BBcEMAQzBD4EQgQ+BDIEOgQ4-"
+IMAP_DRAFTS_FOLDER = "Drafts"
 
 # Эталонная HTML-подпись из Битрикс24
 BITRIX_SIGNATURE_HTML = """
@@ -545,7 +545,8 @@ def build_mime_email(deal_data: dict, ai_letter_text: str, ai_letter_html: str, 
     last_subj_display = deal_data.get("last_mgr_subject") or clean_subj
     last_touch_date = deal_data.get("last_touch_date") or datetime.now().strftime("%Y-%m-%d")
 
-    quoted_html_block = f"""
+    if quote_text_body and len(quote_text_body.strip()) >= 15:
+        quoted_html_block = f"""
     <br><br>
     <div class="gmail_quote">
       <div dir="ltr" class="gmail_attr">
@@ -561,15 +562,17 @@ def build_mime_email(deal_data: dict, ai_letter_text: str, ai_letter_html: str, 
       </blockquote>
     </div>
     """
-
-    quoted_text_block = (
-        f"\n\n-------- Исходное сообщение --------\n"
-        f"Тема: {last_subj_display}\n"
-        f"Дата: {last_touch_date}\n"
-        f"От: {SENDER_NAME} <{SENDER_EMAIL}>\n"
-        f"Кому: {to_email}\n\n"
-        f"{quote_text_body}\n"
-    )
+        quoted_text_block = (
+            f"\n\n-------- Исходное сообщение --------\n"
+            f"Тема: {last_subj_display}\n"
+            f"Дата: {last_touch_date}\n"
+            f"От: {SENDER_NAME} <{SENDER_EMAIL}>\n"
+            f"Кому: {to_email}\n\n"
+            f"{quote_text_body}\n"
+        )
+    else:
+        quoted_html_block = ""
+        quoted_text_block = ""
 
     full_html = f"<div style='font-family: Arial, sans-serif; font-size: 14px;'>{ai_letter_html}</div>{BITRIX_SIGNATURE_HTML}{quoted_html_block}"
     full_text = f"{ai_letter_text}\n{BITRIX_SIGNATURE_TEXT}\n{quoted_text_block}".strip()
@@ -652,11 +655,30 @@ def create_followup_draft_in_imap(deal_data: dict, ai_letter_text: str, ai_lette
     msg_bytes = msg.as_bytes()
     with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as imap:
         imap.login(SENDER_EMAIL, SENDER_PASS)
-        for folder in ["Drafts", IMAP_DRAFTS_FOLDER]:
-            try:
-                imap.append(folder, "\\Draft", imaplib.Time2Internaldate(time.time()), msg_bytes)
-            except Exception:
-                pass
+        # Определение системной папки Drafts (никогда не писать в 'Заготовки' или пользовательские папки!)
+        drafts_folder = "Drafts"
+        status, folder_list = imap.list()
+        if status == 'OK':
+            for f in folder_list:
+                f_str = f.decode('utf-8', errors='replace')
+                f_lower = f_str.lower()
+                if "\\drafts" in f_lower or "inbox.drafts" in f_lower:
+                    import re
+                    m_f = re.search(r'"([^"]+)"$', f_str)
+                    if m_f:
+                        drafts_folder = m_f.group(1)
+                    break
+
+        imap.select(f'"{drafts_folder}"')
+
+        # ZERO-DUPLICATE GUARD: Проверяем, нет ли уже черновика для этого получателя
+        status, search_res = imap.search(None, f'(TO "{to_email}")')
+        if status == 'OK' and search_res[0]:
+            print(f"    [DUPLICATE GUARD] В папке '{drafts_folder}' уже найден существующий черновик для {to_email}. Пропуск создания дубля.")
+            attached_names = [name for name, _ in valid_attachments]
+            return msg["Message-ID"], attached_names, clean_subj
+
+        imap.append(drafts_folder, "\\Draft", imaplib.Time2Internaldate(time.time()), msg_bytes)
                 
     attached_names = [name for name, _ in valid_attachments]
     return msg["Message-ID"], attached_names, clean_subj

@@ -5,6 +5,10 @@ legacy/
 /archive/
 projects/*/scripts/archive/*.py
 !projects/*/scripts/archive/README.md
+projects/*/archive/
+!projects/*/archive/README.md
+scripts/archive/*.py
+!scripts/archive/README.md
 /ARCHIVE/
 __pycache__/
 _cache_blocks/

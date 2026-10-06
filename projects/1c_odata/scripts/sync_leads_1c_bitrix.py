@@ -77,6 +77,19 @@ USER_MAPPING = {
     "салман": 26
 }
 
+# Эталонные GUID тегов 1С:УНФ (Canonical Tag Integrity Guard)
+TAG_LARGE = "7e8d7ab8-df13-11ef-9922-02006df8aab5"       # Крупный
+TAG_PRODUCTION = "891061f8-df13-11ef-9922-02006df8aab5"  # Производство
+TAG_TENDER = "052cb624-ded8-11ef-9922-02006df8aab5"      # Тендер
+TAG_RESELLER = "306714e0-e1f5-11ef-8db0-02006df8aab5"    # Перепродажники
+TAG_END_BUYER = "6c77607c-e770-11ef-8e46-02006df8aab5"   # Конечный покупатель
+TAG_HOLDING = "0e89c354-fe42-11ef-8ae4-02006df8aab5"     # Холдинг
+TAG_INDIVIDUAL = "43e14fb2-67a7-11f0-875b-02006df8aab5"  # Физик
+
+TAG_TYPO_MAP = {
+    "7e8d7ab6-df13-11ef-9922-02006df8aab5": TAG_LARGE    # Опечатка 6 -> 8
+}
+
 
 def call_b24(method: str, params: dict = None) -> dict:
     url = f"{B24_WEBHOOK}{method}"
@@ -560,6 +573,153 @@ def clean_invalid_email_from_systems(target_email: str, reason: str = "bounce", 
     return summary
 
 
+def audit_and_fix_lead_tags(target_lead_guids: list = None, fix: bool = False, dry_run: bool = True) -> dict:
+    """
+    Канонический Tag Integrity Guard & Repair:
+    1. Загружает список валидных тегов из Catalog_Теги.
+    2. Сканирует лиды (по явному списку GUID или все лиды с тегами в 1С:УНФ).
+    3. Выявляет битые теги (отсутствующие в Catalog_Теги или помеченные на удаление).
+    4. Заменяет известные опечатки (7e8d7ab6 -> 7e8d7ab8 'Крупный').
+    5. Удаляет невосстановимые битые теги и нормализует LineNumber.
+    6. При fix=True и dry_run=False отправляет OData PATCH в 1С:УНФ.
+    """
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    auth = (ODATA_USER, ODATA_PASS)
+
+    print("=" * 80)
+    print("TAG INTEGRITY GUARD: АУДИТ И ИСПРАВЛЕНИЕ ТЕГОВ ЛИДОВ В 1С:УНФ")
+    print(f"Режим: {'DRY-RUN (предпросмотр)' if dry_run else 'БОЕВОЙ РЕЖИМ (фиксация в 1С)'} | Фиксация: {fix}")
+    print("=" * 80)
+
+    all_existing_tags = {}
+    skip = 0
+    top = 100
+    while True:
+        url = f"{ODATA_BASE}/Catalog_Теги?$format=json&$top={top}&$skip={skip}"
+        r = requests.get(url, auth=auth, headers=headers, timeout=20)
+        data = r.json().get("value", []) if r.status_code == 200 else []
+        if not data:
+            break
+        for t in data:
+            all_existing_tags[t["Ref_Key"]] = {
+                "name": t.get("Description"),
+                "deleted": t.get("DeletionMark", False)
+            }
+        skip += len(data)
+        if len(data) < top:
+            break
+
+    leads_to_check = []
+    if target_lead_guids:
+        for l_guid in target_lead_guids:
+            url = f"{ODATA_BASE}/Catalog_Лиды(guid'{l_guid}')?$format=json"
+            r = requests.get(url, auth=auth, headers=headers, timeout=20)
+            if r.status_code == 200:
+                leads_to_check.append(r.json())
+            else:
+                print(f"  [WARN] Лид {l_guid} не найден в 1С (HTTP {r.status_code})")
+    else:
+        skip = 0
+        top = 100
+        seen_scanned = set()
+        while True:
+            url = f"{ODATA_BASE}/Catalog_Лиды?$format=json&$top={top}&$skip={skip}&$orderby=Ref_Key"
+            r = requests.get(url, auth=auth, headers=headers, timeout=20)
+            data = r.json().get("value", []) if r.status_code == 200 else []
+            if not data:
+                break
+            for l in data:
+                l_key = l.get("Ref_Key")
+                if l_key and l_key not in seen_scanned:
+                    seen_scanned.add(l_key)
+                    if l.get("Теги"):
+                        leads_to_check.append(l)
+            skip += len(data)
+            if len(data) < top:
+                break
+
+    print(f"Проверено лидов с тегами: {len(leads_to_check)}")
+
+    summary = {
+        "audited_leads": len(leads_to_check),
+        "broken_leads": [],
+        "fixed_leads": [],
+        "dry_run": dry_run
+    }
+
+    for l in leads_to_check:
+        l_guid = l.get("Ref_Key")
+        cur_tags = l.get("Теги", [])
+        if not cur_tags:
+            continue
+
+        has_broken = False
+        new_tags = []
+        changes = []
+        seen_tags = set()
+
+        for t in cur_tags:
+            t_key = t.get("Тег_Key")
+            if t_key in TAG_TYPO_MAP:
+                has_broken = True
+                fixed_key = TAG_TYPO_MAP[t_key]
+                tag_name = all_existing_tags.get(fixed_key, {}).get("name", "Крупный")
+                changes.append(f"Замена опечатки {t_key} -> {fixed_key} ('{tag_name}')")
+                if fixed_key not in seen_tags:
+                    seen_tags.add(fixed_key)
+                    new_tags.append({"LineNumber": str(len(new_tags) + 1), "Тег_Key": fixed_key})
+            elif t_key not in all_existing_tags:
+                has_broken = True
+                changes.append(f"Удаление несуществующего тега {t_key}")
+            elif all_existing_tags[t_key]["deleted"]:
+                has_broken = True
+                changes.append(f"Удаление помеченного на удаление тега {t_key} ('{all_existing_tags[t_key]['name']}')")
+            else:
+                if t_key not in seen_tags:
+                    seen_tags.add(t_key)
+                    new_tags.append({"LineNumber": str(len(new_tags) + 1), "Тег_Key": t_key})
+
+        if has_broken:
+            lead_info = {
+                "guid": l_guid,
+                "name": l.get("Description"),
+                "inn": l.get("Тема"),
+                "before_count": len(cur_tags),
+                "after_count": len(new_tags),
+                "changes": changes,
+                "new_tags": new_tags
+            }
+            summary["broken_leads"].append(lead_info)
+            print(f"\n[НАЙДЕН ДЕФЕКТ] Лид: '{l.get('Description')}' (ИНН: {l.get('Тема')}, GUID: {l_guid})")
+            print(f"  План изменений: {changes}")
+
+            if fix and not dry_run:
+                try:
+                    r_patch = requests.patch(
+                        f"{ODATA_BASE}/Catalog_Лиды(guid'{l_guid}')?$format=json",
+                        json={"Теги": new_tags},
+                        auth=auth, headers=headers, timeout=20
+                    )
+                    if r_patch.status_code in (200, 204):
+                        print(f"  [1C OK] Успешно исправлена ТЧ Теги в 1С:УНФ ({len(cur_tags)} -> {len(new_tags)} тегов)")
+                        summary["fixed_leads"].append(l_guid)
+                    else:
+                        print(f"  [1C ERROR] Ошибка PATCH лида {l_guid}: HTTP {r_patch.status_code} -> {r_patch.text}")
+                except Exception as e_p:
+                    print(f"  [1C ERROR] Исключение при обновлении лида {l_guid}: {e_p}")
+            else:
+                print(f"  [DRY-RUN] Запись пропущена. PATCH payload: {{'Теги': {new_tags}}}")
+
+    print("\n" + "=" * 80)
+    print("ИТОГИ АУДИТА ТЕГОВ 1С:")
+    print(f"  Лидов проверено: {summary['audited_leads']}")
+    print(f"  Лидов с дефектами тегов: {len(summary['broken_leads'])}")
+    print(f"  Лидов исправлено в 1С: {len(summary['fixed_leads'])}")
+    print(f"  Режим: {'DRY-RUN (изменения не вносились)' if dry_run else 'БОЕВОЙ'}")
+    print("=" * 80)
+    return summary
+
+
 def main():
     parser = argparse.ArgumentParser(description="Каноническая синхронизация лидов 1С ⮂ Bitrix24 (Zero-Blank Lead Guard)")
     parser.add_argument("--lead-ids", nargs="+", type=int, help="Список явных ID лидов Битрикс24")
@@ -570,12 +730,20 @@ def main():
     parser.add_argument("--limit", type=int, default=10, help="Лимит количества обрабатываемых лидов (по умолчанию 10)")
     parser.add_argument("--clean-email", type=str, default="", help="Очистить невалидный email (Bounce / Unsubscribe) из Битрикс24 и 1С:УНФ")
     parser.add_argument("--reason", type=str, default="bounce", choices=["bounce", "unsubscribe", "invalid"], help="Причина очистки email")
+    parser.add_argument("--audit-tags", action="store_true", help="Проверить целостность ТЧ Теги лидов в 1С:УНФ")
+    parser.add_argument("--fix-tags", action="store_true", help="Исправить битые теги лидов в 1С:УНФ (требует отсутствия --dry-run для боевой записи)")
+    parser.add_argument("--lead-guids", nargs="+", help="Список конкретных GUID лидов 1С для аудита/исправления тегов")
     parser.add_argument("--dry-run", action="store_true", help="Режим предпросмотра без изменения 1С и CRM")
     args = parser.parse_args()
 
     # Быстрый роутинг: если передан флаг очистки невалидного адреса
     if args.clean_email:
         clean_invalid_email_from_systems(args.clean_email, reason=args.reason, dry_run=args.dry_run)
+        return
+
+    # Быстрый роутинг: если передан аудит или исправление тегов
+    if args.audit_tags or args.fix_tags:
+        audit_and_fix_lead_tags(target_lead_guids=args.lead_guids, fix=args.fix_tags, dry_run=args.dry_run)
         return
 
     user_key = str(args.assigned_to).lower()

@@ -130,7 +130,18 @@ def create_summary(summary_path, summary_paragraph, completed_tasks, modified_fi
 def main():
     paths = get_paths()
     
-    if len(sys.argv) > 1 and sys.argv[1] == '--interactive':
+    keep_summary = ('--keep-summary' in sys.argv or '--preserve-summary' in sys.argv)
+    commit_msg = "Auto-compress session: update summary, clean workspace"
+    
+    # Извлечение кастомного сообщения коммита, если передано
+    for i, arg in enumerate(sys.argv):
+        if arg in ('--commit-msg', '-m') and i + 1 < len(sys.argv):
+            commit_msg = sys.argv[i + 1]
+            break
+
+    if keep_summary:
+        print(f"\n[SESSION COMPRESS] Сохраняем существующий {paths['summary']} без перезаписи.")
+    elif len(sys.argv) > 1 and sys.argv[1] == '--interactive':
         print(f"=== Сжатие сессии чата ({paths['root'].name}) ===")
         summary_paragraph = input("Краткий итог сессии в один абзац (задачи, финал, статус продолжения): ")
         completed = input("Что было сделано? (через запятую или списком): ")
@@ -142,6 +153,7 @@ def main():
         files_fmt = "\n".join(f"- `{f.strip()}`" for f in files.split(',') if f.strip())
         issues_fmt = "\n".join(f"- {i.strip()}" for i in issues.split(',') if i.strip())
         lessons_fmt = "\n".join(f"- {l.strip()}" for l in lessons.split(',') if l.strip())
+        create_summary(paths["summary"], summary_paragraph, completed_fmt, files_fmt, issues_fmt, lessons_fmt)
     else:
         summary_paragraph = sys.argv[1] if len(sys.argv) > 1 else "- Не указано"
         completed = sys.argv[2] if len(sys.argv) > 2 else "- Не указано"
@@ -169,8 +181,7 @@ def main():
         else:
             lessons_fmt = f"- {lessons}"
             
-    # 1. Создаем сводку
-    create_summary(paths["summary"], summary_paragraph, completed_fmt, files_fmt, issues_fmt, lessons_fmt)
+        create_summary(paths["summary"], summary_paragraph, completed_fmt, files_fmt, issues_fmt, lessons_fmt)
     
     # 2. Очищаем scratch от мусора
     clean_scratch(paths["scratch"])
@@ -181,7 +192,7 @@ def main():
         print("\n--- Синхронизация с Git ---")
         # Используем add . для прокидывания новых файлов в projects/ и scripts/
         run_git(["add", "."], "Добавление измененных и новых файлов в индекс Git", git_root)
-        run_git(["commit", "-m", "Auto-compress session: update summary, clean workspace"], "Создание коммита сжатия", git_root)
+        run_git(["commit", "-m", commit_msg], "Создание коммита сжатия", git_root)
         run_git(["push", "origin", "master"], "Отправка коммитов в репозиторий GitHub", git_root)
     else:
         print(f"\n[INFO] Git не настроен в корне {git_root}. Изменения сохранены локально.")
