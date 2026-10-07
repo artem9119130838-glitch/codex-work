@@ -1,56 +1,59 @@
 # SESSION SUMMARY — Итоги сессии и handoff-контекст
 
-**Дата и время сжатия (DT):** 2026-10-07 08:42:00
+**Дата и время сжатия (DT):** 2026-10-07 08:46:00
 
 ---
 
 ## 🔍 Итог сессии в один абзац
-В ходе сессии проведена комплексная ревизия и очистка почтового ящика `sales@longwang.ru` от бракованных автоматических писем в двух папках: `Drafts` (удалено 5 черновиков Шага 3 реанимации лидов с фальшивыми цитатами писем Артёма от лица клиентов и искаженными именами юрлиц из 1С) и `Заготовки` (удален 21 мусорный дубликат follow-up сделок от 01.10.2026 при 100% сохранении 22 оригинальных авторских шаблонов). Выявлены и устранены системные первопричины в кодовой базе: в конвейере реанимации `test_pilot_reactivation.py` переработана функция `get_last_incoming_email_details` (строгий запрет цитирования исходящих и маркеров LongWang), внедрена каноническая нормализация названий компаний `clean_company_name()` и пост-генерационный Quality Gate; в конвейере follow-up `process_deals_without_activities.py` ликвидирован хардкод сохранения в пользовательскую папку `Заготовки` (`IMAP_DRAFTS_FOLDER` переключен строго на `Drafts`), устранены пустые блоки цитирования и внедрен Zero-Duplicate Guard. На сервере VPS (`109.248.170.181`) в рабочем контейнере `onec_sync_daemon` проведена санитарная очистка от устаревших тестовых скриптов и задеплоены актуальные модули `run_daily_reactivation.py`, `test_pilot_reactivation.py` и `check_contractor.py` с успешной верификацией импортов. Все снимки зафиксированы в `scripts/archive/` с отражением в `README.md`.
+В ходе сессии проведено расследование и устранение критического сбоя открытия карточки лида в 1С:УНФ (`Ошибка_20261004094821.zip`), возникавшего из-за ошибки в модуле БСП `{ОбщийМодуль.ТегированиеОбъектов.Модуль(285)}: Преобразование значения к типу Число не может быть выполнено`. Локализована первопричина: опечатка в одном символе GUID тега `7e8d7ab6-df13-11ef-9922-02006df8aab5` (HTTP 404 в OData) вместо канонического `7e8d7ab8-df13-11ef-9922-02006df8aab5` («Крупный»). Проведен глобальный аппаратный скан всей базы 1С:УНФ (2 377 лидов и 1 210 контрагентов), выявлено ровно 5 пораженных лидов (`ООО «РСО-ЭНЕРГО»`, `ООО «ТЕХНОПРОМВЕНТ»`, `ООО «ФИЛТА»`, `ООО «РИА»`, `ООО «Мореодор»`), и все 5 успешно исправлены через OData PATCH без потерь остальных тегов. В боевой конвейер `sync_leads_1c_bitrix.py` внедрен постоянный модуль `Tag Integrity Guard & Repair` (`--audit-tags`, `--fix-tags`) с автоматическим перехватом опечаток `TAG_TYPO_MAP`, а в скрипт создания `create_1c_lead.py` добавлены недостающие константы тегов и предварительная валидация. В скрипте `check_contractor.py` устранены fallback-секреты по правилу No Fallback Secrets Guard. Сформирован подробный отчет об инциденте `TAG_INTEGRITY_INCIDENT_REPORT_20261004.md`, созданы снимки в `scripts/archive/`, актуализированы регламенты `ERP_1C_POLICY.md`, `scripts/README.md` и единый реестр `SCRIPTS_CATALOG.md`.
 
 ---
 
 ## 1. Выполненные задачи (Успехи)
-- **РОП-аудит и очистка папки `Drafts`:** Проанализированы и удалены через IMAP все 5 бракованных черновиков Шага 3 реанимации лидов от 03.10.2026 (`zav@almicom.ru`, `noalol@yandex.ru`, `sharafieva.l4@rwb.ru`, `gelbling@ntzmk.ru`, `i.chegodaev@sial-group.ru`).
-- **РОП-аудит и очистка папки `Заготовки` (`&BBcEMAQzBD4EQgQ+BDIEOgQ4-`):** Проанализированы все 43 сообщения; сохранены все 22 авторских шаблона Артёма за 2024–2026 гг. и подпапка `Заготовки.Редкие` (11 писем); удален ровно 21 мусорный черновик от 01.10.2026.
-- **Устранение бага ложных цитат в реанимации:** В [test_pilot_reactivation.py](file:///C:/Codex/projects/lead_reactivation/scripts/test_pilot_reactivation.py) переписана процедура `get_last_incoming_email_details()`: добавлена фильтрация `raw_payload->>'is_sent' != true`, исключение папок `Sent`/`Отправленные` и черных меток авторства (`longwang.ru`, `С уважением, Артем`, `sales@longwang.ru`). Если настоящего входящего письма клиента нет — блок цитаты аннулируется.
-- **Каноническая нормализация названий юрлиц:** Функция `clean_company_name()` расширена обработкой разделителей с запятыми (`"НТЗМК, ООО"` $\rightarrow$ `ООО «НТЗМК»`, `"Рвб,"` $\rightarrow$ `ООО «РВБ»`, `"ЛПЗ "" Сегал "", ООО"` $\rightarrow$ `ООО «ЛПЗ Сегал»`) и стриппингом висячих знаков препинания.
-- **Внедрение Post-Generation Quality Gate:** В `save_draft_to_imap()` добавлена тройная предпроверочная валидация: очистка цитаты от корпоративных подписей, нормализация тем от висячих запятых и авто-коррекция текста при отсутствии прикрепленного КП.
-- **Ликвидация загрязнения папки «Заготовки» в Follow-up:** В [process_deals_without_activities.py](file:///C:/Codex/projects/1c_odata/scripts/process_deals_without_activities.py) переменная `IMAP_DRAFTS_FOLDER` переключена на `"Drafts"`, удален паразитный цикл записи в две папки, внедрен **Zero-Duplicate Guard** (проверка наличия существующего черновика в IMAP перед добавлением) и устранены пустые плашки `-------- Исходное сообщение -------- Тема:`.
-- **Санитарная очистка и деплой на VPS (`109.248.170.181`):** В контейнере `onec_sync_daemon` и каталоге `/root/n8n_email_ai` удалены устаревшие тестовые скрипты (`audit_drafts.py`, `cleanup_and_fix_drafts.py`, `test_db.py`, `test_stateless.py`), очищены кэши `__pycache__`, скопированы свежие версии `run_daily_reactivation.py`, `test_pilot_reactivation.py`, `check_contractor.py`. Выполнен проверочный запуск импорта (`DEPLOY VERIFICATION SUCCESSFUL`).
-- **Соблюдение Snapshot Before Edit Guard:** Снапшоты скриптов перед модификацией сохранены в `projects/1c_odata/scripts/archive/` и `projects/lead_reactivation/scripts/archive/` с фиксацией в `README.md`.
+- **Расследование инцидента по дампу 1С:** По архиву `Ошибка_20261004094821.zip` и скриншоту локализована ошибка в серверной процедуре `ТегированиеОбъектов.ПриСозданииПриЧтенииНаСервере` при попытке открыть лид ООО «РСО-ЭНЕРГО» в тонком клиенте (1CV8C).
+- **Глобальный аппаратный аудит 1С:УНФ:** Выполнено полное сканирование базы через OData API: проверено 2 377 лидов (1 259 с заполненными тегами) и 1 210 контрагентов (136 с тегами). Выявлено ровно 5 пораженных лидов, содержащих битую ссылку `7e8d7ab6...`. Контрагенты не затронуты (0 дефектов).
+- **Боевое исправление 5 лидов в 1С:УНФ:** После симуляции в режиме `--dry-run` выполнена прямая коррекция через OData PATCH для всех 5 записей (`ООО «РСО-ЭНЕРГО»`, `ООО «ТЕХНОПРОМВЕНТ»`, `ООО «ФИЛТА»`, `ООО «РИА»`, `ООО «Мореодор»`): битый GUID заменен на эталонный `7e8d7ab8...` («Крупный»), нормализована нумерация строк `LineNumber`.
+- **Контрольная валидация:** Повторный аудит подтвердил 0 дефектов в базе 1С. Все карточки лидов открываются пользователю без ошибок.
+- **Модернизация боевого конвейера [sync_leads_1c_bitrix.py](file:///C:/Codex/projects/1c_odata/scripts/sync_leads_1c_bitrix.py):** Интегрирован модуль **Tag Integrity Guard & Repair** с автозаменой опечаток (`TAG_TYPO_MAP`), добавлены команды CLI `--audit-tags` и `--fix-tags`, внедрена детерминированная сортировка `$orderby=Ref_Key` и дедупликация при пагинации OData.
+- **Расширение скрипта [create_1c_lead.py](file:///C:/Codex/projects/1c_odata/scripts/create_1c_lead.py):** Добавлены константы `TAG_LARGE`, `TAG_HOLDING`, `TAG_INDIVIDUAL`, аргументы CLI `--tag-large`, `--tag-holding`, `--tag-individual` и шлюз предпроверочной валидации тегов.
+- **Устранение уязвимостей в [check_contractor.py](file:///C:/Codex/projects/1c_odata/scripts/check_contractor.py):** Устранены жестко заданные fallback-пароли и токены в `os.getenv` по стандарту **No Fallback Secrets Guard**.
+- **Соблюдение Snapshot Before Edit Guard:** В каталоге `projects/1c_odata/scripts/archive/` созданы снимки стабильных версий скриптов (`2026-10-04_sync_leads_1c_bitrix_v4_before_tag_integrity_guard.py`, `2026-10-04_create_1c_lead_v1_before_tag_constants_update.py`, `2026-10-04_check_contractor_v3_before_no_fallback_secrets.py`) и зафиксированы в [archive/README.md](file:///C:/Codex/projects/1c_odata/scripts/archive/README.md).
+- **Соблюдение Script Retention Guard:** Черновой диагностический скрипт перемещен в архив `projects/1c_odata/scripts/archive/2026-10-04_diagnose_lead_tag_error_scratch.py`.
+- **Актуализация проектных регламентов:** В [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md) внесен Раздел 8 «Регламент целостности тегов 1С:УНФ (Tag Integrity Guard)», обновлен [scripts/README.md](file:///C:/Codex/projects/1c_odata/scripts/README.md) и общесистемный каталог [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md).
+- **Формирование отчета:** Разработан документ [TAG_INTEGRITY_INCIDENT_REPORT_20261004.md](file:///C:/Codex/projects/1c_odata/docs/TAG_INTEGRITY_INCIDENT_REPORT_20261004.md).
 
 ---
 
 ## 2. Измененные и новые файлы
-- `[projects/1c_odata/scripts/process_deals_without_activities.py](file:///C:/Codex/projects/1c_odata/scripts/process_deals_without_activities.py)` — переключение сохранения строго в `Drafts`, Zero-Duplicate Guard, валидация блоков цитирования.
-- `[projects/1c_odata/scripts/archive/2026-10-04_process_deals_without_activities_v2_before_zagotovki_fix.py](file:///C:/Codex/projects/1c_odata/scripts/archive/2026-10-04_process_deals_without_activities_v2_before_zagotovki_fix.py)` — архивный снимок до правок.
-- `[projects/1c_odata/scripts/archive/README.md](file:///C:/Codex/projects/1c_odata/scripts/archive/README.md)` — фиксация архива в реестре.
-- `[projects/lead_reactivation/scripts/test_pilot_reactivation.py](file:///C:/Codex/projects/lead_reactivation/scripts/test_pilot_reactivation.py)` — incoming-only фильтр `get_last_incoming_email_details`, канонический `clean_company_name`, Quality Gate в `save_draft_to_imap`.
-- `[projects/lead_reactivation/scripts/archive/2026-10-04_run_daily_reactivation_v2_before_quote_and_company_fix.py](file:///C:/Codex/projects/lead_reactivation/scripts/archive/2026-10-04_run_daily_reactivation_v2_before_quote_and_company_fix.py)` — архивный снимок конвейера.
-- `[projects/lead_reactivation/scripts/archive/2026-10-04_test_pilot_reactivation_v1_before_quote_and_company_fix.py](file:///C:/Codex/projects/lead_reactivation/scripts/archive/2026-10-04_test_pilot_reactivation_v1_before_quote_and_company_fix.py)` — архивный снимок библиотеки.
-- `[projects/lead_reactivation/scripts/archive/README.md](file:///C:/Codex/projects/lead_reactivation/scripts/archive/README.md)` — фиксация архивов реанимации.
+- `[projects/1c_odata/scripts/sync_leads_1c_bitrix.py](file:///C:/Codex/projects/1c_odata/scripts/sync_leads_1c_bitrix.py)` — внедрение Tag Integrity Guard (`--audit-tags`, `--fix-tags`, `TAG_TYPO_MAP`, стабильная пагинация).
+- `[projects/1c_odata/scripts/create_1c_lead.py](file:///C:/Codex/projects/1c_odata/scripts/create_1c_lead.py)` — константы тегов `Крупный`, `Холдинг`, `Физик`, CLI-флаги, санитизация тегов.
+- `[projects/1c_odata/scripts/check_contractor.py](file:///C:/Codex/projects/1c_odata/scripts/check_contractor.py)` — удаление скрытых дефолтных паролей из `os.getenv`.
+- `[projects/1c_odata/docs/TAG_INTEGRITY_INCIDENT_REPORT_20261004.md](file:///C:/Codex/projects/1c_odata/docs/TAG_INTEGRITY_INCIDENT_REPORT_20261004.md)` — чистовой отчет об инциденте и его устранении.
+- `[projects/1c_odata/ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md)` — Раздел 8: регламент валидации и реестр GUID тегов классификации 1С:УНФ.
+- `[projects/1c_odata/scripts/README.md](file:///C:/Codex/projects/1c_odata/scripts/README.md)` — актуализация описания канонических скриптов и флагов аудита тегов.
+- `[projects/1c_odata/scripts/archive/README.md](file:///C:/Codex/projects/1c_odata/scripts/archive/README.md)` — регистрация трех новых архивных снимков.
+- `[codex_kb/SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md)` — обновление описания конвейера `sync_leads_1c_bitrix.py`.
 
 ---
 
 ## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
-- **Изоляция системных черновиков от пользовательских шаблонов:** Папка `&BBcEMAQzBD4EQgQ+BDIEOgQ4-` («Заготовки») является личной папкой шаблонов пользователя в Roundcube. Автоматические черновики обязаны сохраняться **исключительно** в системную папку `Drafts` (флаг `\Drafts`). Запись в пользовательские папки категорически запрещена.
-- **Фильтрация направления переписки в DWH (Incoming Guard):** Почтовый демон при синхронизации папки `Sent` записывает email контрагента в поле `from_email`, выставляя флаг `raw_payload->>'is_sent' = true`. Функция выборки входящих сообщений обязана проверять `is_sent != true`, исключать папки `Sent`/`Отправленные` и сканировать текст на маркеры собственного авторства (`LongWang`, `С уважением, Артем`).
-- **Идемпотентность и Zero-Duplicate Guard при Dry-Run:** В режимах тестирования (`--dry-run` или сохранение черновиков без изменения стадии CRM) повторный запуск скрипта не должен плодить дубли. Обязательна предварительная проверка наличия письма в IMAP для данного адресата.
-- **Устойчивая нормализация названий юрлиц из 1С:** В базах 1С наименования контрагентов часто содержат разделители с запятыми (`"Компания, ООО"`). Регулярные выражения обязаны учитывать запятые и пробелы перед/после правовых форм и срезать хвостовые знаки препинания.
-- **Docker-контейнеры без внешних volume-маунтов на VPS:** При отсутствии монтирования директорий в `docker-compose.yml` правка файлов на хосте `/root/n8n_email_ai` не обновляет код внутри запущенного контейнера. Требуется либо прямой деплой через `docker cp`, либо пересборка образа.
+- **Уязвимость типовой БСП 1С к «битым» ссылкам в ТЧ Теги:** Если в табличной части `Теги` справочника `Catalog_Лиды` содержится ссылка на несуществующий элемент `Catalog_Теги`, платформа 1С падает при открытии карточки в `{ОбщийМодуль.ТегированиеОбъектов.Модуль(285)}` с ошибкой приведения типа `Число`. Любой конвейер записи обязан валидировать `Тег_Key` перед PATCH/POST.
+- **Визуальная коллизия похожих символов в GUID (`7e8d7ab6` vs `7e8d7ab8`):** При ручном копировании или распознавании текста цифры `6` и `8` легко спутать. В кодовой базе необходим превентивный перехватчик известных опечаток (`TAG_TYPO_MAP`).
+- **Требование `$orderby=Ref_Key` при постраничном сканировании OData:** При использовании `$top` и `$skip` без явной сортировки PostgreSQL в бэкенде 1С не гарантирует детерминированный порядок строк, что приводило к дублированию элементов между страницами выборки. Всегда использовать явную сортировку и локальную дедупликацию по `Ref_Key`.
+- **Соблюдение No Fallback Secrets Guard:** Не допускать указания реальных паролей/токенов вторым аргументом в `os.getenv("VAR", "secret")`. Боевые данные читаются исключительно из изолированного `.env`.
 
 ---
 
 ## 4. Влияние на процессы и команду (Downstream & Colleague Impact)
-- **Действующие боевые пайплайны:** Защищены. Ежедневный крон `0 9 * * *` на VPS теперь исполняет обновленный код с Pre-Flight фильтрами, корректными цитатами и чистыми заголовками. Папка `Заготовки` защищена от попадания спама.
-- **Изоляция разработчиков:** Контуры коллег (контур Михаила `/home/mikhail/`, сервисы tender-rag, Metabase) не затронуты.
-- **Действия третьих лиц:** Не требуются. Все 26 мусорных черновиков удалены из ящика, авторские шаблоны сохранены.
+- **Действующие боевые пайплайны:** Защищены. Конвейер синхронизации лидов теперь полностью автономен и защищен от записи невалидных тегов. Все карточки лидов в 1С:УНФ открываются штатно.
+- **Изоляция разработчиков:** Контуры коллег (контур Михаила на сервере VPS, Metabase, тендерные пайплайны) не затронуты.
+- **Действия третьих лиц:** Не требуются. База данных 1С:УНФ приведена в 100% валидное состояние.
 
 ---
 
 ## 5. Открытые вопросы и следующие шаги
-- Проведение контрольного боевого прогона утреннего конвейера реанимации лидов 1С (Поток 1: 10 писем, Поток 2: 10 писем) в будний день с проверкой генерации черновиков в папке `Drafts`.
-- Контроль работы ежедневного follow-up сделок без активностей в CRM Битрикс24 через [process_deals_without_activities.py](file:///C:/Codex/projects/1c_odata/scripts/process_deals_without_activities.py).
+- Задач в открытом состоянии нет. Все лиды исправлены, код протестирован и задеплоен.
+- При создании новых лидов через конвейер синхронизации использовать канонический скрипт [sync_leads_1c_bitrix.py](file:///C:/Codex/projects/1c_odata/scripts/sync_leads_1c_bitrix.py).
 
 ---
 
@@ -58,11 +61,10 @@
 
 ```text
 Текущая сессия чата завершена. Итог работы:
-Проведена полная ревизия и очистка почтового ящика sales@longwang.ru: удалены 5 бракованных писем реанимации из Drafts и 21 мусорный дубликат follow-up из пользовательской папки Заготовки (все 22 авторских шаблона сохранены). Устранены системные баги в кодовой базе: в lead_reactivation внедрен строгий входящий фильтр get_last_incoming_email_details, канонический clean_company_name() и Post-Generation Quality Gate; в process_deals_without_activities.py ликвидирован хардкод сохранения в Заготовки, внедрен Zero-Duplicate Guard и почищены блоки цитирования. На сервере VPS (109.248.170.181) в контейнере onec_sync_daemon удалены устаревшие тестовые скрипты и успешно задеплоены обновленные модули run_daily_reactivation.py, test_pilot_reactivation.py и check_contractor.py.
+Устранен критический сбой открытия карточки лида в 1С:УНФ (ОбщийМодуль.ТегированиеОбъектов.Модуль(285)) из-за опечатки в GUID тега 'Крупный' (7e8d7ab6 вместо 7e8d7ab8). Проведен глобальный аудит базы 1С через OData: выявлено и исправлено ровно 5 пораженных лидов (ООО «РСО-ЭНЕРГО», ООО «ТЕХНОПРОМВЕНТ», ООО «ФИЛТА», ООО «РИА», ООО «Мореодор»). Контрольная проверка подтвердила 0 дефектов. В боевой конвейер sync_leads_1c_bitrix.py встроен Tag Integrity Guard & Repair (--audit-tags, --fix-tags), в create_1c_lead.py добавлены недостающие константы тегов и авто-коррекция, в check_contractor.py удалены fallback-секреты. Сформирован отчет TAG_INTEGRITY_INCIDENT_REPORT_20261004.md, обновлены регламенты ERP_1C_POLICY.md, scripts/README.md и SCRIPTS_CATALOG.md.
 
-Для продолжения этой задачи в новом чате:
-1. Ознакомься со сводкой в `.ai/SESSION_SUMMARY.md`.
-2. Выполни открытые задачи: провести плановый контроль утренней генерации черновиков реанимации и сделок follow-up в системной папке Drafts.
-3. Учти критические ошибки и извлеченные уроки: черновики сохранять строго в системную папку Drafts (не трогать Заготовки), проверять флаг is_sent != true, использовать Zero-Duplicate Guard.
-Начни работу строго с этих шагов, соблюдая правила репозитория.
+Для продолжения работы в новом чате:
+1. Ознакомься со сводкой в `.ai/SESSION_SUMMARY.md` и отчетом `projects/1c_odata/docs/TAG_INTEGRITY_INCIDENT_REPORT_20261004.md`.
+2. База 1С:УНФ и пайплайны полностью исправны, открытых дефектов нет.
+3. При синхронизации лидов использовать канонический конвейер `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` со строгим соблюдением Tag Integrity Guard.
 ```
