@@ -338,8 +338,8 @@
 | **Базовый** | `process_today_followup_deals.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/process_today_followup_deals.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `qualify_batch_5.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/qualify_batch_5.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `scratch_b24_fetch.py` | `projects/HR/scratch_b24_fetch.py` | Автоматизация рабочего процесса. | 1 |
-| **Базовый** | `search_1c_entities.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 2 |
-| **Базовый** | `search_1c_entities.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/search_1c_entities.py` | Автоматизация рабочего процесса. | 0 |
+| **Базовый** | `search_1c_entities.py` | `projects/1c_odata/scripts/search_1c_entities.py` | Быстрый сквозной поиск сущностей в базе 1С:УНФ через OData API без расхода токенов | 0 |
+| **Базовый** | `search_bitrix_knowledge.py` | `projects/1c_odata/scripts/search_bitrix_knowledge.py` | Канонический конвейер интеллектуального поиска знаний, задач, созвонов, чатов и протоколов в Битрикс24 по нечетким запросам (`--query`, `--users`, `--task-id`, `--chat-id`) | 0 |
 | **Базовый** | `search_agrosnab.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/search_agrosnab.py` | 1. Search Leads | 0 |
 | **Базовый** | `search_dadata_batch_4.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/search_dadata_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `search_tasks_and_topics.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/search_tasks_and_topics.py` | Автоматизация рабочего процесса. | 0 |

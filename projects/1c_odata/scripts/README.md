@@ -95,7 +95,24 @@ py scripts/create_1c_lead.py --commit --title "ООО «Тест»" --inn "77012
 
 ---
 
-## 7. Доступы и окружение
+## 7. `scripts/search_bitrix_knowledge.py`
+**Назначение:** Канонический конвейер интеллектуального поиска знаний, задач, созвонов, чатов и протоколов в Битрикс24 по нечетким запросам.  
+**Что делает:**
+* Сканирует задачи Битрикс24, отсекая шум и автоматические задачи парсера тендеров (`=Проанализировать`, `=Тендер`).
+* Фильтрует задачи по участникам (постановщик, ответственный, соисполнители, аудиторы) и ключевым словам в заголовках и описаниях.
+* Инспектирует внутренние регламенты задач, комментарии (`task.commentitem.getlist`) и привязанные чаты (`chatId`, `im.dialog.messages.get`).
+* Позволяет мгновенно находить протоколы регулярных созвонов (понедельник/пятница), результаты отбора номенклатуры и резюме BitrixGPT.
+
+**Использование:**
+```bash
+py projects/1c_odata/scripts/search_bitrix_knowledge.py --query "созвон тендеры" --users 20,38
+py projects/1c_odata/scripts/search_bitrix_knowledge.py --task-id 780
+py projects/1c_odata/scripts/search_bitrix_knowledge.py --chat-id 1504 --limit 50
+```
+
+---
+
+## 8. Доступы и окружение
 * **1С:УНФ OData:** `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/` (`odata.user` для чтения, `odata.writer` для записи).
 * **Битрикс24 Вебхук:** `https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}/`.
 * **DaData Token:** `${DADATA_API_KEY}`.
