@@ -66,12 +66,12 @@ def load_dotenv():
 load_dotenv()
 
 # API Credentials
-B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "https://b24-g4wfjq.bitrix24.ru/rest/1/571p0j9x32gv6154/").rstrip("/") + "/"
+B24_WEBHOOK = os.getenv("BITRIX24_WEBHOOK_URL", "").rstrip("/") + "/"
 ONEC_BASE = os.getenv("ONEC_ODATA_URL", "http://artem.medianasoft.spb.ru/unf/odata/standard.odata").rstrip("/")
 ONEC_USER = os.getenv("ONEC_ODATA_USER", "odata.user")
-ONEC_PASS = os.getenv("ONEC_ODATA_PASSWORD", "n8n159753!")
+ONEC_PASS = os.getenv("ONEC_ODATA_PASSWORD", "")
 ONEC_WRITER_USER = os.getenv("ONEC_ODATA_WRITER_USER", "odata.writer")
-ONEC_WRITER_PASS = os.getenv("ONEC_ODATA_WRITER_PASSWORD", "CosiN09oAr")
+ONEC_WRITER_PASS = os.getenv("ONEC_ODATA_WRITER_PASSWORD", "")
 
 ONEC_AUTH_READ = HTTPBasicAuth(ONEC_USER, ONEC_PASS)
 ONEC_AUTH_WRITE = HTTPBasicAuth(ONEC_WRITER_USER, ONEC_WRITER_PASS)
