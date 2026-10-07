@@ -110,8 +110,12 @@ def build_lead_patch_payload(emails=None, phone=None, legal_address=None, actual
             }
             if row.get("АдресЭП"):
                 clean_row["АдресЭП"] = row.get("АдресЭП")
+            elif ci_type == "АдресЭлектроннойПочты":
+                clean_row["АдресЭП"] = row.get("Представление", "")
             if row.get("НомерТелефона"):
                 clean_row["НомерТелефона"] = row.get("НомерТелефона")
+            elif ci_type == "Телефон":
+                clean_row["НомерТелефона"] = row.get("Представление", "")
             ci_rows.append(clean_row)
             line_num += 1
 
@@ -284,9 +288,9 @@ def verify_event_linked(event_id, lead_id):
     }
 
 
-def update_address_book_entry(sender_email, company_title):
-    """Актуализация наименования контакта в Catalog_АдресатыПисем."""
-    if not sender_email or not company_title:
+def update_address_book_entry(sender_email, company_title, contact_guid=None, contact_type="StandardODATA.Catalog_Лиды"):
+    """Актуализация наименования контакта в Catalog_АдресатыПисем и привязка к CRM-сущности."""
+    if not sender_email:
         return
     try:
         r_adr = requests.get(
@@ -298,13 +302,20 @@ def update_address_book_entry(sender_email, company_title):
         if r_adr.status_code == 200:
             for item in r_adr.json().get('value', []):
                 ref_key = item.get('Ref_Key')
-                requests.patch(
-                    f"{ODATA_BASE}/Catalog_АдресатыПисем(guid'{ref_key}')",
-                    auth=(ODATA_USER, ODATA_PASS),
-                    headers={'Accept': 'application/json'},
-                    json={"Description": company_title},
-                    timeout=10
-                )
+                payload = {}
+                if company_title:
+                    payload["Description"] = company_title
+                if contact_guid:
+                    payload["Контакт"] = contact_guid
+                    payload["Контакт_Type"] = contact_type
+                if payload:
+                    requests.patch(
+                        f"{ODATA_BASE}/Catalog_АдресатыПисем(guid'{ref_key}')",
+                        auth=(ODATA_USER, ODATA_PASS),
+                        headers={'Accept': 'application/json'},
+                        json=payload,
+                        timeout=10
+                    )
     except Exception:
         pass
 
@@ -381,7 +392,36 @@ def link_event_to_existing_lead(args):
     if r_patch_ev.status_code not in (200, 204):
         raise RuntimeError(f"Event PATCH failed: HTTP {r_patch_ev.status_code} -> {r_patch_ev.text}")
 
-    update_address_book_entry(args.sender_email or (emails[0] if emails else None), lead_data.get("Description"))
+    update_address_book_entry(args.sender_email or (emails[0] if emails else None), lead_data.get("Description"), contact_guid=args.lead_id)
+
+    # Also link any other unassociated events from this sender_email
+    if args.sender_email:
+        try:
+            r_all_ev = requests.get(
+                f"{ODATA_BASE}/Document_Событие?$format=json&$top=50&$orderby=Date desc",
+                auth=(ODATA_USER, ODATA_PASS),
+                headers={'Accept': 'application/json'},
+                timeout=15
+            )
+            if r_all_ev.status_code == 200:
+                for ev in r_all_ev.json().get('value', []):
+                    ev_id = ev.get('Ref_Key')
+                    if ev_id == args.event_id:
+                        continue
+                    parts = ev.get('Участники', [])
+                    for p in parts:
+                        if p.get('КакСвязаться', '').strip().lower() == args.sender_email.lower():
+                            if p.get('Контакт') != args.lead_id:
+                                p_payload = build_event_link_payload(ev_id, args.lead_id, args.sender_email)
+                                requests.patch(
+                                    f"{ODATA_BASE}/Document_Событие(guid'{ev_id}')",
+                                    auth=(ODATA_USER, ODATA_PASS),
+                                    headers={'Accept': 'application/json'},
+                                    json=p_payload,
+                                    timeout=10
+                                )
+        except Exception:
+            pass
 
     # Verify both
     ok_lead, lead_info = verify_lead_populated(args.lead_id)
@@ -557,7 +597,7 @@ def execute_full_lead_creation(args):
         )
         if r_patch_ev.status_code not in (200, 204):
             raise RuntimeError(f"Phase 4 Event Link failed: HTTP {r_patch_ev.status_code} -> {r_patch_ev.text}")
-        update_address_book_entry(args.sender_email or (emails[0] if emails else None), args.title)
+        update_address_book_entry(args.sender_email or (emails[0] if emails else None), args.title, contact_guid=lead_guid)
         ok_ev, ev_info = verify_event_linked(args.event_id, lead_guid)
         if not ok_ev:
             raise AssertionError(f"Phase 4 Event Link verification failed: {ev_info}")

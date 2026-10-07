@@ -27,7 +27,13 @@
 ---
 
 ## 3. Методика написания, объединения и хранения скриптов (Script Lifecycle, Search-First & Anti-Sprawl Guard)
-- **Категорический запрет изобретать велосипед (Search-First):** Перед написанием любого нового скрипта сначала проверить единый каталог [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md) и историю репозитория.
+- **Категорический запрет изобретать велосипед (Search-First Hard Gatekeeper):** Перед написанием любого нового скрипта сначала проверить единый каталог [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md) и историю репозитория. Категорически запрещено создавать скрипты диагностики и поиска (`inspect_*.py`, `find_*.py`, `test_*.py`, `check_*.py`) в `scratch/` при наличии штатных утилит:
+  * Поиск сущностей в 1С: `py projects/1c_odata/scripts/search_1c_entities.py`
+  * Проверка контрагента по ИНН: `py projects/1c_odata/scripts/check_contractor.py`
+  * Создание Лида и привязка писем: `py projects/1c_odata/scripts/create_1c_lead.py`
+  * Поиск знаний и чатов Б24: `py projects/1c_odata/scripts/search_bitrix_knowledge.py`
+  * Сквозная обработка лидов CRM: `py projects/1c_odata/scripts/process_b24_inbound_leads.py`
+  Написание скриптов-дублей расценивается как критический сбой дисциплины (L1).
 - **Приоритет доработки и объединения:** Если аналогичный или смежный скрипт уже существует в проекте — **ДОРАБАТЫВАТЬ И ОБЪЕДИНЯТЬ ЕГО**, а не писать новый с нуля. Запрещено плодить цепочки разрозненных файлов (`step1.py`, `step2.py`); логика объединяется в единый канонический конвейер с субкомандами/аргументами CLI и флагом `--dry-run`.
 - **Трехконтурная структура хранения скриптов:**
   1. *Боевой канонический скрипт* (`projects/<проект>/scripts/<script>.py`) — РОВНО ОДИН активный скрипт на бизнес-процесс (**Canonical Single-Script Invariant**). Запрещено держать в продакшене параллельные дублирующие файлы (`_v1`, `_v2`, `_test`).
@@ -76,6 +82,7 @@
 | **«полная ревизия и форматирование гравити»** | `py scripts/full_gravity_audit.py` | Сканирование контуров, отсев vendor, пересборка `SCRIPTS_CATALOG.md` и памяток на Рабочем столе. |
 | **«follow up deals today»** (`follow up сделки [ответственный] [лимит]`) | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run по умолчанию**. Обязательный аппаратный Self-Check, белый список PDF, кулдаун 7 дн, подпись ящика из Б24, запрет сделок «В работе» (только pre-sale), закрепленный комментарий-резюме со стратегическим вердиктом ИИ вверху таймлайна. Читать: [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md). Архив версий: [scripts/archive/](file:///C:/Codex/projects/1c_odata/scripts/archive/). |
 | **«обработай лидов [ящик] [ответственный]»** (`/process-sales-leads`) | `py projects/1c_odata/scripts/process_incoming_sales_leads.py` | **Параметры обязательны!** **Dry-run по умолчанию**. Ветвление Clear RFQ vs Ambiguous, задачи Miss Wang `[USER=30]`, Шаблон № 66, отметка прочитанным. Читать: [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md). |
+| **«сделай Обработка новых лидов»** | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Dry-run по умолчанию**. Сквозная обработка лидов CRM: сделка в `PREPARATION`, задача снабженцу Азату `[USER=20]` (Группа 14, дедлайн +4 раб. дня, `TASK_CONTROL: Y`), отсев реквизитов РФ, чат на китайском, Single Task Invariant, интеграция 1С:УНФ. |
 | **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Параметры обязательны!** Чистая сверка 1С и Б24 без создания сделок и задач. Читать: [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md). |
 
 > **Explicit Scope Guard:** Если в командах «follow up сделки», «обработай лидов» или «синхронизируй лидов» не указаны сотрудник, ящик или лимит — **не запускать вслепую, а немедленно переспросить пользователя!**

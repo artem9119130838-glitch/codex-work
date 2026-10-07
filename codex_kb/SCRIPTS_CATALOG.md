@@ -395,6 +395,8 @@
 | **Расширенный** | `check_drive_access.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/scripts/check_drive_access.py` | Если вы измените эти области доступа, удалите файл token.json. | 1 |
 | **Расширенный** | `check_drive_access.py` | `D:/Soft/Codex Backup/scripts/check_drive_access.py` | Если вы измените эти области доступа, удалите файл token.json. | 0 |
 | **Расширенный** | `run_junk_filter.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_junk_filter.py` | Get messages that are currently 'needs_review' and not processed by junk filter We can identify them by checking EmailMatchResult.decision == 'needs_review' | 8 |
+| **Интеграционный** | `process_b24_inbound_leads.py` | `projects/1c_odata/scripts/process_b24_inbound_leads.py` | Канонический боевой конвейер обработки входящих лидов CRM Битрикс24 и синхронизации с 1С:УНФ: ветвление Clear RFQ / Ambiguous, создание сделки в стадии `PREPARATION` («Расчет КП»), задачи снабженцу Азату (`user/20`) в проекте 14 с дедлайном +4 раб. дня к 18:00, отсев реквизитов РФ по Attachment Hygiene Guard, комментарии на китайском языке по China Language Guard, Single Task Invariant | 0 |
+| **Интеграционный** | `process_deals_batch_azat.py` | `projects/1c_odata/scripts/process_deals_batch_azat.py` | Пакетная квалификация созданных сделок, перевод в стадию `PREPARATION` («Расчет КП»), постановка задач снабженцу Азату (`user/20`) со сроком на сегодня к 18:00, генерация и загрузка Excel-спецификаций и оригинальных файлов клиента по регламенту Full RFQ Attachment Guard (`--dry-run`, `--execute`, `--deal-id`) | 0 |
 
 ---
 
