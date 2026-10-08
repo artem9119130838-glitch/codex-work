@@ -142,6 +142,7 @@
 | **Базовый** | `build_index.py` | `scripts/build_index.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `full_gravity_audit.py` | `scripts/full_gravity_audit.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `parse_sprint_summary.py` | `scripts/parse_sprint_summary.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `search_chat_history.py` | `scripts/search_chat_history.py` | Полнотекстовый поиск по всем активным и архивным чатам Antigravity (logs/transcript.jsonl) по ключевым словам, фразам, ИНН и названиям компаний с фильтрами `--user-only`, `--limit` | 0 |
 | **Базовый** | `session_compress.py` | `scripts/session_compress.py` | Определяем корневую директорию проекта на основе расположения скрипта скрипт лежит в <root>/scripts/session_compress.py | 0 |
 
 ---

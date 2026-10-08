@@ -1150,40 +1150,50 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     # Если наименование компании в лиде отсутствует или содержит заглушку, извлекаем из темы или текста
     # Если наименование компании в лиде отсутствует или содержит заглушку, извлекаем из темы или текста
-    placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы'}
+    placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы', 'ооо', 'ао', 'зао', 'пао', 'ип', 'нпо', 'нпп', 'тпк', 'гк', 'мтк'}
+    clean_desc_text = unescape(re.sub(r'<[^>]+>', ' ', email_desc or ''))
+    clean_comments_text = unescape(lead_comments or '')
+    full_search_text = f"{lead_title} {clean_desc_text} {clean_comments_text}"
+
     if not raw_company_title or raw_company_title.strip().lower() in placeholders:
-        m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“]?[A-Za-zА-Яа-я0-9\s\-_]+[»"\'”]?', f"{lead_title} {email_desc[:500]}")
+        m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?\s*([A-Za-zА-Яа-я0-9\-_]+(?:\s+[A-Za-zА-Яа-я0-9\-_]+)*)[»"\'”]?\s*', full_search_text)
         if m_comp:
-            raw_company_title = m_comp.group(0).strip()
+            cand = m_comp.group(0).strip()
+            cand_inner = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', cand).strip()
+            if cand_inner and len(cand_inner) >= 2 and cand_inner.lower() not in placeholders:
+                raw_company_title = cand
+            else:
+                raw_company_title = ""
         else:
             raw_company_title = ""
 
     # Поиск ИНН в тексте, комментариях или теле письма
-    combined_text = f"{lead_title} {raw_company_title} {lead_comments} {email_subject} {email_desc}"
+    combined_text = f"{lead_title} {raw_company_title} {clean_comments_text} {email_subject} {clean_desc_text}"
     inn_matches = re.findall(r'(?:\b|\D)(\d{10}|\d{12})(?:\b|\D)', combined_text)
     inn = inn_matches[0] if inn_matches else None
 
     # Динамическое определение компании и ИНН через DaData (без хардкода названий и доменов)
-    if "гидросистемы" in f"{lead_title} {email_desc} {lead_comments}".lower():
+    if "гидросистемы" in full_search_text.lower():
         raw_company_title = "ООО «НПО «Гидросистемы»"
     elif not raw_company_title or raw_company_title.strip().lower() in placeholders:
-        m_compound = re.search(r'(?:ООО|АО|ЗАО|ПАО)\s*[«"\'“]\s*(?:НПО|НПП|ТПК|МТК|ГК)?\s*[«"\'“]?[A-Za-zА-Яа-я0-9\s\-_]+[»"\'”]\s*[»"\'”]?', f"{lead_title} {email_desc[:500]}")
-        m_comp_comment = re.search(r'компания:?\s*([A-Za-zА-Яа-я0-9\-_«»""\s]+)', f"{lead_comments} {lead_title}", flags=re.IGNORECASE)
+        m_compound = re.search(r'(?:ООО|АО|ЗАО|ПАО)\s*[«"\'“”]\s*(?:НПО|НПП|ТПК|МТК|ГК)?\s*[«"\'“”]?[A-Za-zА-Яа-я0-9\s\-_]+[»"\'”]\s*[»"\'”]?', full_search_text)
+        m_comp_comment = re.search(r'компания:?\s*([A-Za-zА-Яа-я0-9\-_«»""\s]+)', f"{clean_comments_text} {lead_title}", flags=re.IGNORECASE)
         if m_compound:
-            raw_company_title = m_compound.group(0).strip()
+            cand = m_compound.group(0).strip()
+            cand_inner = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', cand).strip()
+            if cand_inner and len(cand_inner) >= 2 and cand_inner.lower() not in placeholders:
+                raw_company_title = cand
         elif m_comp_comment and len(m_comp_comment.group(1).strip()) >= 3:
             raw_company_title = m_comp_comment.group(1).split('\n')[0].strip()
         else:
-            m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“]?[A-Za-zА-Яа-я0-9\s\-_]+[»"\'”]?', f"{lead_title} {email_desc[:500]}")
-            if m_comp:
-                raw_company_title = m_comp.group(0).strip()
-            elif contact_email and '@' in contact_email:
+            if contact_email and '@' in contact_email:
                 domain_part = contact_email.split('@')[-1].split('.')[0].lower()
                 if domain_part not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
                     raw_company_title = domain_part
 
     # Если ИНН еще не определен, находим его по названию организации через DaData API
-    if not inn and raw_company_title and raw_company_title.strip().lower() not in placeholders and len(raw_company_title.strip()) >= 3:
+    cand_check = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', raw_company_title).strip() if raw_company_title else ""
+    if not inn and cand_check and cand_check.lower() not in placeholders and len(cand_check) >= 2:
         try:
             dadata_token = os.getenv("DADATA_TOKEN", "")
             if dadata_token:
@@ -1463,6 +1473,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     clean_company = re.sub(r'[«»"“”\']', '', company_title).strip()
     title_naming = f"{company_title}, {cn_nomenclature}"
 
+    # Multi-Item RFQ Excel Specification Guard (Генерация двуязычного Excel по мастер-шаблону)
+    from generate_supply_rfq_excel import generate_rfq_excel, KNOWN_SPECIFICATIONS
+    clean_co_lower = company_title.lower()
+    has_known_spec = any(k in clean_co_lower for k in KNOWN_SPECIFICATIONS)
+    is_multi_item_rfq = has_known_spec or (gpt_items_count >= 2) or (len(re.findall(r'(?:^|\n)\s*[-*•\d]+[.)]?\s*[A-Za-zА-Яа-я]', email_desc)) >= 2)
+
     # Фильтрация вложений: Inquiry-Only Attachment Guard
     supply_disk_ids = []
     clean_attachments = []
@@ -1472,13 +1488,21 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             continue
         clean_attachments.append((fid, fname))
 
+    excel_disk_id = None
+    if is_multi_item_rfq and dry_run:
+        try:
+            generate_rfq_excel(company_title, item_subject=cn_nomenclature, dry_run=True)
+        except Exception as e:
+            print(f"  [WARN] Ошибка dry-run проверки Excel: {e}")
+
     if dry_run:
         print(f"\n[DRY-RUN] План действий для Ветки А:")
         print(f"  - Сделка: '{title_naming}' (Стадия: PREPARATION)")
         print(f"  - Задача снабжению: Азат (user/{USER_AZAT}), Группа 14, Дедлайн: {deadline_plan}")
-        print(f"  - Чистых вложений для Китая: {len(clean_attachments)}")
+        print(f"  - Многопозиционная заявка (Multi-Item RFQ): {'ДА (генерация чистового Excel)' if is_multi_item_rfq else 'НЕТ'}")
+        print(f"  - Чистых вложений клиента для Китая: {len(clean_attachments)}")
         print(f"  - Почтовый автоответ Шаблон № 66: {'ДА' if (contact_email and send_reply) else 'НЕТ'}")
-        print(f"  - 1С:УНФ: {'Обновление тегов' if (is_buyer or lead_1c) else 'Создание Лида + Контакта'}")
+        print(f"  - 1С:УНФ: {'Обновление существующего покупателя' if is_buyer else ('Обновление Лида' if lead_1c else 'Создание Лида + Контакта')}")
         return {"lead_id": lead_id, "branch": "Clear RFQ", "title_naming": title_naming, "deadline": deadline_plan}
 
     # Боевое обогащение сущностей B24
@@ -1502,7 +1526,19 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     # Тройное связывание дел-писем
     bind_lead_activities_triple(lead_id, deal_id, contact_id=cnt_id, company_id=cid, contact_email=contact_email)
 
-    # Загрузка чистых вложений на Диск группы 14
+    # Генерация и загрузка Excel-спецификации по мастер-шаблону (Multi-Item RFQ Excel Specification Guard)
+    if is_multi_item_rfq:
+        try:
+            excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, dry_run=False)
+            if excel_path and os.path.exists(excel_path):
+                excel_disk_id = upload_file_to_b24_disk(excel_path, FOLDER_CHINA_SUPPLY_DISK)
+                if excel_disk_id:
+                    supply_disk_ids.append(excel_disk_id)
+                    print(f"  [EXCEL-SPECIFICATION] Чистовой Excel-файл спецификации загружен на Диск группы 14 (ID: {excel_disk_id})")
+        except Exception as e:
+            print(f"  [WARN] Ошибка генерации Excel-спецификации: {e}")
+
+    # Загрузка чистых технических вложений клиента на Диск группы 14
     for fid, fname in clean_attachments:
         df = call_b24("disk.file.get", {"id": fid})
         dl_url = df.get("DOWNLOAD_URL") if df else None
@@ -1521,10 +1557,17 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             except Exception as e:
                 print(f"    [WARN] Ошибка загрузки файла {fname}: {e}")
 
-    # Формирование описания задачи и ссылок на вложения (Inquiry-Only Attachment Guard)
-    if supply_disk_ids:
-        download_links_chat = "\n".join([f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{fid}/]Вложение {fid}[/URL]" for fid in supply_disk_ids])
-        attachments_task_block = f"\n\n[B]ВЛОЖЕНИЯ И ЧЕРТЕЖИ / 附件及图纸:[/B]\nФайлы запроса прикреплены к задаче и загружены на Диск группы 14 ({len(supply_disk_ids)} шт.):\n{download_links_chat}"
+    # Формирование описания задачи и ссылок на вложения (Inquiry-Only Attachment Guard & Zero Mention When Empty)
+    attachments_lines = []
+    if excel_disk_id:
+        excel_name = f"Запрос КП {clean_company}.xlsx"
+        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{excel_disk_id}/]{excel_name}[/URL] (Двуязычная спецификация / 采购清单)")
+    for fid, fname in clean_attachments:
+        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{fid}/]{fname}[/URL]")
+
+    if attachments_lines:
+        download_links_chat = "\n".join(attachments_lines)
+        attachments_task_block = f"\n\n[B]СПЕЦИФИКАЦИЯ И ВЛОЖЕНИЯ / 附件及图纸:[/B]\n{download_links_chat}"
     else:
         download_links_chat = ""
         attachments_task_block = ""
@@ -1628,6 +1671,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         if existing_1c_guid:
             write_to_onec(inn=inn, one_c_guid=existing_1c_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
             print(f"  [1C] Существующая карточка 1С ({existing_1c_guid}) обогащена досье СБИС и тегами.")
+            if contact_email:
+                link_1c_events_and_address_book(contact_email, existing_1c_guid, company_title)
 
     # Конвертация Лида в Битрикс24
     call_b24("crm.lead.update", {

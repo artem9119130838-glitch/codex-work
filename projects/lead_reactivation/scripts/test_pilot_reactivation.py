@@ -530,9 +530,17 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
                 break
         
         quote_text = quote_header + "<br>\n" + "<br>\n".join(quoted_lines)
-        return clean_subj, quote_text
         
-    return None, ""
+        # Extract RFC Message-ID for In-Reply-To threading
+        payload_headers = payload.get("headers") or {}
+        orig_msg_id = payload_headers.get("message-id") or payload.get("message_id") or msg.message_id
+        if orig_msg_id and "_" in orig_msg_id and "@" in orig_msg_id and not orig_msg_id.startswith("<"):
+            # Fallback for synthetic IDs like sales@longwang.ru_INBOX_123
+            orig_msg_id = f"{orig_msg_id}@longwang.ru"
+            
+        return clean_subj, quote_text, orig_msg_id
+        
+    return None, "", None
 
 def find_last_kp_attachment(imap_host: str, user: str, password: str, recipient: str) -> list:
     """
@@ -588,7 +596,7 @@ def find_last_kp_attachment(imap_host: str, user: str, password: str, recipient:
     return kp_attachments
 
 
-def save_draft_to_imap(subject: str, body: str, recipient: str, quote_text: str = "", extra_attachments: list = None) -> bool:
+def save_draft_to_imap(subject: str, body: str, recipient: str, quote_text: str = "", extra_attachments: list = None, in_reply_to: str = None) -> bool:
     from imap_tools import MailBox
     from email.message import EmailMessage
     import datetime
@@ -615,11 +623,20 @@ def save_draft_to_imap(subject: str, body: str, recipient: str, quote_text: str 
         logger.error(f"IMAP settings are incomplete (user: {user}, host: {imap_host}). Cannot save draft.")
         return False
 
-    # QUALITY GATE 1: Защита от фальшивых цитат (наших собственных исходящих писем)
+    # QUALITY GATE 1: Умная санитизация цитат (отсечение нашей старой подписи из хвоста)
     if quote_text:
-        ql = quote_text.lower()
-        if any(m in ql for m in ["longwang.ru", "с уважением, артем", "sales@longwang.ru", "ци линь", "лун-ван"]):
-            logger.warning(f"[QUALITY GATE] В цитате для {recipient} обнаружена собственная подпись/маркер LongWang! Цитата аннулирована.")
+        cut_patterns = [
+            r'(?i)(?:<br\s*/?>|\n)\s*(?:&gt;\s*)?(?:с\s+уважением|best\s+regards|искренне\s+ваш|менеджер\s+по\s+продажам|артем|ци\s+линь|лун-ван|longwang).*$',
+            r'(?i)(?:<br\s*/?>|\n)\s*(?:&gt;\s*)?------------------------------.*$'
+        ]
+        sanitized_quote = quote_text
+        for cp in cut_patterns:
+            sanitized_quote = re.sub(cp, '', sanitized_quote, flags=re.DOTALL).strip()
+        
+        if len(sanitized_quote) > 30:
+            quote_text = sanitized_quote
+        else:
+            logger.warning(f"[QUALITY GATE] В цитате для {recipient} не обнаружено содержательного ответа клиента. Цитата исключена.")
             quote_text = ""
 
     # QUALITY GATE 2: Нормализация темы письма от висячих запятых и кривых названий
@@ -641,15 +658,24 @@ def save_draft_to_imap(subject: str, body: str, recipient: str, quote_text: str 
         formatted_paragraphs = [p.strip().replace('\n', '<br>') for p in paragraphs if p.strip()]
         html_body = '<br><br>\n'.join(formatted_paragraphs)
         
-        # Append quote block if present
+        # Append stylized blockquote if present
         if quote_text and len(quote_text.strip()) > 20:
-            html_body += f"<br><br><br>---<br>{quote_text}"
+            html_body += f"""<br><br>
+<blockquote type="cite" style="border-left: 2px solid #3b82f6; margin-left: 5px; padding-left: 10px; color: #475569; font-style: normal;">
+{quote_text}
+</blockquote>"""
             
-        # Create HTML email message
+        # Create HTML email message with RFC threading headers
         msg = EmailMessage()
         msg['Subject'] = subject
         msg['From'] = user
         msg['To'] = recipient
+        if in_reply_to:
+            clean_id = str(in_reply_to).strip().strip('<>')
+            if clean_id:
+                msg['In-Reply-To'] = f"<{clean_id}>"
+                msg['References'] = f"<{clean_id}>"
+                logger.info(f"Thread linking: In-Reply-To=<{clean_id}> for {recipient}")
         msg.set_content(html_body, subtype='html')
 
         # Try to attach PDF presentation (Always attached)
@@ -871,7 +897,7 @@ def main():
                 manager_name = "Анна"
             
             # Format realistic B2B subject: Re: [equipment/sku/request] для [Company/Client]
-            clean_subj, quote_text = get_last_incoming_email_details(db, contact_1c.contact_ref_key, email)
+            clean_subj, quote_text, orig_msg_id = get_last_incoming_email_details(db, contact_1c.contact_ref_key, email)
             skus_text = str(contact_summary_dict.get("skus_and_amounts") or "")
             subject = format_b2b_subject(clean_subj, llm_subj, company_name, client_name, skus_text)
             
@@ -894,7 +920,7 @@ def main():
             
             # 3. Save to IMAP
             logger.info(f"Saving draft to IMAP '{style}' style...")
-            saved_to_imap = save_draft_to_imap(subject, body_with_signature, email, quote_text=quote_text)
+            saved_to_imap = save_draft_to_imap(subject, body_with_signature, email, quote_text=quote_text, in_reply_to=orig_msg_id)
             imap_status = "УСПЕШНО СОХРАНЕНО В ЧЕРНОВИКИ SALES" if saved_to_imap else "ОШИБКА СОХРАНЕНИЯ В IMAP"
             if saved_to_imap:
                 hist = ClientReactivationHistory(

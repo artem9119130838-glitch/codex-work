@@ -456,12 +456,12 @@ def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, own
 </div>"""
     
     body_with_signature = body + signature_html
-    clean_subj, quote_text = get_last_incoming_email_details(db, contact_1c.contact_ref_key, email)
+    clean_subj, quote_text, orig_msg_id = get_last_incoming_email_details(db, contact_1c.contact_ref_key, email)
     skus_text = str(contact_summary_dict.get("skus_and_amounts") or "")
     subject = format_b2b_subject(clean_subj, llm_subj, company_name, client_name, skus_text)
     
-    # Save draft to IMAP
-    saved_to_imap = save_draft_to_imap(subject, body_with_signature, email, quote_text=quote_text)
+    # Save draft to IMAP with RFC threading headers
+    saved_to_imap = save_draft_to_imap(subject, body_with_signature, email, quote_text=quote_text, in_reply_to=orig_msg_id)
     if saved_to_imap:
         logger.info(f"Successfully saved draft for {email} (Step {step_num}) to IMAP!")
         
