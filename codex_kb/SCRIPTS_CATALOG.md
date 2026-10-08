@@ -38,7 +38,7 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Расширенный** | `generate_supply_rfq_excel.py` | `projects/1c_odata/scripts/generate_supply_rfq_excel.py` | База готовых спецификаций по подтвержденным заявкам (наработки из архива) | 0 |
-| **Интеграционный** | `hydramax_dispute_manager.py` | `scripts/hydramax_dispute_manager.py` | Единый комплекс управления документацией по спору ООО «Ци Линь» / ООО «Логистиктранс»: генерация ТЗ юристу (`--action brief`), аналитических писем Дэвиду по трубам (`--action letter-tubes`), стоп-предписания по штокам (`--action letter-rods`), инспекция чертежей (`--action inspect-drawing`), постраничный экспорт CamScanner PDF (`--action extract-pdf`) и перевод таблицы приемки штоков на английский с сохранением форматирования (`--action translate-rods-table`) | 0 |
+| **Интеграционный** | `hydramax_dispute_manager.py` | `scripts/hydramax_dispute_manager.py` | Единый комплекс управления документацией по спору ООО «Ци Линь» / ООО «Логистиктранс»: генерация ТЗ юристу (`--action brief`), аналитических писем Дэвиду по трубам (`--action letter-tubes`), стоп-предписания по штокам (`--action letter-rods`), инспекция чертежей (`--action inspect-drawing`), постраничный экспорт CamScanner PDF (`--action extract-pdf`), перевод таблицы штоков (`--action translate-rods-table`), и выпуск чистового Приложения № 3 к договору по трубам в Word и PDF со схемами обработки и таблицей замеров на русском и китайском языках (`--action spec-tubes-ru`, `--action spec-tubes-cn`, `--action spec-tubes`, поддержка `--dry-run` и `--no-pdf`) | 0 |
 
 ---
 

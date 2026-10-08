@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import json
+import html
 import random
 import datetime
 from loguru import logger
@@ -346,13 +347,99 @@ def get_next_style_for_client(db: Session, email: str) -> str:
     remaining_styles = [s for s in styles if s != last_style]
     return random.choice(remaining_styles)
 
+def search_live_imap_incoming(email: str) -> tuple:
+    """
+    Живой поиск последнего входящего письма от клиента на IMAP-сервере (Level 2 Fallback):
+    1. Ищет письма от клиента в папке INBOX (по точному email).
+    2. При отсутствии ищет по корпоративному домену компании.
+    3. При нахождении валидирует через HRGuard и формирует (clean_subject, quote_text, orig_message_id).
+    """
+    user = os.environ.get("MAIL_ACCOUNT_2_USER") or settings.IMAP_USER
+    password = os.environ.get("MAIL_ACCOUNT_2_PASS") or settings.IMAP_PASSWORD
+    imap_host = os.environ.get("IMAP_SERVER") or settings.IMAP_HOST or "mail.hostland.ru"
+
+    if not user or not password:
+        try:
+            accounts_json = os.environ.get("MAIL_ACCOUNTS")
+            if accounts_json:
+                accounts = json.loads(accounts_json.strip("'"))
+                for acc in accounts:
+                    if acc.get("user") == "sales@longwang.ru":
+                        user = acc.get("user")
+                        password = acc.get("pass")
+                        break
+        except Exception as ex:
+            logger.warning(f"Failed parsing MAIL_ACCOUNTS: {ex}")
+
+    if not user or not password or not imap_host:
+        return None, "", None
+
+    try:
+        from imap_tools import MailBox, AND
+        with MailBox(imap_host).login(user, password) as mailbox:
+            # 1. Поиск по точному email в INBOX
+            msgs = list(mailbox.fetch(AND(from_=email), limit=3, reverse=True, mark_seen=False))
+
+            # 2. Если не найдено, поиск по домену (если корпоративный)
+            if not msgs:
+                domain = email.split('@')[-1].lower().strip()
+                if domain and domain not in PUBLIC_EMAIL_DOMAINS:
+                    msgs = list(mailbox.fetch(AND(from_=domain), limit=3, reverse=True, mark_seen=False))
+
+            if not msgs:
+                return None, "", None
+
+            msg = msgs[0]
+            subj = msg.subject or ""
+            clean_subj = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]):\s*)+', '', subj, flags=re.IGNORECASE).strip()
+            if not clean_subj:
+                clean_subj = "Спецификация оборудования"
+
+            body_text = msg.text or ""
+            if not body_text and msg.html:
+                body_text = re.sub(r'<[^>]+>', ' ', msg.html)
+                body_text = html.unescape(body_text)
+
+            body_text = body_text.strip()
+            if len(body_text) < 15:
+                return clean_subj, "", None
+
+            is_hr, _ = HRGuard.is_job_seeker(email=msg.from_, subject=subj, messages_text=body_text)
+            if is_hr:
+                return None, "", None
+
+            date_str = msg.date.strftime("%d.%m.%Y, %H:%M") if msg.date else "Неизвестная дата"
+            from_header = msg.from_ or email
+            quote_header = f"{date_str}, {from_header}:"
+
+            quoted_lines = []
+            for line in body_text.split('\n'):
+                line_str = line.strip()
+                if line_str:
+                    quoted_lines.append(f"&gt; {line_str}")
+                if len(quoted_lines) >= 12:
+                    break
+
+            quote_text = quote_header + "<br>\n" + "<br>\n".join(quoted_lines)
+
+            orig_msg_id = None
+            msg_id_headers = msg.headers.get('message-id', ())
+            if msg_id_headers:
+                orig_msg_id = msg_id_headers[0] if isinstance(msg_id_headers, (list, tuple)) else str(msg_id_headers)
+
+            logger.info(f"[LIVE IMAP FOUND] Обнаружено входящее письмо от {email} на IMAP: '{clean_subj}'")
+            return clean_subj, quote_text, orig_msg_id
+
+    except Exception as e:
+        logger.warning(f"Live IMAP search failed for {email}: {e}")
+        return None, "", None
+
 def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: str) -> tuple:
     """
     Интеллектуальный поиск предыдущего контекста переписки:
-    1. Поиск входящих писем от конкретного контакта.
-    2. Поиск входящих писем по корпоративному домену компании.
-    3. ФОЛБЭК: Если клиент не отвечал, поиск последнего отправленного нами КП/письма
-       для связки In-Reply-To и цитирования исходного обращения.
+    1. Поиск входящих писем в SQL DWH по контакту и корпоративному домену.
+    2. Живой опрос IMAP-сервера Hostland (INBOX), если в базе SQL нет писем.
+    3. ФОЛБЭК: Если клиент не отвечал, поиск последнего отправленного нами КП/письма.
     Возвращает: (clean_subject, quote_text, orig_message_id)
     """
     cand_msgs = db.query(EmailMessage).join(
@@ -403,6 +490,13 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
                     msg = cand
                     break
 
+    # 2. LEVEL 2 FALLBACK: Живой поиск на сервере IMAP Hostland, если в SQL базе нет входящего письма
+    if not msg:
+        live_subj, live_quote, live_msg_id = search_live_imap_incoming(email)
+        if live_subj and live_quote:
+            return live_subj, live_quote, live_msg_id
+
+    # 3. LEVEL 3 FALLBACK: Поиск последнего отправленного нами КП/письма
     is_outbound_quote = False
     if not msg:
         out_cand_msgs = db.query(EmailMessage).join(

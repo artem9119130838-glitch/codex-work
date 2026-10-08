@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Канонический скрипт управления документацией и инспекцией по спору ООО «Ци Линь» / ООО «Логистиктранс» (трубы и штоки, Дечжоу).
 Объединяет функционал:
@@ -7,18 +6,22 @@
 3. Генерация трехъязычного официального предписания по штокам (--action letter-rods)
 4. Инспекция и кроп чертежей сверхвысокого разрешения (--action inspect-drawing)
 5. Извлечение страниц и изображений из сканов CamScanner PDF (--action extract-pdf)
+6. Перевод таблицы замеров штоков (--action translate-rods-table)
+7. Генерация чистового Приложения № 3 к договору по трубам (Word/PDF + чертежи) на русском и китайском языках (--action spec-tubes-ru, --action spec-tubes-cn, --action spec-tubes)
 """
 
 import os
 import sys
 import argparse
+import subprocess
+import tempfile
 import docx
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 Image.MAX_IMAGE_PIXELS = None
 
 DEFAULT_OUTPUT_DIR = r"D:\Документы Victus\Рабочее\В работе\Гидрамакс (Логистиктранс)\Документы по спору октябрь 2026"
@@ -601,13 +604,909 @@ def translate_rods_table(input_path='', out_dir=DEFAULT_OUTPUT_DIR, dry_run=Fals
         wb.save(tgt)
         print(f"Successfully saved translated table to:\n  {tgt}")
 
+
+# ==============================================================================
+# 7. ЧИСТОВОЕ ПРИЛОЖЕНИЕ № 3 К ДОГОВОРУ ПО ТРУБАМ (RU & CN + ЧЕРТЕЖИ + PDF)
+# ==============================================================================
+
+def convert_docx_to_pdf_winword(docx_path, pdf_path):
+    abs_docx = os.path.abspath(docx_path)
+    abs_pdf = os.path.abspath(pdf_path)
+    ps_cmd = f"""
+    $docx = [System.IO.Path]::GetFullPath('{abs_docx}')
+    $pdf = [System.IO.Path]::GetFullPath('{abs_pdf}')
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+    try {{
+        $doc = $word.Documents.Open($docx)
+        $doc.SaveAs2($pdf, 17)
+        $doc.Close()
+        Write-Output "SUCCESS"
+    }} catch {{
+        Write-Error $_.Exception.Message
+        exit 1
+    }} finally {{
+        $word.Quit()
+        [System.Runtime.InteropServices.Marshal]::ReleaseComObject($word) | Out-Null
+    }}
+    """
+    try:
+        res = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+            capture_output=True, text=True, timeout=90
+        )
+        if res.returncode == 0 and "SUCCESS" in res.stdout:
+            print(f"  [PDF] Успешно скомпилирован через Word COM: {abs_pdf}")
+            return True
+        else:
+            print(f"  [PDF Warning] Ошибка компиляции Word COM: {res.stderr.strip()}")
+            return False
+    except Exception as e:
+        print(f"  [PDF Warning] Ошибка при вызове Word COM: {e}")
+        return False
+
+def _draw_dim_h(draw, x1, x2, y, text, font, offset_ext=25, arrow_len=16, arrow_w=6, text_above=True):
+    draw.line([x1, y - offset_ext, x1, y + offset_ext], fill="#555555", width=1)
+    draw.line([x2, y - offset_ext, x2, y + offset_ext], fill="#555555", width=1)
+    draw.line([x1, y, x2, y], fill="#000000", width=2)
+    draw.polygon([(x1, y), (x1 + arrow_len, y - arrow_w), (x1 + arrow_len, y + arrow_w)], fill="#000000")
+    draw.polygon([(x2, y), (x2 - arrow_len, y - arrow_w), (x2 - arrow_len, y + arrow_w)], fill="#000000")
+    ty = y - 22 if text_above else y + 22
+    draw.text(((x1 + x2) // 2, ty), text, fill="#000000", font=font, anchor="mm")
+
+def _draw_dim_v(draw, y1, y2, x, text, font, offset_ext=25, arrow_len=16, arrow_w=6, text_left=True):
+    draw.line([x - offset_ext, y1, x + offset_ext, y1], fill="#555555", width=1)
+    draw.line([x - offset_ext, y2, x + offset_ext, y2], fill="#555555", width=1)
+    draw.line([x, y1, x, y2], fill="#000000", width=2)
+    draw.polygon([(x, y1), (x - arrow_w, y1 + arrow_len), (x + arrow_w, y1 + arrow_len)], fill="#000000")
+    draw.polygon([(x, y2), (x - arrow_w, y2 - arrow_len), (x + arrow_w, y2 - arrow_len)], fill="#000000")
+    tx = x - 20 if text_left else x + 20
+    anchor = "rm" if text_left else "lm"
+    draw.text((tx, (y1 + y2) // 2), text, fill="#000000", font=font, anchor=anchor)
+
+def _create_hatch_image(w_box, h_box, step=24):
+    im_box = Image.new("RGBA", (w_box, h_box), "#F4F6F9")
+    d = ImageDraw.Draw(im_box)
+    for k in range(-h_box, w_box + h_box, step):
+        d.line([k, h_box, k + h_box, 0], fill="#5B9BD5", width=2)
+    d.rectangle([0, 0, w_box - 1, h_box - 1], outline="#1F4E79", width=3)
+    return im_box
+
+def render_tube_drawings(cache_dir, lang="ru"):
+    os.makedirs(cache_dir, exist_ok=True)
+    is_cn = (lang == "cn")
+    
+    font_bold_path = "C:/Windows/Fonts/msyh.ttc" if is_cn else "C:/Windows/Fonts/calibrib.ttf"
+    font_reg_path = "C:/Windows/Fonts/msyh.ttc" if is_cn else "C:/Windows/Fonts/calibri.ttf"
+    if not os.path.exists(font_bold_path):
+        font_bold_path = "C:/Windows/Fonts/arialbd.ttf"
+    if not os.path.exists(font_reg_path):
+        font_reg_path = "C:/Windows/Fonts/arial.ttf"
+
+    p1 = os.path.join(cache_dir, f"drawing_1_cylinder_type1_{lang}.png")
+    p2 = os.path.join(cache_dir, f"drawing_2_cylinder_type2_flat_{lang}.png")
+    p3 = os.path.join(cache_dir, f"drawing_3_cylinder_type2_bevel_{lang}.png")
+
+    # --- DRAWING 1 ---
+    W, H = 2400, 1400
+    img1 = Image.new("RGB", (W, H), "white")
+    d1 = ImageDraw.Draw(img1)
+    f_title = ImageFont.truetype(font_bold_path, 42)
+    f_dim = ImageFont.truetype(font_bold_path, 34)
+    f_dim_sm = ImageFont.truetype(font_bold_path, 30)
+    f_text = ImageFont.truetype(font_reg_path, 28)
+    f_bold = ImageFont.truetype(font_bold_path, 28)
+
+    title1 = "液压油缸筒 1 型（Ø500 × Ø420 × L2174，不做坡口）" if is_cn else "ГИЛЬЗА ГИДРОЦИЛИНДРА ТИП 1 (Ø500 × Ø420 × L2174)"
+    d1.text((W // 2, 70), title1, fill="#002060", font=f_title, anchor="mm")
+
+    x1, y1 = 480, 260
+    x2, y2 = 2050, 680
+    wall = 85
+    w_box = x2 - x1
+    img1.paste(_create_hatch_image(w_box, wall), (x1, y1))
+    img1.paste(_create_hatch_image(w_box, wall), (x1, y2 - wall))
+
+    yc = (y1 + y2) // 2
+    d1.line([x1 - 100, yc, x2 + 100, yc], fill="#C00000", width=2)
+    d1.line([x1, y1, x1, y2], fill="#1F4E79", width=3)
+    d1.line([x2, y1, x2, y2], fill="#1F4E79", width=3)
+
+    _draw_dim_v(d1, y1, y2, x1 - 120, "Ø500 (+1.0 / -0.5 mm)" if is_cn else "Ø500 (+1.0 / -0.5 мм)", f_dim, text_left=True)
+
+    id_x = (x1 + x2) // 2 - 80
+    d1.line([id_x, y1 + wall, id_x, y2 - wall], fill="#000000", width=2)
+    d1.polygon([(id_x, y1 + wall), (id_x - 6, y1 + wall + 16), (id_x + 6, y1 + wall + 16)], fill="#000000")
+    d1.polygon([(id_x, y2 - wall), (id_x - 6, y2 - wall - 16), (id_x + 6, y2 - wall - 16)], fill="#000000")
+    id_txt = "Ø420 H9 (420.00 – 420.15 mm)" if is_cn else "Ø420 H9 (420.00 – 420.15 мм)"
+    d1.text((id_x + 20, yc), id_txt, fill="#000000", font=f_dim, anchor="lm")
+
+    dim_y = y2 + 80
+    l_txt = "2174 +3 mm (2174 – 2177 mm)" if is_cn else "2174 +3 мм (2174 – 2177 мм)"
+    _draw_dim_h(d1, x1, x2, dim_y, l_txt, f_dim, text_above=True)
+
+    rx, ry = x1 + 250, y1 + wall
+    d1.line([rx, ry, rx + 15, ry - 30], fill="#000000", width=2)
+    d1.line([rx + 15, ry - 30, rx + 30, ry], fill="#000000", width=2)
+    d1.line([rx + 15, ry - 30, rx + 65, ry - 30], fill="#000000", width=2)
+    ra_txt = "Ra ≤ 0.4 μm" if is_cn else "Ra ≤ 0.4 мкм"
+    d1.text((rx + 72, ry - 30), ra_txt, fill="#000000", font=f_dim_sm, anchor="lm")
+
+    end_callout = "两端平切，不做坡口" if is_cn else "Торец ровный, без фасок"
+    d1.text((x1, y1 - 40), end_callout, fill="#333333", font=f_dim_sm, anchor="mb")
+    d1.text((x2, y1 - 40), end_callout, fill="#333333", font=f_dim_sm, anchor="mb")
+
+    ty = dim_y + 60
+    if is_cn:
+        tech_lines1 = [
+            "技术要求（液压油缸筒 1 型）：",
+            "1. 供货状态：热处理正火，热轧状态（大冶特钢 Q345B 优质钢材）。",
+            "2. 外径 Øн：500 mm（协议公差：499.5 – 501.0 mm / +1.0 / -0.5 mm，车削/车磨加工）。",
+            "3. 内径 Øвн：420 mm，公差等级 H9（420.00 – 420.15 mm）。内孔加工方式：精密珩磨镜面。",
+            "4. 长度 L：2174 mm（公差：2174 – 2177 mm，留 +3 mm 正公差用于端面平切修整）。",
+            "5. 材料力学性能：屈服强度 σs ≥ 345 MPa，抗拉强度 σb: 470 – 630 MPa。",
+            "6. 壁厚不均度（偏心度）：≤ 7–8%。",
+            "7. 内孔粗糙度：Ra ≤ 0.4 μm。高精度加工控制表面仅为内孔工作镜面。",
+            "8. 端面要求：两端平口齐切，无倒角（由买方自行进行端面精车平齐及打 36 个法兰螺栓孔）。"
+        ]
+    else:
+        tech_lines1 = [
+            "Технические требования (Гильза гидроцилиндра тип 1):",
+            "1. Состояние поставки: нормализация, горячий прокат (сталь Q345B, аналог 17Г1С).",
+            "2. Наружный диаметр Øн: 500 мм (допуск: 499.5 – 501.0 мм / +1.0 / -0.5 мм, токарная обработка/калибровка).",
+            "3. Внутренний диаметр Øвн: 420 мм, квалитет H9 (420.00 – 420.15 мм). Способ обработки: хонингование.",
+            "4. Длина L: 2174 мм (допуск: 2174 – 2177 мм, технологический припуск +3 мм под чистовую торцовку).",
+            "5. Механические свойства: предел текучести ≥ 345 МПа, предел прочности 470 – 630 МПа.",
+            "6. Разностенность (эксцентриситет): ≤ 7–8%.",
+            "7. Шероховатость внутренней поверхности: Ra ≤ 0.4 мкм. Высокоточная обработка — только внутренняя.",
+            "8. Исполнение торцев: оба торца ровный рез, без фасок (под чистовую торцовку фланца заказчиком)."
+        ]
+    for i, line in enumerate(tech_lines1):
+        f = f_bold if i == 0 else f_text
+        d1.text((450, ty + i * 36), line, fill="#1B4F72" if i == 0 else "#222222", font=f)
+    img1.save(p1, quality=95)
+
+    # --- DRAWING 2 ---
+    img2 = Image.new("RGB", (W, H), "white")
+    d2 = ImageDraw.Draw(img2)
+    title2 = "油缸外套筒 2 型（Ø500 × Ø420 × L1707，不做坡口，8支）" if is_cn else "ТРУБА ЦИЛИНДРОВАЯ ТИП 2 (Ø500 × Ø420 × L1707, БЕЗ ФАСОК)"
+    d2.text((W // 2, 70), title2, fill="#002060", font=f_title, anchor="mm")
+
+    x1, y1 = 550, 260
+    x2, y2 = 1950, 680
+    w_box = x2 - x1
+    img2.paste(_create_hatch_image(w_box, wall), (x1, y1))
+    img2.paste(_create_hatch_image(w_box, wall), (x1, y2 - wall))
+
+    yc = (y1 + y2) // 2
+    d2.line([x1 - 100, yc, x2 + 100, yc], fill="#C00000", width=2)
+    d2.line([x1, y1, x1, y2], fill="#1F4E79", width=3)
+    d2.line([x2, y1, x2, y2], fill="#1F4E79", width=3)
+
+    _draw_dim_v(d2, y1, y2, x1 - 120, "Ø500 (+1.0 / -0.5 mm)" if is_cn else "Ø500 (+1.0 / -0.5 мм)", f_dim, text_left=True)
+
+    id_x = (x1 + x2) // 2 - 80
+    d2.line([id_x, y1 + wall, id_x, y2 - wall], fill="#000000", width=2)
+    d2.polygon([(id_x, y1 + wall), (id_x - 6, y1 + wall + 16), (id_x + 6, y1 + wall + 16)], fill="#000000")
+    d2.polygon([(id_x, y2 - wall), (id_x - 6, y2 - wall - 16), (id_x + 6, y2 - wall - 16)], fill="#000000")
+    d2.text((id_x + 20, yc), id_txt, fill="#000000", font=f_dim, anchor="lm")
+
+    dim_y = y2 + 80
+    l_txt2 = "1707 +3 mm (1707 – 1710 mm)" if is_cn else "1707 +3 мм (1707 – 1710 мм)"
+    _draw_dim_h(d2, x1, x2, dim_y, l_txt2, f_dim, text_above=True)
+
+    rx, ry = x1 + 250, y1 + wall
+    d2.line([rx, ry, rx + 15, ry - 30], fill="#000000", width=2)
+    d2.line([rx + 15, ry - 30, rx + 30, ry], fill="#000000", width=2)
+    d2.line([rx + 15, ry - 30, rx + 65, ry - 30], fill="#000000", width=2)
+    ra_txt2 = "Ra ≤ 6.3 μm" if is_cn else "Ra ≤ 6.3 мкм"
+    d2.text((rx + 72, ry - 30), ra_txt2, fill="#000000", font=f_dim_sm, anchor="lm")
+
+    d2.text((x1, y1 - 40), end_callout, fill="#333333", font=f_dim_sm, anchor="mb")
+    d2.text((x2, y1 - 40), end_callout, fill="#333333", font=f_dim_sm, anchor="mb")
+
+    ty = dim_y + 60
+    if is_cn:
+        tech_lines2 = [
+            "技术要求（液压油缸筒 2 型平切端面）：",
+            "1. 供货状态：热处理正火，热轧状态（大冶特钢 Q345B 优质钢材）。",
+            "2. 外径 Øн：500 mm（协议公差：499.5 – 501.0 mm / +1.0 / -0.5 mm，车削加工）。",
+            "3. 内径 Øвн：420 mm，公差等级 H9（420.00 – 420.15 mm）。内表面加工：精车/精轧工业表面。",
+            "4. 长度 L：1707 mm（公差：1707 – 1710 mm，留 +3 mm 正公差）。",
+            "5. 材料力学性能：屈服强度 σs ≥ 345 MPa，抗拉强度 σb: 470 – 630 MPa。",
+            "6. 壁厚不均度（偏心度）：≤ 7–8%。",
+            "7. 内孔粗糙度：Ra ≤ 6.3 μm。高精度加工控制表面仅为内孔。",
+            "8. 端面要求：两端平口齐切，无坡口（第 2 项，8 支，协议确认后 10 个工作日内交货）。"
+        ]
+    else:
+        tech_lines2 = [
+            "Технические требования (Труба цилиндровая тип 2 без фасок):",
+            "1. Состояние поставки: нормализация, горячий прокат (сталь Q345B, аналог 17Г1С).",
+            "2. Наружный диаметр Øн: 500 мм (допуск: 499.5 – 501.0 мм / +1.0 / -0.5 мм, токарная обработка/калибровка).",
+            "3. Внутренний диаметр Øвн: 420 мм, квалитет H9 (420.00 – 420.15 мм). Способ обработки: чистовой прокат.",
+            "4. Длина L: 1707 мм (допуск: 1707 – 1710 мм, технологический припуск +3 мм).",
+            "5. Механические свойства: предел текучести ≥ 345 МПа, предел прочности 470 – 630 МПа.",
+            "6. Разностенность (эксцентриситет): ≤ 7–8%.",
+            "7. Шероховатость внутренней поверхности: Ra ≤ 6.3 мкм. Высокоточная обработка — только внутренняя.",
+            "8. Исполнение торцев: оба торца ровный рез, без фасок."
+        ]
+    for i, line in enumerate(tech_lines2):
+        f = f_bold if i == 0 else f_text
+        d2.text((450, ty + i * 36), line, fill="#1B4F72" if i == 0 else "#222222", font=f)
+    img2.save(p2, quality=95)
+
+    # --- DRAWING 3 ---
+    H3 = 1450
+    img3 = Image.new("RGB", (W, H3), "white")
+    d3 = ImageDraw.Draw(img3)
+    title3 = "油缸外套筒 2 型（Ø500 × Ø420 × L1707，带 36×45° 焊接坡口，8支）" if is_cn else "ТРУБА ЦИЛИНДРОВАЯ ТИП 2 (Ø500 × Ø420 × L1707, С ФАСКАМИ 36×45°)"
+    d3.text((W // 2, 70), title3, fill="#002060", font=f_title, anchor="mm")
+
+    x1, y1 = 550, 260
+    x2, y2 = 1950, 680
+    bev_out = 45
+    w_box = x2 - x1
+    img3.paste(_create_hatch_image(w_box, wall), (x1, y1))
+    img3.paste(_create_hatch_image(w_box, wall), (x1, y2 - wall))
+
+    d3.polygon([(x1 - 2, y1 - 2), (x1 + bev_out + 2, y1 - 2), (x1 - 2, y1 + bev_out + 2)], fill="white")
+    d3.polygon([(x2 + 2, y1 - 2), (x2 - bev_out - 2, y1 - 2), (x2 + 2, y1 + bev_out + 2)], fill="white")
+    d3.polygon([(x1 - 2, y2 + 2), (x1 + bev_out + 2, y2 + 2), (x1 - 2, y2 - bev_out - 2)], fill="white")
+    d3.polygon([(x2 + 2, y2 + 2), (x2 - bev_out - 2, y2 + 2), (x2 + 2, y2 - bev_out - 2)], fill="white")
+
+    d3.line([x1 + bev_out, y1, x2 - bev_out, y1], fill="#1F4E79", width=3)
+    d3.line([x1 + bev_out, y1, x1, y1 + bev_out], fill="#1F4E79", width=3)
+    d3.line([x2 - bev_out, y1, x2, y1 + bev_out], fill="#1F4E79", width=3)
+    d3.line([x1, y1 + bev_out, x1, y1 + wall], fill="#1F4E79", width=3)
+    d3.line([x2, y1 + bev_out, x2, y1 + wall], fill="#1F4E79", width=3)
+    d3.line([x1, y1 + wall, x2, y1 + wall], fill="#1F4E79", width=3)
+
+    d3.line([x1 + bev_out, y2, x2 - bev_out, y2], fill="#1F4E79", width=3)
+    d3.line([x1 + bev_out, y2, x1, y2 - bev_out], fill="#1F4E79", width=3)
+    d3.line([x2 - bev_out, y2, x2, y2 - bev_out], fill="#1F4E79", width=3)
+    d3.line([x1, y2 - bev_out, x1, y2 - wall], fill="#1F4E79", width=3)
+    d3.line([x2, y2 - bev_out, x2, y2 - wall], fill="#1F4E79", width=3)
+    d3.line([x1, y2 - wall, x2, y2 - wall], fill="#1F4E79", width=3)
+
+    yc = (y1 + y2) // 2
+    d3.line([x1 - 100, yc, x2 + 100, yc], fill="#C00000", width=2)
+    _draw_dim_v(d3, y1, y2, x1 - 120, "Ø500 (+1.0 / -0.5 mm)" if is_cn else "Ø500 (+1.0 / -0.5 мм)", f_dim, text_left=True)
+
+    id_x = (x1 + x2) // 2 - 80
+    d3.line([id_x, y1 + wall, id_x, y2 - wall], fill="#000000", width=2)
+    d3.polygon([(id_x, y1 + wall), (id_x - 6, y1 + wall + 16), (id_x + 6, y1 + wall + 16)], fill="#000000")
+    d3.polygon([(id_x, y2 - wall), (id_x - 6, y2 - wall - 16), (id_x + 6, y2 - wall - 16)], fill="#000000")
+    d3.text((id_x + 20, yc), id_txt, fill="#000000", font=f_dim, anchor="lm")
+
+    _draw_dim_h(d3, x1, x2, dim_y, l_txt2, f_dim, text_above=True)
+
+    bx1, by1 = x1 + bev_out // 2, y1 + bev_out // 2
+    d3.line([bx1, by1, bx1 - 60, by1 - 70], fill="#000000", width=2)
+    d3.line([bx1 - 60, by1 - 70, bx1 - 180, by1 - 70], fill="#000000", width=2)
+    d3.polygon([(bx1, by1), (bx1 - 8, by1 - 16), (bx1 - 16, by1 - 8)], fill="#000000")
+    b_txt_l = "做 36 × 45° 焊接外坡口（两端）" if is_cn else "Фаска 36 × 45° (снаружи, 2 торца)"
+    d3.text((bx1 - 70, by1 - 80), b_txt_l, fill="#000000", font=f_dim_sm, anchor="rb")
+
+    bx2, by2 = x2 - bev_out // 2, y1 + bev_out // 2
+    d3.line([bx2, by2, bx2 + 60, by1 - 70], fill="#000000", width=2)
+    d3.line([bx2 + 60, by1 - 70, bx2 + 180, by1 - 70], fill="#000000", width=2)
+    d3.polygon([(bx2, by2), (bx2 + 8, by2 - 16), (bx2 + 16, by2 - 8)], fill="#000000")
+    b_txt_r = "36 × 45° 坡口" if is_cn else "Фаска 36 × 45°"
+    d3.text((bx2 + 70, by1 - 80), b_txt_r, fill="#000000", font=f_dim_sm, anchor="lb")
+
+    bin_txt = "内坡口 2 × 45°" if is_cn else "Фаска 2 × 45° (внутри)"
+    d3.text((x1 + 30, y1 + wall - 30), bin_txt, fill="#333333", font=f_dim_sm, anchor="lb")
+    d3.text((x2 - 30, y1 + wall - 30), bin_txt, fill="#333333", font=f_dim_sm, anchor="rb")
+
+    rx, ry = (x1 + x2) // 2 - 250, y1 + wall
+    d3.line([rx, ry, rx + 15, ry - 30], fill="#000000", width=2)
+    d3.line([rx + 15, ry - 30, rx + 30, ry], fill="#000000", width=2)
+    d3.line([rx + 15, ry - 30, rx + 65, ry - 30], fill="#000000", width=2)
+    d3.text((rx + 72, ry - 30), ra_txt2, fill="#000000", font=f_dim_sm, anchor="lm")
+
+    ty = dim_y + 60
+    if is_cn:
+        tech_lines3 = [
+            "技术要求（液压油缸筒 2 型带焊接坡口）：",
+            "1. 供货状态：热处理正火，热轧状态（大冶特钢 Q345B 优质钢材）。",
+            "2. 外径 Øн：500 mm（协议公差：499.5 – 501.0 mm / +1.0 / -0.5 mm，车削加工）。",
+            "3. 内径 Øвн：420 mm，公差等级 H9（420.00 – 420.15 mm）。内表面加工：精车/精轧工业表面。",
+            "4. 长度 L：1707 mm（公差：1707 – 1710 mm，留 +3 mm 正公差）。",
+            "5. 材料力学性能：屈服强度 σs ≥ 345 MPa，抗拉强度 σb: 470 – 630 MPa。",
+            "6. 壁厚不均度（偏心度）：≤ 7–8%。",
+            "7. 内孔粗糙度：Ra ≤ 6.3 μm。高精度加工控制表面仅为内孔。",
+            "8. 焊接坡口加工：外圆两端做 36 × 45° 焊接大坡口，内孔两端做 2 × 45° 钝边倒角（第 3 项，已加工 8 支完毕）。"
+        ]
+    else:
+        tech_lines3 = [
+            "Технические требования (Труба цилиндровая тип 2 с фасками):",
+            "1. Состояние поставки: нормализация, горячий прокат (сталь Q345B, аналог 17Г1С).",
+            "2. Наружный диаметр Øн: 500 мм (допуск: 499.5 – 501.0 мм / +1.0 / -0.5 мм, токарная обработка/калибровка).",
+            "3. Внутренний диаметр Øвн: 420 мм, квалитет H9 (420.00 – 420.15 мм). Способ обработки: чистовой прокат.",
+            "4. Длина L: 1707 мм (допуск: 1707 – 1710 мм, технологический припуск +3 мм под сварку).",
+            "5. Механические свойства: предел текучести ≥ 345 МПа, предел прочности 470 – 630 МПа.",
+            "6. Разностенность (эксцентриситет): ≤ 7–8%.",
+            "7. Шероховатость внутренней поверхности: Ra ≤ 6.3 мкм. Высокоточная обработка — только внутренняя.",
+            "8. Разделка кромок под сварку: наружная фаска 36 × 45° (на обоих торцах), внутренняя притупляющая фаска 2 × 45° (на обоих торцах)."
+        ]
+    for i, line in enumerate(tech_lines3):
+        f = f_bold if i == 0 else f_text
+        d3.text((450, ty + i * 36), line, fill="#1B4F72" if i == 0 else "#222222", font=f)
+    img3.save(p3, quality=95)
+
+    return p1, p2, p3
+
+
+def _set_cell_padding(cell, top=70, bottom=70, left=110, right=110):
+    tcPr = cell._tc.get_or_add_tcPr()
+    tcMar = parse_xml(f'<w:tcMar {nsdecls("w")}><w:top w:w="{top}" w:type="dxa"/><w:bottom w:w="{bottom}" w:type="dxa"/><w:left w:w="{left}" w:type="dxa"/><w:right w:w="{right}" w:type="dxa"/></w:tcMar>')
+    tcPr.append(tcMar)
+
+def _style_hdr(cell, text, width=None, font_name="Calibri", font_size=9):
+    if width:
+        cell.width = width
+    cell.text = text
+    p = cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p.runs[0]
+    r.font.name = font_name
+    r.font.bold = True
+    r.font.size = Pt(font_size)
+    r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    shd = parse_xml(f'<w:shd {nsdecls("w")} w:fill="1B4F72"/>')
+    cell._tc.get_or_add_tcPr().append(shd)
+    _set_cell_padding(cell, top=80, bottom=80, left=100, right=100)
+
+def _style_bdy(cell, text, is_bold=False, align=WD_ALIGN_PARAGRAPH.LEFT, fill="FFFFFF", width=None, font_name="Calibri", font_size=8.5):
+    if width:
+        cell.width = width
+    cell.text = text
+    p = cell.paragraphs[0]
+    p.alignment = align
+    if p.runs:
+        r = p.runs[0]
+        r.font.name = font_name
+        r.font.bold = is_bold
+        r.font.size = Pt(font_size)
+    if fill != "FFFFFF":
+        shd = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{fill}"/>')
+        cell._tc.get_or_add_tcPr().append(shd)
+    _set_cell_padding(cell, top=55, bottom=55, left=90, right=90)
+
+
+def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True):
+    os.makedirs(out_dir, exist_ok=True)
+    docx_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_RU.docx")
+    pdf_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_RU.pdf")
+
+    if dry_run:
+        print(f"[DRY-RUN] Will generate RU Word spec at: {docx_path}")
+        print(f"[DRY-RUN] Will convert to PDF at: {pdf_path}")
+        return docx_path, pdf_path
+
+    drawings_dir = os.path.join(out_dir, "drawings_cache")
+    p1, p2, p3 = render_tube_drawings(drawings_dir, lang="ru")
+
+    doc = docx.Document()
+    for s in doc.sections:
+        s.top_margin = Inches(0.5)
+        s.bottom_margin = Inches(0.5)
+        s.left_margin = Inches(0.65)
+        s.right_margin = Inches(0.65)
+
+    normal = doc.styles['Normal']
+    normal.font.name = 'Calibri'
+    normal.font.size = Pt(9.5)
+    normal.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
+    normal.paragraph_format.line_spacing = 1.12
+    normal.paragraph_format.space_after = Pt(2.5)
+
+    def add_h1(text, before=10, after=3):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(before)
+        p.paragraph_format.space_after = Pt(after)
+        r = p.add_run(text)
+        r.font.size = Pt(11)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
+
+    def add_h2(text, before=8, after=2):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(before)
+        p.paragraph_format.space_after = Pt(after)
+        r = p.add_run(text)
+        r.font.size = Pt(10)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(0x1B, 0x4F, 0x72)
+
+    # PAGE 1
+    p_top = doc.add_paragraph()
+    p_top.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p_top.paragraph_format.space_after = Pt(0)
+    r_top = p_top.add_run("Приложение № 3\nк Договору поставки № 62/23/04/26 от 23.04.2026 г.")
+    r_top.font.size = Pt(9)
+    r_top.font.bold = True
+    r_top.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_before = Pt(4)
+    p_title.paragraph_format.space_after = Pt(1)
+    r_title = p_title.add_run("СПЕЦИФИКАЦИЯ И ТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ\nПОСТАВЛЯЕМОГО ТОВАРА (ТРУБЫ ГИДРОЦИЛИНДРОВ)")
+    r_title.font.size = Pt(13)
+    r_title.font.bold = True
+    r_title.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+
+    p_date = doc.add_paragraph()
+    p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_date.paragraph_format.space_after = Pt(6)
+    r_date = p_date.add_run("г. Санкт-Петербург                                                                                  07 октября 2026 г.")
+    r_date.font.size = Pt(9)
+    r_date.font.italic = True
+    r_date.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+    add_h1("1. Спецификация и график поставки партии труб (32 шт.)", before=4, after=3)
+    t1 = doc.add_table(rows=1, cols=6)
+    t1.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, h in enumerate(["№", "Наименование товара", "Кол-во", "Габаритные размеры (мм)", "Материал", "Срок готовности"]):
+        _style_hdr(t1.rows[0].cells[i], h)
+
+    data1 = [
+        ("1", "Гильза гидроцилиндра тип 1\n(рабочий цилиндр, без фасок)", "16 шт.", "Ø500 × Ø420 × 2174 мм\n(допуск: 2174 – 2177 мм)", "Q345B\n(аналог 17Г1С)", "10 рабочих дней\nпосле согласования"),
+        ("2", "Труба цилиндровая тип 2\n(наружный кожух, без фасок)", "8 шт.", "Ø500 × Ø420 × 1707 мм\n(допуск: 1707 – 1710 мм)", "Q345B\n(аналог 17Г1С)", "10 рабочих дней\nпосле согласования"),
+        ("3", "Труба цилиндровая тип 2\n(с разделкой кромок 36×45°)", "8 шт.", "Ø500 × Ø420 × 1707 мм\n(допуск: 1707 – 1710 мм)", "Q345B\n(аналог 17Г1С)", "Готово к отгрузке\n(упаковано в ящики)"),
+    ]
+    for r_i, r in enumerate(data1):
+        row = t1.add_row()
+        fill = "F9FAFB" if r_i % 2 == 0 else "EDF2F7"
+        for c_i, val in enumerate(r):
+            align = WD_ALIGN_PARAGRAPH.CENTER if c_i in [0, 2] else WD_ALIGN_PARAGRAPH.LEFT
+            _style_bdy(row.cells[c_i], val, is_bold=(c_i in [0, 1]), align=align, fill=fill, font_size=8.5)
+
+    p_note = doc.add_paragraph()
+    p_note.paragraph_format.space_before = Pt(3)
+    p_note.paragraph_format.space_after = Pt(6)
+    r_n = p_note.add_run("Примечание: Сырье для изготовления всей партии (сталь Q345B производства Daye Special Steel Co., Ltd) нарезано в размер. Позиция № 3 (8 шт.) полностью изготовлена с разделкой кромок и упакована. Оставшиеся 24 шт. находятся в стадии финишной механической обработки.")
+    r_n.font.size = Pt(8)
+    r_n.font.italic = True
+    r_n.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+
+    add_h1("2. Технические параметры гильзы гидроцилиндра тип 1 (Ø500 × Ø420 × 2174 мм)", before=6, after=3)
+    t_p1 = doc.add_table(rows=1, cols=2)
+    t_p1.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _style_hdr(t_p1.rows[0].cells[0], "Контролируемый параметр", width=Inches(3.1))
+    _style_hdr(t_p1.rows[0].cells[1], "Значение и нормативно-технические требования", width=Inches(3.8))
+
+    p1_specs = [
+        ("Состояние поставки", "Нормализация, горячий прокат"),
+        ("Наружный диаметр (Øн)", "500 мм (согласованный допуск: 499.5 – 501.0 мм / +1.0 / -0.5 мм, токарная обработка/калибровка)"),
+        ("Внутренний диаметр (Øвн)", "420 мм (квалитет H9: 420.00 – 420.15 мм)"),
+        ("Длина изделия (L)", "2174 мм (допуск: 2174 – 2177 мм, припуск +3 мм под чистовую торцовку)"),
+        ("Механические свойства стали", "Предел текучести σт ≥ 345 МПа; Предел прочности σв: 470 – 630 МПа"),
+        ("Разностенность (эксцентриситет ΔS)", "Не более 7–8%"),
+        ("Шероховатость внутренней поверхности (Ra)", "Ra ≤ 0.4 мкм (хонингование зеркала)"),
+        ("Способ обработки внутренней поверхности", "Хонингование прецизионное"),
+        ("Высокоточная обработанная поверхность", "Только внутренняя рабочая поверхность гильзы"),
+        ("Обработка наружной поверхности", "Токарная обработка / калибровка"),
+        ("Исполнение торцев", "Оба торца — прямой перпендикулярный рез, без фасок (под чистовую торцовку и сверление фланца заказчиком)")
+    ]
+    for r_i, (param, val) in enumerate(p1_specs):
+        row = t_p1.add_row()
+        fill = "F9FAFB" if r_i % 2 == 0 else "EDF2F7"
+        _style_bdy(row.cells[0], param, is_bold=True, fill=fill, width=Inches(3.1), font_size=8.5)
+        _style_bdy(row.cells[1], val, is_bold=False, fill=fill, width=Inches(3.8), font_size=8.5)
+
+    # PAGE 2
+    doc.add_page_break()
+    add_h1("3. Технические параметры трубы цилиндровой тип 2 (Ø500 × Ø420 × 1707 мм)", before=4, after=3)
+    t_p2 = doc.add_table(rows=1, cols=2)
+    t_p2.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _style_hdr(t_p2.rows[0].cells[0], "Контролируемый параметр", width=Inches(3.1))
+    _style_hdr(t_p2.rows[0].cells[1], "Значение и нормативно-технические требования", width=Inches(3.8))
+
+    p2_specs = [
+        ("Состояние поставки", "Нормализация, горячий прокат"),
+        ("Наружный диаметр (Øн)", "500 мм (согласованный допуск: 499.5 – 501.0 мм / +1.0 / -0.5 мм, токарная обработка/калибровка)"),
+        ("Внутренний диаметр (Øвн)", "420 мм (квалитет H9: 420.00 – 420.15 мм)"),
+        ("Длина изделия (L)", "1707 мм (допуск: 1707 – 1710 мм, припуск +3 мм)"),
+        ("Механические свойства стали", "Предел текучести σт ≥ 345 МПа; Предел прочности σв: 470 – 630 МПа"),
+        ("Разностенность (эксцентриситет ΔS)", "Не более 7–8%"),
+        ("Шероховатость внутренней поверхности (Ra)", "Ra ≤ 6.3 мкм (чистовой промышленный прокат)"),
+        ("Способ обработки внутренней поверхности", "Без специальных требований (не хонингуется, защитный кожух)"),
+        ("Высокоточная обработанная поверхность", "Только внутренняя поверхность"),
+        ("Разделка кромок (поз. 2, 8 шт.)", "Оба торца — ровный прямой рез, без фасок"),
+        ("Разделка кромок (поз. 3, 8 шт.)", "С разделкой под сварку: наружная фаска 36 × 45° (на обоих торцах), внутренняя фаска 2 × 45° (на обоих торцах)")
+    ]
+    for r_i, (param, val) in enumerate(p2_specs):
+        row = t_p2.add_row()
+        fill = "F9FAFB" if r_i % 2 == 0 else "EDF2F7"
+        _style_bdy(row.cells[0], param, is_bold=True, fill=fill, width=Inches(3.1), font_size=8.5)
+        _style_bdy(row.cells[1], val, is_bold=False, fill=fill, width=Inches(3.8), font_size=8.5)
+
+    add_h1("4. Рабочие чертежи и схемы изготовления труб", before=10, after=2)
+    p_im1 = doc.add_paragraph()
+    p_im1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_im1.paragraph_format.space_after = Pt(1)
+    doc.add_picture(p1, width=Inches(6.4))
+    p_c1 = doc.add_paragraph()
+    p_c1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_c1.paragraph_format.space_after = Pt(2)
+    r_c1 = p_c1.add_run("Рис. 1. Чертеж гильзы гидроцилиндра тип 1 (Ø500 × Ø420 × L2174 мм, без фасок)")
+    r_c1.font.size = Pt(8.5)
+    r_c1.font.bold = True
+    r_c1.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    # PAGE 3
+    doc.add_page_break()
+    p_im2 = doc.add_paragraph()
+    p_im2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_im2.paragraph_format.space_after = Pt(1)
+    doc.add_picture(p2, width=Inches(6.4))
+    p_c2 = doc.add_paragraph()
+    p_c2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_c2.paragraph_format.space_after = Pt(8)
+    r_c2 = p_c2.add_run("Рис. 2. Чертеж трубы цилиндровой тип 2 (Ø500 × Ø420 × L1707 мм, без фасок)")
+    r_c2.font.size = Pt(8.5)
+    r_c2.font.bold = True
+    r_c2.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    p_im3 = doc.add_paragraph()
+    p_im3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_im3.paragraph_format.space_after = Pt(1)
+    doc.add_picture(p3, width=Inches(6.4))
+    p_c3 = doc.add_paragraph()
+    p_c3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_c3.paragraph_format.space_after = Pt(2)
+    r_c3 = p_c3.add_run("Рис. 3. Чертеж трубы цилиндровой тип 2 (Ø500 × Ø420 × L1707 мм, с фасками 36×45°)")
+    r_c3.font.size = Pt(8.5)
+    r_c3.font.bold = True
+    r_c3.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    # PAGE 4
+    doc.add_page_break()
+    add_h1("5. Протокол фактических инструментальных измерений (Inspection Datasheet)", before=4, after=2)
+    p_ds_desc = doc.add_paragraph()
+    p_ds_desc.add_run("Фактические результаты измерений геометрии изготовленных единиц цилиндровых труб L=1707 мм (партия № 3, позиция с разделкой кромок под сварку). Измерения выполнены поверенным инструментом ОТК завода-изготовителя:")
+    p_ds_desc.paragraph_format.space_after = Pt(4)
+
+    t_ds = doc.add_table(rows=1, cols=9)
+    t_ds.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, h in enumerate(["№", "Контролируемый параметр", "Стандартный допуск ТЗ", "№ 1", "№ 2", "№ 3", "№ 4", "№ 5", "№ 6"]):
+        _style_hdr(t_ds.rows[0].cells[i], h)
+
+    ds_data = [
+        ("1", "Наружный диаметр Øн\n(замеры в двух поясах, мм)", "500 мм\n(допуск: 499.5 – 501.0)", "500.0\n500.0", "500.4\n500.1", "500.4\n500.5", "500.5\n500.6", "499.4\n499.5", "501.0\n501.0"),
+        ("2", "Внутренний диаметр Øвн\n(отклонение от 420.00, мм)", "420 мм (H9:\n+0.00 … +0.15 мм)", "+0.07\n+0.05", "+0.09\n+0.08", "+0.04\n+0.04", "+0.14\n+0.14", "+0.11\n+0.12", "+0.13\n+0.13"),
+        ("3", "Фактическая длина L, мм", "1707 мм (+3 мм:\n1707 – 1710 мм)", "1710", "1707", "1710", "1710", "1710", "1707"),
+        ("4", "Толщина стенки / разно-\nстенность (4 точки, мм)", "Номинал 40.0 мм\n(эксцентриситет ≤ 7–8%)", "40.4  40.4\n40.4  40.4", "40.1  40.3\n40.4  39.8", "40.2  40.4\n40.2  40.3", "40.3  40.4\n40.4  40.3", "39.5  39.7\n39.7  39.6", "40.5  40.6\n40.7  40.5"),
+        ("5", "Шероховатость зеркала Ra\n(замеры в 2 точках, мкм)", "Ra ≤ 6.3 мкм\n(прокат)", "0.054\n0.079", "0.258\n0.178", "0.124\n0.170", "0.112\n0.111", "0.075\n0.067", "0.215\n0.159"),
+        ("6", "Фаска наружная 36×45°\n(торец 1 / торец 2, мм)", "36 мм (номинал)", "34 / 36", "35 / 35", "35 / 35", "35 / 35", "35 / 35", "35 / 35"),
+        ("7", "Фаска внутренняя 2×45°\n(торец 1 / торец 2, мм)", "2 мм (номинал)", "1.0 / 1.5", "1.5 / 2.0", "1.0 / 1.5", "1.0 / 1.5", "1.5 / 1.0", "1.5 / 1.0"),
+    ]
+    for row_idx, r_data in enumerate(ds_data):
+        row = t_ds.add_row()
+        fill = "F9FAFB" if row_idx % 2 == 0 else "EDF2F7"
+        for col_idx, val in enumerate(r_data):
+            align = WD_ALIGN_PARAGRAPH.CENTER if col_idx in [0, 2, 3, 4, 5, 6, 7, 8] else WD_ALIGN_PARAGRAPH.LEFT
+            _style_bdy(row.cells[col_idx], val, is_bold=(col_idx in [0, 1]), align=align, fill=fill, font_size=8)
+
+    add_h2("Инженерное заключение по результатам инструментального контроля:", before=6, after=1)
+    p_res = doc.add_paragraph()
+    p_res.paragraph_format.space_after = Pt(6)
+    p_res.add_run(
+        "1. Внутренний диаметр Ø420 мм: отклонение +0.04 … +0.14 мм. Все единицы укладываются в квалитет H9 (+0.150 мм) и соответствуют требованиям к хонингованным цилиндрам.\n"
+        "2. Шероховатость зеркала: фактические значения Ra составляют от 0.054 до 0.258 мкм, что подтверждает высокое качество поверхности.\n"
+        "3. Толщина стенки: стабильная геометрия стенки около 40 мм, эксцентриситет находится в пределах нормы.\n"
+        "4. Наружный диаметр Ø500 мм: заготовки выполнены с положительным технологическим запасом, обеспечивающим необходимую толщину стенки под рабочее давление гидроцилиндра 340 бар."
+    )
+
+    p_sig_head = doc.add_paragraph()
+    p_sig_head.paragraph_format.space_before = Pt(8)
+    p_sig_head.paragraph_format.space_after = Pt(4)
+    r_sh = p_sig_head.add_run("ПОДПИСИ И ПЕЧАТИ СТОРОН:")
+    r_sh.font.bold = True
+    r_sh.font.size = Pt(9.5)
+    r_sh.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+
+    t_sig = doc.add_table(rows=1, cols=2)
+    t_sig.alignment = WD_TABLE_ALIGNMENT.CENTER
+    cell_l = t_sig.rows[0].cells[0]
+    cell_r = t_sig.rows[0].cells[1]
+    cell_l.width = Inches(3.4)
+    cell_r.width = Inches(3.5)
+
+    p_l = cell_l.paragraphs[0]
+    p_l.paragraph_format.space_after = Pt(0)
+    p_l.add_run("ПОСТАВЩИК:\nООО «ЦИ ЛИНЬ» (ИНН 7801719960)\n\n\n_____________________ / В. С. Штефан /\nМ.П.").font.size = Pt(9)
+
+    p_r = cell_r.paragraphs[0]
+    p_r.paragraph_format.space_after = Pt(0)
+    p_r.add_run("ПОКУПАТЕЛЬ:\nООО «ЛОГИСТИКТРАНС» (ИНН 7805828985)\n\n\n_____________________ / Г. В. Майсурадзе /\nМ.П.").font.size = Pt(9)
+
+    doc.save(docx_path)
+    print(f"  [DOCX] Русская спецификация сохранена: {docx_path}")
+
+    if make_pdf:
+        convert_docx_to_pdf_winword(docx_path, pdf_path)
+    return docx_path, pdf_path
+
+
+def build_tube_spec_cn(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True):
+    os.makedirs(out_dir, exist_ok=True)
+    docx_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_CN.docx")
+    pdf_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_CN.pdf")
+
+    if dry_run:
+        print(f"[DRY-RUN] Will generate CN Word spec at: {docx_path}")
+        print(f"[DRY-RUN] Will convert to PDF at: {pdf_path}")
+        return docx_path, pdf_path
+
+    drawings_dir = os.path.join(out_dir, "drawings_cache")
+    p1, p2, p3 = render_tube_drawings(drawings_dir, lang="cn")
+
+    doc = docx.Document()
+    for s in doc.sections:
+        s.top_margin = Inches(0.45)
+        s.bottom_margin = Inches(0.45)
+        s.left_margin = Inches(0.65)
+        s.right_margin = Inches(0.65)
+
+    normal = doc.styles['Normal']
+    normal.font.name = 'SimSun'
+    normal.font.size = Pt(9)
+    normal.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
+    normal.paragraph_format.line_spacing = 1.1
+    normal.paragraph_format.space_after = Pt(2)
+
+    def add_h1(text, before=6, after=2):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(before)
+        p.paragraph_format.space_after = Pt(after)
+        r = p.add_run(text)
+        r.font.name = 'Microsoft YaHei'
+        r.font.size = Pt(10.5)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
+
+    def add_h2(text, before=5, after=1):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(before)
+        p.paragraph_format.space_after = Pt(after)
+        r = p.add_run(text)
+        r.font.name = 'Microsoft YaHei'
+        r.font.size = Pt(9.5)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(0x1B, 0x4F, 0x72)
+
+    # PAGE 1
+    p_top = doc.add_paragraph()
+    p_top.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p_top.paragraph_format.space_after = Pt(0)
+    r_top = p_top.add_run("附件 3\n至 2026年04月23日 第 62/23/04/26 号设备供货合同")
+    r_top.font.name = 'Microsoft YaHei'
+    r_top.font.size = Pt(8.5)
+    r_top.font.bold = True
+    r_top.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_before = Pt(2)
+    p_title.paragraph_format.space_after = Pt(1)
+    r_title = p_title.add_run("供货商品技术参数与加工图纸协议\n（液压油缸管材，共 32 支）")
+    r_title.font.name = 'Microsoft YaHei'
+    r_title.font.size = Pt(12)
+    r_title.font.bold = True
+    r_title.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+
+    p_date = doc.add_paragraph()
+    p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_date.paragraph_format.space_after = Pt(4)
+    r_date = p_date.add_run("俄罗斯 圣彼得堡                                                                                   2026 年 10 月 07 日")
+    r_date.font.name = 'Microsoft YaHei'
+    r_date.font.size = Pt(8.5)
+    r_date.font.italic = True
+    r_date.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+    add_h1("一、管材供货规格与交货排期表（共 32 支）", before=2, after=2)
+    t1 = doc.add_table(rows=1, cols=6)
+    t1.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, h in enumerate(["序号", "商品名称", "数量", "规格尺寸 (mm)", "材质", "交货期 / 当前状态"]):
+        _style_hdr(t1.rows[0].cells[i], h, font_name="Microsoft YaHei", font_size=8.5)
+
+    data1 = [
+        ("1", "液压油缸筒 1 型\n（工作缸筒，不做坡口）", "16 支", "Ø500 × Ø420 × 2174 mm\n(公差: 2174 – 2177 mm)", "Q345B\n(相当于 17Г1С)", "协议确认后\n10 个工作日内完成"),
+        ("2", "液压油缸筒 2 型\n（外部套管，不做坡口）", "8 支", "Ø500 × Ø420 × 1707 mm\n(公差: 1707 – 1710 mm)", "Q345B\n(相当于 17Г1С)", "协议确认后\n10 个工作日内完成"),
+        ("3", "液压油缸筒 2 型\n（带焊接坡口 36×45°）", "8 支", "Ø500 × Ø420 × 1707 mm\n(公差: 1707 – 1710 mm)", "Q345B\n(相当于 17Г1С)", "已完成 8 支\n（已装箱包装完毕）"),
+    ]
+    for r_i, r in enumerate(data1):
+        row = t1.add_row()
+        fill = "F9FAFB" if r_i % 2 == 0 else "EDF2F7"
+        for c_i, val in enumerate(r):
+            align = WD_ALIGN_PARAGRAPH.CENTER if c_i in [0, 2] else WD_ALIGN_PARAGRAPH.LEFT
+            _style_bdy(row.cells[c_i], val, is_bold=(c_i in [0, 1]), align=align, fill=fill, font_name="Microsoft YaHei" if (c_i in [0, 1]) else "SimSun", font_size=8)
+
+    p_note = doc.add_paragraph()
+    p_note.paragraph_format.space_before = Pt(2)
+    p_note.paragraph_format.space_after = Pt(4)
+    r_n = p_note.add_run("备注：整批原材料（大冶特殊钢有限公司生产之优质 Q345B）已全部按尺寸切割。第 3 项（8 支带坡口）已全部加工完成并装箱。其余 24 支目前处于外圆车削与尺寸加工阶段。")
+    r_n.font.name = 'Microsoft YaHei'
+    r_n.font.size = Pt(7.5)
+    r_n.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+
+    add_h1("二、液压油缸筒 1 型技术参数（Ø500 × Ø420 × 2174 mm）", before=4, after=2)
+    t_p1 = doc.add_table(rows=1, cols=2)
+    t_p1.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _style_hdr(t_p1.rows[0].cells[0], "受控技术参数", width=Inches(3.0), font_name="Microsoft YaHei", font_size=8.5)
+    _style_hdr(t_p1.rows[0].cells[1], "技术指标与规范要求", width=Inches(3.9), font_name="Microsoft YaHei", font_size=8.5)
+
+    p1_specs = [
+        ("供货状态", "热处理：正火，热轧状态"),
+        ("外径 (Øн)", "500 mm（协议公差：499.5 – 501.0 mm / +1.0 / -0.5 mm，车削/车磨加工）"),
+        ("内径 (Øвн)", "420 mm（公差等级 H9：420.00 – 420.15 mm）"),
+        ("成品长度 (L)", "2174 mm（公差：2174 – 2177 mm，预留 +3 mm 正公差用于端面平切修整）"),
+        ("材料力学性能", "屈服强度 σs ≥ 345 MPa；抗拉强度 σb: 470 – 630 MPa"),
+        ("壁厚不均度 (偏心度 ΔS)", "偏心度 ≤ 7–8%"),
+        ("内表面粗糙度 (Ra)", "Ra ≤ 0.4 μm（精密珩磨镜面）"),
+        ("内表面加工方式", "高精度珩磨加工"),
+        ("高精度加工控制表面", "仅控制内表面工作镜面"),
+        ("外表面加工方式", "车削加工 / 车磨校准（公差 499.5 – 501.0 mm）"),
+        ("端面要求", "两端平切，无倒角（由俄方客户自行进行端面精车及 36 个法兰螺栓孔加工）")
+    ]
+    for r_i, (param, val) in enumerate(p1_specs):
+        row = t_p1.add_row()
+        fill = "F9FAFB" if r_i % 2 == 0 else "EDF2F7"
+        _style_bdy(row.cells[0], param, is_bold=True, fill=fill, width=Inches(3.0), font_name="Microsoft YaHei", font_size=8)
+        _style_bdy(row.cells[1], val, is_bold=False, fill=fill, width=Inches(3.9), font_name="SimSun", font_size=8)
+
+    # PAGE 2
+    doc.add_page_break()
+    add_h1("三、液压油缸筒 2 型技术参数（Ø500 × Ø420 × 1707 mm）", before=3, after=2)
+    t_p2 = doc.add_table(rows=1, cols=2)
+    t_p2.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _style_hdr(t_p2.rows[0].cells[0], "受控技术参数", width=Inches(3.0), font_name="Microsoft YaHei", font_size=8.5)
+    _style_hdr(t_p2.rows[0].cells[1], "技术指标与规范要求", width=Inches(3.9), font_name="Microsoft YaHei", font_size=8.5)
+
+    p2_specs = [
+        ("供货状态", "热处理：正火，热轧状态"),
+        ("外径 (Øн)", "500 mm（协议公差：499.5 – 501.0 mm / +1.0 / -0.5 mm，车削加工）"),
+        ("内径 (Øвн)", "420 mm（公差等级 H9：420.00 – 420.15 mm）"),
+        ("成品长度 (L)", "1707 mm（公差：1707 – 1710 mm，预留 +3 mm 正公差）"),
+        ("材料力学性能", "屈服强度 σs ≥ 345 MPa；抗拉强度 σb: 470 – 630 MPa"),
+        ("壁厚不均度 (偏心度 ΔS)", "偏心度 ≤ 7–8%"),
+        ("内表面粗糙度 (Ra)", "Ra ≤ 6.3 μm（精轧/精车工业表面）"),
+        ("内表面加工方式", "无特殊要求（不珩磨，用作外部套管）"),
+        ("高精度加工控制表面", "仅控制内表面"),
+        ("端面与坡口要求（第 2 项，8 支）", "两端平切，无坡口（协议确认后 10 个工作日内交货）"),
+        ("端面与坡口要求（第 3 项，8 支）", "带焊接坡口：外圆倒角 36 × 45°（两端各一处），内孔倒角 2 × 45°（两端各一处，已加工 8 支完毕）")
+    ]
+    for r_i, (param, val) in enumerate(p2_specs):
+        row = t_p2.add_row()
+        fill = "F9FAFB" if r_i % 2 == 0 else "EDF2F7"
+        _style_bdy(row.cells[0], param, is_bold=True, fill=fill, width=Inches(3.0), font_name="Microsoft YaHei", font_size=8)
+        _style_bdy(row.cells[1], val, is_bold=False, fill=fill, width=Inches(3.9), font_name="SimSun", font_size=8)
+
+    add_h1("四、加工图纸与工艺示意图", before=6, after=2)
+    p_im1 = doc.add_paragraph()
+    p_im1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_im1.paragraph_format.space_after = Pt(1)
+    doc.add_picture(p1, width=Inches(6.4))
+    p_c1 = doc.add_paragraph()
+    p_c1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_c1.paragraph_format.space_after = Pt(2)
+    r_c1 = p_c1.add_run("图 1. 液压油缸筒 1 型加工图纸（Ø500 × Ø420 × L2174 mm，无坡口）")
+    r_c1.font.name = 'Microsoft YaHei'
+    r_c1.font.size = Pt(8)
+    r_c1.font.bold = True
+    r_c1.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    # PAGE 3
+    doc.add_page_break()
+    p_im2 = doc.add_paragraph()
+    p_im2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_im2.paragraph_format.space_after = Pt(1)
+    doc.add_picture(p2, width=Inches(6.4))
+    p_c2 = doc.add_paragraph()
+    p_c2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_c2.paragraph_format.space_after = Pt(6)
+    r_c2 = p_c2.add_run("图 2. 液压油缸筒 2 型加工图纸（Ø500 × Ø420 × L1707 mm，不做坡口）")
+    r_c2.font.name = 'Microsoft YaHei'
+    r_c2.font.size = Pt(8)
+    r_c2.font.bold = True
+    r_c2.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    p_im3 = doc.add_paragraph()
+    p_im3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_im3.paragraph_format.space_after = Pt(1)
+    doc.add_picture(p3, width=Inches(6.4))
+    p_c3 = doc.add_paragraph()
+    p_c3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_c3.paragraph_format.space_after = Pt(2)
+    r_c3 = p_c3.add_run("图 3. 液压油缸筒 2 型加工图纸（Ø500 × Ø420 × L1707 mm，带坡口 36×45°）")
+    r_c3.font.name = 'Microsoft YaHei'
+    r_c3.font.size = Pt(8)
+    r_c3.font.bold = True
+    r_c3.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+
+    # PAGE 4
+    doc.add_page_break()
+    add_h1("五、1707 缸筒实际检测数据表（Inspection Datasheet）", before=2, after=2)
+    p_ds_desc = doc.add_paragraph()
+    p_ds_desc.add_run("以下数据为工厂质检部门对已加工包装完毕的第 3 项（带焊接坡口）前 6 支 1707 mm 缸筒进行的实际仪器检测记录：")
+    p_ds_desc.paragraph_format.space_after = Pt(3)
+
+    t_ds = doc.add_table(rows=1, cols=9)
+    t_ds.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, h in enumerate(["序号", "检验项目", "技术标准 / 协议公差", "1号", "2号", "3号", "4号", "5号", "6号"]):
+        _style_hdr(t_ds.rows[0].cells[i], h, font_name="Microsoft YaHei", font_size=8)
+
+    ds_data = [
+        ("1", "外径 Øн\n(两处实测截面, mm)", "500 mm\n(公差: 499.5–501.0)", "500.0\n500.0", "500.4\n500.1", "500.4\n500.5", "500.5\n500.6", "499.4\n499.5", "501.0\n501.0"),
+        ("2", "内径 Øвн 偏差\n(相对 420.00 基准, mm)", "420 mm (H9:\n+0.00 … +0.15 mm)", "+0.07\n+0.05", "+0.09\n+0.08", "+0.04\n+0.04", "+0.14\n+0.14", "+0.11\n+0.12", "+0.13\n+0.13"),
+        ("3", "成品实测长度 L, mm", "1707 mm (+3 mm:\n1707 – 1710 mm)", "1710", "1707", "1710", "1710", "1710", "1707"),
+        ("4", "壁厚 / 偏心度\n(4 个测量点实测, mm)", "标称 40.0 mm\n(偏心度 ≤ 7–8%)", "40.4  40.4\n40.4  40.4", "40.1  40.3\n40.4  39.8", "40.2  40.4\n40.2  40.3", "40.3  40.4\n40.4  40.3", "39.5  39.7\n39.7  39.6", "40.5  40.6\n40.7  40.5"),
+        ("5", "内表面粗糙度 Ra\n(两处实测, μm)", "Ra ≤ 6.3 μm\n(精轧表面)", "0.054\n0.079", "0.258\n0.178", "0.124\n0.170", "0.112\n0.111", "0.075\n0.067", "0.215\n0.159"),
+        ("6", "外圆坡口 36×45°\n(端面 1 / 端面 2, mm)", "36 mm (基准值)", "34 / 36", "35 / 35", "35 / 35", "35 / 35", "35 / 35", "35 / 35"),
+        ("7", "内孔倒角 2×45°\n(端面 1 / 端面 2, mm)", "2 mm (基准值)", "1.0 / 1.5", "1.5 / 2.0", "1.0 / 1.5", "1.0 / 1.5", "1.5 / 1.0", "1.5 / 1.0"),
+    ]
+    for row_idx, r_data in enumerate(ds_data):
+        row = t_ds.add_row()
+        fill = "F9FAFB" if row_idx % 2 == 0 else "EDF2F7"
+        for col_idx, val in enumerate(r_data):
+            align = WD_ALIGN_PARAGRAPH.CENTER if col_idx in [0, 2, 3, 4, 5, 6, 7, 8] else WD_ALIGN_PARAGRAPH.LEFT
+            _style_bdy(row.cells[col_idx], val, is_bold=(col_idx in [0, 1]), align=align, fill=fill, font_name="Microsoft YaHei" if (col_idx in [0, 1]) else "SimSun", font_size=7.5)
+
+    add_h2("工程质检数据结论：", before=4, after=1)
+    p_res = doc.add_paragraph()
+    p_res.paragraph_format.space_after = Pt(4)
+    p_res.add_run(
+        "1. 内径 Ø420 mm：实测偏差在 +0.04 至 +0.14 mm 之间，100% 严格落在 H9 级公差带内（上限 +0.150 mm），几何尺寸稳定且符合液压缸筒标准。\n"
+        "2. 表面粗糙度：实测 Ra 达到 0.054 至 0.258 μm，远优于技术要求 Ra ≤ 6.3 μm，表面光洁平整。\n"
+        "3. 壁厚均匀性：壁厚极差控制在 0.6 mm 以内，偏心度约 1.5%，远优于协议要求的 7–8% 上限。\n"
+        "4. 外径 Ø500 mm：采用正公差余量（+0.1 至 +1.0 mm），有效确保了液压缸在 340 bar 高压工况下的承压壁厚安全。"
+    )
+
+    p_sig_head = doc.add_paragraph()
+    p_sig_head.paragraph_format.space_before = Pt(6)
+    p_sig_head.paragraph_format.space_after = Pt(3)
+    r_sh = p_sig_head.add_run("双方盖章与代表签字：")
+    r_sh.font.name = 'Microsoft YaHei'
+    r_sh.font.bold = True
+    r_sh.font.size = Pt(9)
+    r_sh.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+
+    t_sig = doc.add_table(rows=1, cols=2)
+    t_sig.alignment = WD_TABLE_ALIGNMENT.CENTER
+    cell_l = t_sig.rows[0].cells[0]
+    cell_r = t_sig.rows[0].cells[1]
+    cell_l.width = Inches(3.4)
+    cell_r.width = Inches(3.5)
+
+    p_l = cell_l.paragraphs[0]
+    p_l.paragraph_format.space_after = Pt(0)
+    p_l.add_run("供方 / 卖方：\n琪麟有限责任公司 (ООО «ЦИ ЛИНЬ»)\n税号 (INN): 7801719960\n\n\n_____________________ / В. С. Штефан /\n（公章）").font.size = Pt(8.5)
+
+    p_r = cell_r.paragraphs[0]
+    p_r.paragraph_format.space_after = Pt(0)
+    p_r.add_run("需方 / 买方：\n逻辑运输有限责任公司 (ООО «ЛОГИСТИКТРАНС»)\n税号 (INN): 7805828985\n\n\n_____________________ / Г. В. Майсурадзе /\n（公章）").font.size = Pt(8.5)
+
+    doc.save(docx_path)
+    print(f"  [DOCX] Китайская спецификация сохранена: {docx_path}")
+
+    if make_pdf:
+        convert_docx_to_pdf_winword(docx_path, pdf_path)
+    return docx_path, pdf_path
+
+
 def main():
     parser = argparse.ArgumentParser(description='Dispute documentation manager for Qi Lin / Hydramax')
-    parser.add_argument('--action', choices=['brief', 'letter-tubes', 'letter-rods', 'inspect-drawing', 'extract-pdf', 'translate-rods-table'], required=True,
-                        help='Action to perform')
+    parser.add_argument('--action', choices=[
+        'brief', 'letter-tubes', 'letter-rods', 'inspect-drawing', 'extract-pdf', 
+        'translate-rods-table', 'spec-tubes-ru', 'spec-tubes-cn', 'spec-tubes'
+    ], required=True, help='Action to perform')
     parser.add_argument('--input', type=str, default='', help='Path to input drawing image, PDF, or XLSX file')
     parser.add_argument('--out-dir', type=str, default=DEFAULT_OUTPUT_DIR, help='Output directory')
     parser.add_argument('--dry-run', action='store_true', help='Preview translation/actions without saving')
+    parser.add_argument('--no-pdf', action='store_true', help='Skip Word COM PDF conversion')
     args = parser.parse_args()
 
     if args.action == 'brief':
@@ -631,6 +1530,13 @@ def main():
         extract_pdf_scans(args.input)
     elif args.action == 'translate-rods-table':
         translate_rods_table(args.input, args.out_dir, dry_run=args.dry_run)
+    elif args.action == 'spec-tubes-ru':
+        build_tube_spec_ru(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
+    elif args.action == 'spec-tubes-cn':
+        build_tube_spec_cn(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
+    elif args.action == 'spec-tubes':
+        build_tube_spec_ru(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
+        build_tube_spec_cn(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
 
 
 if __name__ == '__main__':
