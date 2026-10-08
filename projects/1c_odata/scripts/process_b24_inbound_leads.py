@@ -288,7 +288,7 @@ def find_b24_company(inn: str = None, title: str = None, origin_id: str = None, 
         clean_t = re.sub(r'[«»"“”\']', '', title).strip()
         placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы'}
         if clean_t.lower() not in placeholders:
-            stop_words = {'ООО', 'АО', 'ЗАО', 'ПАО', 'ИП', 'ГК', 'МТК', 'ТПК', 'НПП', 'НПО', 'БЕЗ', 'НАЗВАНИЯ', 'КОМПАНИЯ', 'КЛИЕНТ', 'ЗАКАЗЧИК', 'НОВАЯ', 'ИМЕНИ', 'NONE', 'UNDEFINED'}
+            stop_words = {'ООО', 'АО', 'ЗАО', 'ПАО', 'ИП', 'ГК', 'МТК', 'ТПК', 'НПП', 'НПО', 'БЕЗ', 'НАЗВАНИЯ', 'КОМПАНИЯ', 'КЛИЕНТ', 'ЗАКАЗЧИК', 'НОВАЯ', 'ИМЕНИ', 'NONE', 'UNDEFINED', 'ГРУППА', 'БИЗНЕС', 'ФИРМА', 'ПРЕДПРИЯТИЕ', 'ХОЛДИНГ', 'ПРАВОВАЯ', 'ТОРГОВЫЙ', 'ДОМ'}
             tokens = [w for w in clean_t.split() if w.upper() not in stop_words]
             kw = tokens[0] if tokens else ""
             if len(kw) >= 4 and kw.upper() not in stop_words and kw.lower() not in placeholders:
