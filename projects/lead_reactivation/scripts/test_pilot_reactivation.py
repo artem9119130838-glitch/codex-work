@@ -431,11 +431,16 @@ def format_b2b_subject(clean_subj: str, llm_subj: str, company_name: str, client
 
     # Add target suffix ('для <Компания/Имя>') at the end if not already present
     if target_suffix:
+        # Normalize uppercase words in suffix
+        if target_suffix.isupper() and len(target_suffix) > 4:
+            target_suffix = target_suffix.title()
         if not re.search(r'\bдля\b', selected_subj, re.IGNORECASE):
             selected_subj = f"{selected_subj} для {target_suffix}"
 
     final_subj = f"Re: {selected_subj}"
     final_subj = re.sub(r'^(?:Re:\s*)+', 'Re: ', final_subj, flags=re.IGNORECASE)
+    # Final cleanup of uppercase company in subject
+    final_subj = re.sub(r'(?i)\bдля\s+([А-ЯЁA-Z\s]{4,})\b', lambda m: f"для {m.group(1).title()}" if m.group(1).isupper() and m.group(1).strip() not in ["ООО", "ЗАО", "ПАО", "НПО"] else m.group(0), final_subj)
     return final_subj
 
 PUBLIC_EMAIL_DOMAINS = {
@@ -554,7 +559,17 @@ def find_last_kp_attachment(imap_host: str, user: str, password: str, recipient:
                 
             mailbox.folder.set(sent_folder)
             msgs = list(mailbox.fetch(AND(to=recipient), limit=5, reverse=True, mark_seen=False))
+            now_dt = datetime.datetime.now(datetime.timezone.utc)
             for msg in msgs:
+                # Check message age - prohibit attaching outdated КП older than 45 days
+                msg_date = msg.date
+                if msg_date:
+                    if msg_date.tzinfo is None:
+                        msg_date = msg_date.replace(tzinfo=datetime.timezone.utc)
+                    age_days = (now_dt - msg_date).days
+                    if age_days > 45:
+                        logger.info(f"[ATTACHMENT SKIPPED] Historical КП for {recipient} was sent {age_days} days ago (>45 days limit). Outdated КП will NOT be attached.")
+                        return []
                 for att in msg.attachments:
                     fname = att.filename or ""
                     fname_lower = fname.lower()
@@ -565,7 +580,7 @@ def find_last_kp_attachment(imap_host: str, user: str, password: str, recipient:
                             "maintype": "application" if fname_lower.endswith(".pdf") else "octet-stream",
                             "subtype": "pdf" if fname_lower.endswith(".pdf") else "bin"
                         })
-                        logger.info(f"Found historical КП attachment '{fname}' ({len(att.payload)} bytes) for {recipient}")
+                        logger.info(f"Found historical fresh КП attachment '{fname}' ({len(att.payload)} bytes) for {recipient}")
                         return kp_attachments
     except Exception as e:
         logger.warning(f"Failed searching historical КП attachment for {recipient}: {e}")
@@ -612,6 +627,11 @@ def save_draft_to_imap(subject: str, body: str, recipient: str, quote_text: str 
     subject = re.sub(r'«([^»]+),\s*»', r'«\1»', subject)
     subject = re.sub(r'"\s*([^"]+)\s*"', r'«\1»', subject)
     subject = re.sub(r'\s+', ' ', subject).strip()
+
+    # QUALITY GATE 3: Санитизация тела письма от запрещенных B2C-скидок и тавтологий
+    body = re.sub(r'(?i)\bскидк[а-я]*\s*(?:в\s*)?(?:10%|до\s*10%)?\b', 'специальные условия', body)
+    body = re.sub(r'(?i)\b(?:наше\s+)?предложение\s+(?:сгорает|истекает)\s*(?:сегодня|завтра)?\b', 'будем рады актуализировать предложение', body)
+    body = re.sub(r'(?i)\bпоследний\s+шанс\b', 'возможность', body)
 
     try:
         # Convert Plain Text body newlines to HTML br tags
@@ -773,13 +793,13 @@ def main():
                 style = EMAIL_STYLES.get(email, "деловой")
                 client_name = extract_first_name(contact_1c.contact_name)
                 
-                # Heavy step is ALWAYS forced to Gemini (completely free)
+                # Generate summary via LLM (Automatic provider cascade with DeepSeek fallback)
                 summaries = llm_service.generate_client_intelligence_summary(
                     contact_emails_text=contact_emails_text,
                     company_emails_text=company_emails_text,
                     is_buyer=is_buyer,
                     client_name=client_name,
-                    force_provider="gemini"
+                    force_provider=None
                 )
                 contact_summary_dict = summaries.get("contact_summary", {})
                 company_summary_dict = summaries.get("company_summary", {})
@@ -808,15 +828,23 @@ def main():
             contact_summary = json.dumps(contact_summary_dict, ensure_ascii=False, indent=2)
             company_summary = json.dumps(company_summary_dict, ensure_ascii=False, indent=2)
             
-            # Now generate reactivation draft from cached summary (alternate Gemini/DeepSeek for testing comparison)
-            provider_type = "gemini" if idx % 2 == 0 else "deepseek"
-            logger.info(f"Generating reactivation email draft using forced provider: {provider_type.upper()}...")
+            # Now generate reactivation draft from cached summary via DeepSeek
+            provider_type = "deepseek"
+            logger.info(f"Generating reactivation email draft using provider: {provider_type.upper()}...")
             style = get_next_style_for_client(db, email)
             client_name = resolve_client_name(contact_1c.contact_name, contact_summary_dict, contact_emails_text)
             
             # Check if we already sent the partnership prelude previously
             has_sent_partnership_prelude = check_if_prelude_sent(db, email)
             
+            # Check price objection
+            price_objection_text = None
+            if contact_summary_dict:
+                failed_reason = str(contact_summary_dict.get("reason_deal_failed", "")).lower()
+                hist_notes = str(contact_summary_dict.get("interaction_history", "")).lower()
+                if any(w in failed_reason or w in hist_notes for w in ["дорого", "цена космос", "высокая цена", "превысил бюджет"]):
+                    price_objection_text = "предыдущее предложение превышало бюджет / высокая цена"
+
             body, llm_subj = llm_service.generate_reactivation_draft(
                 contact_summary=contact_summary_dict,
                 company_summary=company_summary_dict,
@@ -828,7 +856,8 @@ def main():
                 client_name=client_name,
                 company_name=company_name,
                 force_provider=provider_type,
-                has_sent_partnership_prelude=has_sent_partnership_prelude
+                has_sent_partnership_prelude=has_sent_partnership_prelude,
+                price_objection_text=price_objection_text
             )
             
             # Determine manager name

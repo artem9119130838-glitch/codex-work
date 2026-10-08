@@ -44,17 +44,18 @@
   1. *Запрет на дубли:* Запрещено писать новый скрипт с нуля или запускать устаревший скрипт из архива вслепую.
   2. *Поиск по наработкам:* ИИ обязан проверить `scripts/archive/` (по `README.md`), `scratch/` и каталог [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md) на наличие старых мини-скриптов с похожей логикой.
   3. *Бэкпорт в канонический конвейер:* Найденное решение переносится в боевой скрипт как новый аргумент CLI с обязательным сохранением снимка в `archive/` (**Snapshot Before Edit**) и валидацией через `--dry-run`.
-- **Обязательный проактивный бэкпорт (Mandatory Post-Task Backport Invariant):** Категорически запрещено завершать задачу или очищать `scratch/`, просто отправляя черновики в архив без ревизии. Перед завершением любой задачи или сессии ассистент ОБЯЗАН АВТОМАТИЧЕСКИ (БЕЗ НАПОМИНАНИЯ И БЕЗ ЗАПРОСА ПОЛЬЗОВАТЕЛЯ):
-  1. *Аппаратный аудит черновиков:* Проверить все созданные в `scratch/` файлы и вычленить полезную логику (диагностика, самотестирование запросов, чистка дубликатов, срез метрик DWH, поиск по истории).
-  2. *Бэкпорт в канонический конвейер:* Немедленно перенести эти функции в боевой скрипт в виде новых аргументов или субкоманд CLI (`--action test-queries`, `--action db-stats`, `--cleanup-obsolete`, `--cluster`).
-  3. *Регистрация:* Внести добавленные аргументы в [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md) и `README.md` проекта.
-  4. *Архивация оригинала:* Только после интеграции в канонический конвейер переместить исходный черновик в архив.
-
+- **Обязательный проактивный бэкпорт (Mandatory Post-Task Backport Invariant):** Запрещено завершать задачу или очищать `scratch/`, сбрасывая черновики в архив без ревизии. Перед завершением задачи/сессии ассистент ОБЯЗАН:
+  1. *Аудит черновиков:* Проверить созданные в `scratch/` файлы и вычленить полезную логику (диагностика, тесты запросов, чистка дублей).
+  2. *Бэкпорт в канонический конвейер:* Перенести полезные функции в боевой скрипт аргументами CLI (`--action test-queries`, `--cleanup-obsolete` и т.д.).
+  3. *Регистрация и архив:* Внести аргументы в [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md), `README.md` и архивировать исходный черновик.
+- **Запрет правок боевого кода при рутинных задачах (No-Production-Code-Edit Invariant):** При регулярных задачах (обработка лидов, фоллоу-ап) ЗАПРЕЩЕНО на лету рефакторить боевые скрипты. При ошибках данных — СРАЗУ остановить выполнение и спросить пользователя (Clarify-Fast Guard). Доработка конвейеров ведется как отдельная задача.
+- **Каскадный поиск сущностей CRM (Multi-Key Cascade Entity Lookup):** Запрещено искать компанию в Б24 только по ИНН. Поиск ведется каскадом: 1) Контакт по Email (`crm.contact.list`) -> `COMPANY_ID`; 2) ИНН (`UF_CRM_699421CD2A684`); 3) Поиск по названию (`%TITLE`) и `ORIGIN_ID` (1С GUID). Существующие записи с пустым ИНН обогащаются, а не дублируются.
 
 ---
 
-## 4. Мгновенное уточнение при малейшем сомнении (Clarify-Fast Guard)
+## 4. Мгновенное уточнение при малейшем сомнении и зависании (Clarify-Fast & Anti-Hang Guard)
 - Если в задаче есть хоть малейшее сомнение, двусмысленность или нехватка параметров — **НЕ тратить время на получасовой анализ вслепую**, а НЕМЕДЛЕННО на первом этапе осмысления переспросить пользователя и приступать к исполнению только после получения ответов.
+- **30-Second Process Hang Guard:** При зависании или отсутствии ответа/прогресса любого фонового процесса или сетевой операции (SSH, OData, LLM API, IMAP) более **30 секунд** — ассистент ОБЯЗАН немедленно остановить ожидание, вывести диагностику зависшего узла и обратиться к пользователю за корректировкой команды или параметров, не допуская долгого ожидания вслепую.
 
 ---
 
@@ -81,8 +82,7 @@
 | **«почисти и проверь мой ПК (ноутбук)»** | `py scripts/check_and_clean_pc.py` | Диагностика GPU Код 43, MPO, фантомов SIMULATED, BCD F8, свободного места. |
 | **«полная ревизия и форматирование гравити»** | `py scripts/full_gravity_audit.py` | Сканирование контуров, отсев vendor, пересборка `SCRIPTS_CATALOG.md` и памяток на Рабочем столе. |
 | **«follow up deals today»** (`follow up сделки [ответственный] [лимит]`) | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run по умолчанию**. Обязательный аппаратный Self-Check, белый список PDF, кулдаун 7 дн, подпись ящика из Б24, запрет сделок «В работе» (только pre-sale), закрепленный комментарий-резюме со стратегическим вердиктом ИИ вверху таймлайна. Читать: [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md). Архив версий: [scripts/archive/](file:///C:/Codex/projects/1c_odata/scripts/archive/). |
-| **«обработай лидов [ящик] [ответственный]»** (`/process-sales-leads`) | `py projects/1c_odata/scripts/process_incoming_sales_leads.py` | **Параметры обязательны!** **Dry-run по умолчанию**. Ветвление Clear RFQ vs Ambiguous, задачи Miss Wang `[USER=30]`, Шаблон № 66, отметка прочитанным. Читать: [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md). |
-| **«сделай Обработка новых лидов»** | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Dry-run по умолчанию**. Сквозная обработка лидов CRM: сделка в `PREPARATION`, задача снабженцу Азату `[USER=20]` (Группа 14, дедлайн +4 раб. дня, `TASK_CONTROL: Y`), отсев реквизитов РФ, чат на китайском, Single Task Invariant, интеграция 1С:УНФ. |
+| **«обработай лидов [ящик/лид] [ответственный]»** (`/process-sales-leads`, «сделай Обработка новых лидов») | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Параметры обязательны!** **Dry-run по умолчанию**. Канонический конвейер лидов CRM и почты: сделка в `PREPARATION`, задача Азату `[USER=20]` (Группа 14, дедлайн +4 раб. дня / сегодня с `--deadline-today`, двуязычный чат RU+CN с пингом `[USER=20]阿扎特[/USER]`), отсев реквизитов РФ, отсев перепродажников и веерных заявок (Reseller & Bulk RFQ Guard), Шаблон № 66, скоринг СБИС, 1С OData. Читать: [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md). |
 | **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Параметры обязательны!** Чистая сверка 1С и Б24 без создания сделок и задач. Читать: [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md). |
 
 > **Explicit Scope Guard:** Если в командах «follow up сделки», «обработай лидов» или «синхронизируй лидов» не указаны сотрудник, ящик или лимит — **не запускать вслепую, а немедленно переспросить пользователя!**
@@ -96,7 +96,7 @@
 
 | Ключевые слова / Темы в запросе | Домен контура | Файл детального регламента (Обязателен к прочтению) |
 |---|---|---|
-| follow-up, лиды, письма, КП, клиенты, продажи, реанимация | **B2B Продажи & CRM** | [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md)<br>[LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md)<br>[B2B_SALES_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_SALES_POLICY.md) |
+| follow-up, лиды, письма, КП, клиенты, продажи, реанимация | **B2B Продажи & CRM** | [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md)<br>[LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md)<br>[LEAD_REACTIVATION_POLICY.md](file:///C:/Codex/projects/lead_reactivation/LEAD_REACTIVATION_POLICY.md)<br>[B2B_SALES_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_SALES_POLICY.md) |
 | 1С, УНФ, OData, реквизиты, контрагенты, скоринг, себестоимость | **ERP 1С:УНФ** | [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md)<br>Скилл: [1c_unf](file:///C:/Users/Артем/.gemini/config/skills/1c_unf/SKILL.md) |
 | тендер, ГОЗ, АСТ ГОЗ, спецификация, ЕИС, извещение | **Тендерный RAG** | [TENDER_RAG_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_RAG_POLICY.md)<br>Скилл: [tender_automation](file:///C:/Users/Артем/.gemini/config/skills/tender_automation/SKILL.md) |
 | китай, снабжение, фабрика, дечжоу, miss wang, брак, рекламация | **ВЭД & Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md)<br>[CHINA_OFFICE_MASTER_REGISTRY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_OFFICE_MASTER_REGISTRY.md) |

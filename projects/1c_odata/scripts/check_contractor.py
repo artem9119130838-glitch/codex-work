@@ -81,14 +81,12 @@ def calculate_scale(revenue, employee_count) -> str:
         emp = int(emp)
     except Exception:
         pass
-    if rev > 2_000_000_000 or emp > 250:
+    if rev >= 1_000_000_000 or emp >= 100:
         return "Крупный бизнес"
-    elif rev > 800_000_000 or emp > 100:
-        return "Средний бизнес"
     elif rev > 120_000_000 or emp > 15:
-        return "Малый бизнес"
+        return "Средний бизнес"
     elif rev > 0 or emp > 0:
-        return "Микропредприятие"
+        return "Малый бизнес"
     return "Не определен"
 
 
@@ -221,6 +219,24 @@ def get_saby_tender_info(inn: str) -> dict:
                         tender_res["participant_count"] = val
                     elif "заказчик" in subtitle.lower():
                         tender_res["customer_count"] = val
+
+        # Извлечение финансовой выручки из аккордеона СБИС
+        rev_m = re.search(r'title="Выручка / Финансы".*?<span title="([^"]+)">', text, re.DOTALL)
+        if rev_m:
+            tender_res["revenue_str"] = rev_m.group(1).strip()
+            r_str = tender_res["revenue_str"]
+            try:
+                val_num = float(re.findall(r'[\d\.,]+', r_str)[0].replace(',', '.'))
+                if 'млрд' in r_str:
+                    tender_res["revenue_num"] = val_num * 1_000_000_000
+                elif 'млн' in r_str:
+                    tender_res["revenue_num"] = val_num * 1_000_000
+                elif 'тыс' in r_str:
+                    tender_res["revenue_num"] = val_num * 1_000
+                else:
+                    tender_res["revenue_num"] = val_num
+            except Exception:
+                pass
                         
         return tender_res
     except Exception as e:
@@ -237,25 +253,49 @@ def classify_client(dadata_info: dict, saby_info: dict) -> dict:
     c_cnt = saby_info.get("customer_count", 0)
     name = (dadata_info.get("name_short") or "").lower()
     
-    revenue = dadata_info.get("revenue")
+    revenue = dadata_info.get("revenue") or saby_info.get("revenue_num") or saby_info.get("revenue_str")
     emp_cnt = dadata_info.get("employee_count")
-    scale = calculate_scale(revenue, emp_cnt)
-    rev_fmt = format_revenue(revenue)
+    if isinstance(revenue, (int, float)):
+        scale = calculate_scale(revenue, emp_cnt)
+        rev_fmt = format_revenue(revenue)
+    elif saby_info.get("revenue_str"):
+        rev_fmt = saby_info.get("revenue_str")
+        if "млрд" in rev_fmt:
+            scale = "Крупный бизнес"
+        else:
+            scale = "Средний бизнес"
+    else:
+        scale = calculate_scale(revenue, emp_cnt)
+        rev_fmt = format_revenue(revenue)
+        
+    if scale == "Крупный бизнес":
+        tags.append("Крупный")
+    elif scale == "Средний бизнес":
+        tags.append("Средний")
+        
     is_holding = dadata_info.get("is_holding", False)
+    if is_holding:
+        tags.append("Холдинг")
     
     # 1. Проверка на Тендерщика
     if p_cnt > 0 or saby_info.get("is_participant"):
         tags.append("Тендер")
         reasons.append(f"Участий в торгах в качестве поставщика: {p_cnt}")
         
-    # 2. Проверка на Производство
+    # 2. Проверка на Производство и Реальный сектор (Добыча 05-09, Производство 10-33, Строительство 41-43)
     is_production = False
+    is_real_sector = False
     try:
         okved_prefix = int(okved.split(".")[0])
-        if 10 <= okved_prefix <= 33:
+        if 5 <= okved_prefix <= 33:
             is_production = True
+            is_real_sector = True
             tags.append("Производство")
-            reasons.append(f"Производственный ОКВЭД: {okved} ({okved_name})")
+            reasons.append(f"Производственный/добывающий ОКВЭД: {okved} ({okved_name})")
+        elif 41 <= okved_prefix <= 43:
+            is_real_sector = True
+            tags.append("Конечный покупатель")
+            reasons.append(f"Строительно-подрядный ОКВЭД: {okved} ({okved_name})")
     except Exception:
         pass
         
@@ -263,25 +303,26 @@ def classify_client(dadata_info: dict, saby_info: dict) -> dict:
     is_trade_okved = okved.startswith("46")
     is_reseller = False
     
-    if is_trade_okved and p_cnt >= 5:
+    if is_trade_okved and p_cnt >= 5 and c_cnt < p_cnt:
         is_reseller = True
         tags.append("Перепродажники")
         reasons.append(f"Торговый ОКВЭД 46 + активные поставки по тендерам ({p_cnt} участий)")
-    elif p_cnt >= 20 and not is_production:
+    elif p_cnt >= 20 and not is_real_sector and c_cnt < 20:
         is_reseller = True
         tags.append("Перепродажники")
-        reasons.append(f"Массовый участник торгов ({p_cnt} участий) без производства")
-    elif is_trade_okved and any(w in name for w in ["торговый дом", " тд ", "трейд", "снабжение", "комплект"]):
+        reasons.append(f"Массовый участник торгов ({p_cnt} участий) без производства/строительства")
+    elif is_trade_okved and any(w in name for w in ["торговый дом", " тд ", "трейд", "снабжение", "комплект"]) and not is_real_sector:
         is_reseller = True
         tags.append("Перепродажники")
         reasons.append("Торговый ОКВЭД 46 и явное торговое наименование компании")
         
     # 4. Конечный покупатель
-    if not is_reseller and not is_production:
+    if not is_reseller:
         tags.append("Конечный покупатель")
-        reasons.append("Компания приобретает оборудование под собственные нужды")
-    elif is_production and not is_reseller:
-        tags.append("Конечный покупатель")
+        if is_production:
+            reasons.append("Производственное/добывающее предприятие — закупка под собственные нужды")
+        else:
+            reasons.append("Компания приобретает оборудование под собственные нужды")
         
     verdict = "ПЕРЕПРОДАЖНИК" if is_reseller else ("ПРОИЗВОДСТВО" if is_production else "КОНЕЧНЫЙ ПОКУПАТЕЛЬ")
     return {
@@ -382,7 +423,18 @@ def write_to_bitrix24(b24_company_id: int = None, b24_lead_id: int = None, summa
         return False
 
 
-def write_to_onec(inn: str = None, one_c_guid: str = None, summary_text: str = "", tags: list = None, dry_run: bool = True) -> bool:
+TAG_MAP_1C = {
+    "Крупный": "7e8d7ab8-df13-11ef-9922-02006df8aab5",
+    "Средний": "7e8d7ab8-df13-11ef-9922-02006df8aab5",
+    "Производство": "891061f8-df13-11ef-9922-02006df8aab5",
+    "Тендер": "052cb624-ded8-11ef-9922-02006df8aab5",
+    "Перепродажники": "306714e0-e1f5-11ef-8db0-02006df8aab5",
+    "Конечный покупатель": "6c77607c-e770-11ef-8e46-02006df8aab5",
+    "Холдинг": "0e89c354-fe42-11ef-8ae4-02006df8aab5"
+}
+
+
+def write_to_onec(inn: str = None, one_c_guid: str = None, summary_text: str = "", tags: dict = None, dry_run: bool = True) -> bool:
     auth = (ODATA_USER, ODATA_PASS)
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     
@@ -407,15 +459,38 @@ def write_to_onec(inn: str = None, one_c_guid: str = None, summary_text: str = "
         if not dry_run:
             try:
                 r_get = requests.get(f"{ODATA_BASE}/{entity_type}(guid'{one_c_guid}')?$format=json", auth=auth, headers=headers, timeout=15)
+                if r_get.status_code != 200 and entity_type == "Catalog_Контрагенты":
+                    r_l_get = requests.get(f"{ODATA_BASE}/Catalog_Лиды(guid'{one_c_guid}')?$format=json", auth=auth, headers=headers, timeout=15)
+                    if r_l_get.status_code == 200:
+                        r_get = r_l_get
+                        entity_type = "Catalog_Лиды"
                 if r_get.status_code == 200:
                     item_data = r_get.json()
                     cur_comment = item_data.get("Комментарий", "") or ""
                     compact_summary = format_onec_comment({"classification": tags or {}, "dadata": {"okved": ""}, "saby": {}})
                     new_comment = _merge_sbis_block(cur_comment, compact_summary)
-                    requests.patch(f"{ODATA_BASE}/{entity_type}(guid'{one_c_guid}')?$format=json", json={"Комментарий": new_comment}, auth=auth, headers=headers, timeout=15)
+                    patch_body = {"Комментарий": new_comment}
+                    
+                    if tags:
+                        rec_tags = tags.get("recommended_tags", []) if isinstance(tags, dict) else (tags if isinstance(tags, list) else [])
+                        rec_tags = list(rec_tags)
+                        if isinstance(tags, dict):
+                            if tags.get("scale") == "Крупный бизнес":
+                                rec_tags.append("Крупный")
+                            if tags.get("is_holding"):
+                                rec_tags.append("Холдинг")
+                        tag_rows = []
+                        for idx, t_name in enumerate(set(rec_tags), start=1):
+                            t_guid = TAG_MAP_1C.get(t_name)
+                            if t_guid:
+                                tag_rows.append({"LineNumber": str(idx), "Тег_Key": t_guid})
+                        if tag_rows:
+                            patch_body["Теги"] = tag_rows
+
+                    requests.patch(f"{ODATA_BASE}/{entity_type}(guid'{one_c_guid}')?$format=json", json=patch_body, auth=auth, headers=headers, timeout=15)
             except Exception as e:
-                print(f"  [1C-WARN] Не удалось обновить Комментарий в 1С: {e}")
-        print(f"  [1C] Скоринг СБИС сохранен в {entity_type} {one_c_guid} ({'DRY-RUN' if dry_run else 'OK'})")
+                print(f"  [1C-WARN] Не удалось обновить Комментарий/Теги в 1С: {e}")
+        print(f"  [1C] Скоринг СБИС и теги сохранены в {entity_type} {one_c_guid} ({'DRY-RUN' if dry_run else 'OK'})")
         return True
     return False
 
@@ -571,6 +646,7 @@ def main():
     parser.add_argument("--b24-lead-id", type=int, help="ID лида в Битрикс24 для синхронизации")
     parser.add_argument("--onec-guid", help="GUID контрагента/лида в 1С:УНФ")
     parser.add_argument("--sync-all", action="store_true", help="Синхронизировать скоринг во все связанные системы")
+    parser.add_argument("--force", action="store_true", help="Принудительный скоринг без проверки кэша")
     parser.add_argument("--dry-run", action="store_true", help="Режим предпросмотра без изменения внешних систем")
     parser.add_argument("--json", action="store_true", help="Вывод в формате JSON")
     args = parser.parse_args()
@@ -580,7 +656,8 @@ def main():
         b24_company_id=args.b24_company_id,
         b24_lead_id=args.b24_lead_id,
         one_c_guid=args.onec_guid,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        force=args.force
     )
 
     if args.json:

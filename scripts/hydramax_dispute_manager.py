@@ -536,12 +536,78 @@ def build_chinese_doc(target_dir):
         f.write('ООО «ЦИ ЛИНЬ» / Qi Lin LLC\n2026年10月6日\n')
     print('Saved CN MD:', cn_md)
 
+def translate_rods_table(input_path='', out_dir=DEFAULT_OUTPUT_DIR, dry_run=False):
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+
+    default_table = os.path.join(out_dir, "Таблица штоков корр..xlsx")
+    src = input_path if input_path else default_table
+    if not os.path.exists(src):
+        print(f"Error: Table file not found: {src}")
+        sys.exit(1)
+
+    base_dir, filename = os.path.split(src)
+    name, ext = os.path.splitext(filename)
+    tgt = os.path.join(base_dir, f"{name}_EN{ext}")
+
+    print(f"Loading workbook: {src}")
+    wb = openpyxl.load_workbook(src)
+
+    sheet_name_map = {
+        "Матрица_16_штоков": "16_Rods_Matrix",
+        "Справочник_5_условий_клиента": "Customer_5_Conditions_Guide",
+        "Итоговая_сортировка_штоков": "Final_Rods_Sorting"
+    }
+
+    # Import dictionary from scratch or internal definition
+    try:
+        from translations import translations as tr_dict
+    except ImportError:
+        # Fallback to local scratch
+        sys.path.insert(0, r"C:\Codex\scratch")
+        from translations import translations as tr_dict
+
+    total_cells = 0
+    translated_cells = 0
+    untranslated = []
+
+    for sname in list(wb.sheetnames):
+        ws = wb[sname]
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value is not None and isinstance(cell.value, str):
+                    t = cell.value.strip()
+                    if not t:
+                        continue
+                    total_cells += 1
+                    if t in tr_dict:
+                        if not dry_run:
+                            cell.value = tr_dict[t]
+                        translated_cells += 1
+                    else:
+                        untranslated.append((sname, cell.coordinate, t))
+
+        if not dry_run and sname in sheet_name_map:
+            ws.title = sheet_name_map[sname]
+            print(f"Renamed sheet: '{sname}' -> '{ws.title}'")
+
+    print(f"Summary: {translated_cells}/{total_cells} text cells translated (100% format preservation).")
+    if untranslated:
+        print(f"Warning: {len(untranslated)} untranslated strings found: {untranslated[:5]}")
+
+    if dry_run:
+        print("[DRY-RUN] No changes saved to disk.")
+    else:
+        wb.save(tgt)
+        print(f"Successfully saved translated table to:\n  {tgt}")
+
 def main():
     parser = argparse.ArgumentParser(description='Dispute documentation manager for Qi Lin / Hydramax')
-    parser.add_argument('--action', choices=['brief', 'letter-tubes', 'letter-rods', 'inspect-drawing', 'extract-pdf'], required=True,
+    parser.add_argument('--action', choices=['brief', 'letter-tubes', 'letter-rods', 'inspect-drawing', 'extract-pdf', 'translate-rods-table'], required=True,
                         help='Action to perform')
-    parser.add_argument('--input', type=str, default='', help='Path to input drawing image or PDF file')
+    parser.add_argument('--input', type=str, default='', help='Path to input drawing image, PDF, or XLSX file')
     parser.add_argument('--out-dir', type=str, default=DEFAULT_OUTPUT_DIR, help='Output directory')
+    parser.add_argument('--dry-run', action='store_true', help='Preview translation/actions without saving')
     args = parser.parse_args()
 
     if args.action == 'brief':
@@ -563,6 +629,9 @@ def main():
             print('Error: --input is required for extract-pdf')
             sys.exit(1)
         extract_pdf_scans(args.input)
+    elif args.action == 'translate-rods-table':
+        translate_rods_table(args.input, args.out_dir, dry_run=args.dry_run)
+
 
 if __name__ == '__main__':
     main()

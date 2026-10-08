@@ -20,16 +20,63 @@ def clean_scratch(scratch_dir):
     if not scratch_dir.exists():
         return
     print("\n--- Очистка временных файлов (scratch) ---")
-    # Удаляем только временные скрипты и отчеты ИИ (.py, .txt, .log)
-    # Сохраняем пользовательские файлы (.erf, .xlsx) и другие форматы
-    extensions_to_remove = ['.py', '.txt', '.log']
-    for p in scratch_dir.iterdir():
-        if p.is_file() and p.suffix.lower() in extensions_to_remove:
+    # Удаляем любые временные скрипты, дампы, медиа и почтовые сообщения ИИ
+    extensions_to_remove = ['.py', '.txt', '.log', '.json', '.eml', '.jpg', '.jpeg', '.png', '.tar.gz', '.gz', '.pdf', '.tmp']
+    for p in list(scratch_dir.iterdir()):
+        if p.is_file() and (p.suffix.lower() in extensions_to_remove or p.name.endswith('.tar.gz')):
             try:
                 p.unlink()
                 print(f"Удален временный файл: {p.name}")
             except Exception as e:
                 print(f"Не удалось удалить {p.name}: {e}")
+        elif p.is_dir() and p.name in ['deal_attachments', 'downloaded_rfqs', 'extracted_page_images', 'pdf_pages', 'test_brief', '__pycache__']:
+            try:
+                import shutil
+                shutil.rmtree(p)
+                print(f"Удалена временная папка: {p.name}")
+            except Exception as e:
+                print(f"Не удалось удалить папку {p.name}: {e}")
+
+def verify_workspace_hygiene(root_dir):
+    print("\n--- Аппаратный аудит гигиены контура (Pre-Commit Bloat & Integrity Guard) ---")
+    issues = []
+    
+    # 1. Проверка размера AGENTS.md
+    agents_path = root_dir / "AGENTS.md"
+    if agents_path.exists():
+        sz = agents_path.stat().st_size
+        max_agents = 22500
+        if sz > max_agents:
+            issues.append(f"КРИТИЧЕСКИЙ РАЗДУВ: AGENTS.md превысил лимит! {sz} байт > {max_agents} байт.")
+        elif sz > 22000:
+            print(f"  [ПРЕДУПРЕЖДЕНИЕ] AGENTS.md близок к лимиту: {sz} / {max_agents} байт.")
+        else:
+            print(f"  [OK] AGENTS.md в пределах нормы: {sz} байт (лимит {max_agents}).")
+
+    # 2. Проверка размера активного каталога скриптов
+    catalog_path = root_dir / "codex_kb" / "SCRIPTS_CATALOG.md"
+    if catalog_path.exists():
+        sz_cat = catalog_path.stat().st_size
+        max_cat = 50000
+        if sz_cat > max_cat:
+            issues.append(f"РАЗДУВ КАТАЛОГА: codex_kb/SCRIPTS_CATALOG.md весит {sz_cat} байт > {max_cat} байт!")
+        else:
+            print(f"  [OK] codex_kb/SCRIPTS_CATALOG.md компактен: {sz_cat} байт (лимит {max_cat}).")
+
+    # 3. Проверка на дубликаты боевых скриптов
+    odata_scripts = root_dir / "projects" / "1c_odata" / "scripts"
+    if odata_scripts.exists():
+        incoming_old = odata_scripts / "process_incoming_sales_leads.py"
+        if incoming_old.exists():
+            issues.append("НАРУШЕНИЕ SINGLE-SCRIPT: найден устаревший дубликат process_incoming_sales_leads.py в боевом каталоге!")
+
+    if issues:
+        print("\n[HYGIENE LINTER WARNINGS]:")
+        for iss in issues:
+            print(f"  - {iss}")
+    else:
+        print("  [HYGIENE LINTER OK] Все контрактные лимиты и инварианты контура соблюдены.")
+    return issues
 
 def run_git(args, desc, cwd_dir):
     git_path = r"C:\Program Files\Git\cmd\git.exe"
@@ -186,7 +233,10 @@ def main():
     # 2. Очищаем scratch от мусора
     clean_scratch(paths["scratch"])
     
-    # 3. Синхронизируем изменения с Git (если репозиторий существует)
+    # 3. Аппаратный аудит гигиены контура перед коммитом
+    hygiene_issues = verify_workspace_hygiene(paths["root"])
+    
+    # 4. Синхронизируем изменения с Git (если репозиторий существует)
     git_root = paths["root"]
     if (git_root / ".git").exists():
         print("\n--- Синхронизация с Git ---")
