@@ -1,7 +1,7 @@
 # Регламент B2B-продаж, реанимации базы и стандартов переписки (B2B Sales & Outreach Policy)
 
 > **Статус документа:** Стандарты коммуникации с клиентами, реанимации спящей базы и оформления почтовых сообщений.  
-> **Связанные регламенты:** [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md), [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md).
+> **Связанные регламенты:** [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md), [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md), [B2B_PRODUCT_ARCHITECTURE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_PRODUCT_ARCHITECTURE_POLICY.md).
 
 ---
 
