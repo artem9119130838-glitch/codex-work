@@ -3,104 +3,84 @@
 - Комментарии к коду оставляй на английском или русском.
 - Всегда оформляй ссылки на файлы в кликабельном формате: `[filename](file:///C:/Codex/path/to/file)`.
 
-# Workspace AI Contract (Root Router & System Guard)
+# Workspace AI Contract (Root Router & Cascade Guard)
 
-Этот файл является компактным диспетчером и корневым контрактом ИИ-ассистента в личном контуре (`C:\Codex`).  
-Детальные правила предметных областей вынесены в специализированные доменные манифесты и загружаются **строго по требованию (On-Demand Context Loading)**.
+Компактный диспетчер и корневой контракт ИИ-ассистента в личном контуре (`C:\Codex`).  
+Детальные правила загружаются строго каскадно по требованию (**Cascade On-Demand Loading**).
 
 ---
 
 ## 1. Zero-Prose Guard & Мгновенное исполнение
-- **Запрет светской беседы до вызова инструментов:** При получении системных команд-триггеров (например, «конец чата», `/compress`, `/end-session`, `!конец`) ассистенту **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО** отвечать бытовыми вежливыми фразами («пока», «до свидания», «удачной работы») до завершения исполнения всех шагов сжатия и вызова инструментов.
-- Ответ текстом без вызова инструментов считается критическим сбоем дисциплины (L2).
+- При системных триггерах («конец чата», `/compress`, `!конец`) **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНА** светская беседа до исполнения всех шагов и вызова инструментов. Ответ текстом без инструментов — сбой L2.
 
 ---
 
 ## 2. Pre-Flight Token Guard & Runtime Discipline
-- **Token Guard First:** Перед стартом работы над **ЛЮБЫМ проектом или задачей** ассистент ОБЯЗАН обратиться к скиллу [token_guard](file:///C:/Users/Артем/.gemini/config/skills/token_guard/SKILL.md) и провести pre-flight контроль экономии токенов и лимитов API.
-- **Вызов Python на Windows:** Вызывать интерпретатор **СТРОГО через лаунчер `py`** (например, `py scripts/session_compress.py`). Вызов через `python` падает с ошибкой.
-- **Запрет опроса фоновых задач (Reactive Wakeup):** Категорически запрещено использовать `command_status` или `manage_task` в цикле опроса. Платформа работает в режиме реактивного пробуждения и сама уведомит о завершении задачи. Сразу завершайте ход.
-- **Пакетное выполнение и группировка (Anti-Ban & Batch Execution):**
-  * Не запускать команды и скрипты мелкими разрозненными порциями. Последовательные команды объединять в одну цепочку (через `&&` или `;`) или единый скрипт.
-  * На сервере VPS: не более 3 SSH-подключений в минуту; упаковывать скрипты локально, передавать за один `scp` и исполнять за один `ssh`.
+- **Token Guard First:** Перед стартом задачи обратиться к скиллу [token_guard](file:///C:/Users/Артем/.gemini/config/skills/token_guard/SKILL.md) для контроля токенов и лимитов API.
+- **Python на Windows:** Вызывать интерпретатор **СТРОГО через лаунчер `py`** (`py script.py`). Вызов через `python` падает с ошибкой.
+- **Запрет опроса (Reactive Wakeup):** Запрещено опрашивать `command_status` или `manage_task` в цикле. Платформа пробуждается автоматически.
+- **Пакетное выполнение:** Объединять команды через `&&` или `;`. На VPS: не более 3 SSH-подключений в минуту; упаковка локально, передача за 1 `scp`, запуск за 1 `ssh`.
 
 ---
 
-## 3. Методика написания, объединения и хранения скриптов (Script Lifecycle, Search-First & Anti-Sprawl Guard)
-- **Категорический запрет изобретать велосипед (Search-First Hard Gatekeeper):** Перед написанием любого нового скрипта сначала проверить единый каталог [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md) и историю репозитория. Категорически запрещено создавать скрипты диагностики и поиска (`inspect_*.py`, `find_*.py`, `test_*.py`, `check_*.py`) в `scratch/` при наличии штатных утилит:
-  * Поиск сущностей в 1С: `py projects/1c_odata/scripts/search_1c_entities.py`
-  * Проверка контрагента по ИНН: `py projects/1c_odata/scripts/check_contractor.py`
-  * Создание Лида и привязка писем: `py projects/1c_odata/scripts/create_1c_lead.py`
-  * Поиск знаний и чатов Б24: `py projects/1c_odata/scripts/search_bitrix_knowledge.py`
-  * Сквозная обработка лидов CRM: `py projects/1c_odata/scripts/process_b24_inbound_leads.py`
-  Написание скриптов-дублей расценивается как критический сбой дисциплины (L1).
-- **Приоритет доработки и объединения:** Если аналогичный или смежный скрипт уже существует в проекте — **ДОРАБАТЫВАТЬ И ОБЪЕДИНЯТЬ ЕГО**, а не писать новый с нуля. Запрещено плодить цепочки разрозненных файлов (`step1.py`, `step2.py`); логика объединяется в единый канонический конвейер с субкомандами/аргументами CLI и флагом `--dry-run`.
-- **Трехконтурная структура хранения скриптов:**
-  1. *Боевой канонический скрипт* (`projects/<проект>/scripts/<script>.py`) — РОВНО ОДИН активный скрипт на бизнес-процесс (**Canonical Single-Script Invariant**). Запрещено держать в продакшене параллельные дублирующие файлы (`_v1`, `_v2`, `_test`).
-  2. *Архив версий* (`projects/<проект>/scripts/archive/`) — перед модификацией боевого скрипта текущая стабильная версия обязательно архивируется сюда со снимком vX.Y и фиксацией в `README.md` (**Snapshot Before Edit Guard**).
-  3. *Черновики и исследовательские утилиты* (`scratch/` или `archive/<домен>_scratch/`) — промежуточные и отладочные скрипты категорически запрещено удалять, их перемещают в черновой архив (**Script Retention Guard**).
-- **Dual Self-Check Guard (Plan & Result):** Любая модификация конвейеров проходит обязательную двойную валидацию: Plan Self-Check (отсев хардкода, проверка контракта аргументов CLI) и Result Self-Check (аппаратный аудит лога `--dry-run`, проверка исключений, валидация сущностей).
-- **Архивная археология и интеграция наработок (Archive Mining & Canonical Backport Rule):** Если пользователь запрашивает параметры или подзадачи, которых нет в текущем боевом скрипте:
-  1. *Запрет на дубли:* Запрещено писать новый скрипт с нуля или запускать устаревший скрипт из архива вслепую.
-  2. *Поиск по наработкам:* ИИ обязан проверить `scripts/archive/` (по `README.md`), `scratch/` и каталог [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md) на наличие старых мини-скриптов с похожей логикой.
-  3. *Бэкпорт в канонический конвейер:* Найденное решение переносится в боевой скрипт как новый аргумент CLI с обязательным сохранением снимка в `archive/` (**Snapshot Before Edit**) и валидацией через `--dry-run`.
-- **Обязательный проактивный бэкпорт (Mandatory Post-Task Backport Invariant):** Запрещено завершать задачу или очищать `scratch/`, сбрасывая черновики в архив без ревизии. Перед завершением задачи/сессии ассистент ОБЯЗАН:
-  1. *Аудит черновиков:* Проверить созданные в `scratch/` файлы и вычленить полезную логику (диагностика, тесты запросов, чистка дублей).
-  2. *Бэкпорт в канонический конвейер:* Перенести полезные функции в боевой скрипт аргументами CLI (`--action test-queries`, `--cleanup-obsolete` и т.д.).
-  3. *Регистрация и архив:* Внести аргументы в [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md), `README.md` и архивировать исходный черновик.
-- **Запрет правок боевого кода при рутинных задачах (No-Production-Code-Edit Invariant):** При регулярных задачах (обработка лидов, фоллоу-ап) ЗАПРЕЩЕНО на лету рефакторить боевые скрипты. При ошибках данных — СРАЗУ остановить выполнение и спросить пользователя (Clarify-Fast Guard). Доработка конвейеров ведется как отдельная задача.
-- **Каскадный поиск сущностей CRM (Multi-Key Cascade Entity Lookup):** Запрещено искать компанию в Б24 только по ИНН. Поиск ведется каскадом: 1) Контакт по Email (`crm.contact.list`) -> `COMPANY_ID`; 2) ИНН (`UF_CRM_699421CD2A684`); 3) Поиск по названию (`%TITLE`) и `ORIGIN_ID` (1С GUID). Существующие записи с пустым ИНН обогащаются, а не дублируются.
+## 3. Методика скриптов, чистота контекста и Anti-Sprawl
+- **Canonical Single-Script Invariant:** РОВНО ОДИН активный боевой скрипт на бизнес-процесс в `projects/<проект>/scripts/`. Запрещены параллельные дубли (`_v1`, `_test`).
+- **Snapshot Before Edit:** Перед модификацией боевой скрипт архивируется в `scripts/archive/` со снимком vX.Y и записью в `README.md`. Черновики сохраняются в черновом архиве (Script Retention Guard).
+- **Dual Self-Check (Plan & Result):** Обязательная двойная валидация: отсев хардкода на этапе плана и аппаратный аудит лога `--dry-run` на этапе результата.
+- **Архивная археология (Backport Rule):** При запросе новых параметров ИИ ищет наработки в `scripts/archive/` и [SCRIPTS_CATALOG.md](file:///C:/Codex/codex_kb/SCRIPTS_CATALOG.md), переносит логику в канонический скрипт новым CLI-аргументом с проверкой `--dry-run`.
+- **No-Production-Code-Edit:** При рутинной обработке лидов запрещен рефакторинг боевых скриптов «на лету». При ошибке данных — немедленный Clarify-Fast.
+- **Slice Reading Guard:** **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО** читать файлы регламентов и манифестов целиком! Сначала считывать строго строки 1–35 (оглавление TOC), находить нужный раздел и читать только целевой диапазон строк через `view_file` с `StartLine` и `EndLine`.
+- **Subagent Context Purge Guard:** Задачи объемного поиска по 1139 скриптам, аудита истории чатов и чтения тяжелых логов (>15 КБ) выполнять СТРОГО через саб-агента `invoke_subagent`. Саб-агент считывает сырые массивы данных, возвращает в основной чат 3–5 строк чистого итога и сгорает, очищая память.
 
 ---
 
-## 4. Мгновенное уточнение при малейшем сомнении и зависании (Clarify-Fast & Anti-Hang Guard)
-- Если в задаче есть хоть малейшее сомнение, двусмысленность или нехватка параметров — **НЕ тратить время на получасовой анализ вслепую**, а НЕМЕДЛЕННО на первом этапе осмысления переспросить пользователя и приступать к исполнению только после получения ответов.
-- **30-Second Process Hang Guard:** При зависании или отсутствии ответа/прогресса любого фонового процесса или сетевой операции (SSH, OData, LLM API, IMAP) более **30 секунд** — ассистент ОБЯЗАН немедленно остановить ожидание, вывести диагностику зависшего узла и обратиться к пользователю за корректировкой команды или параметров, не допуская долгого ожидания вслепую.
+## 4. Мгновенное уточнение при сомнении и зависании (Clarify-Fast & Anti-Hang)
+- При малейшем сомнении, нехватке параметров или двусмысленности — немедленно уточнить у пользователя, не допуская слепого анализа.
+- **30-Second Hang Guard:** При отсутствии ответа фонового процесса (SSH, OData, LLM, IMAP) более 30 сек — остановить ожидание, вывести диагностику и запросить корректировку.
 
 ---
 
 ## 5. Universal Strict Change Policy & Dry-Run First
-- **Режим Read-Only по умолчанию:** Вся файловая система и контуры находятся в режиме **СТРОГО ТОЛЬКО ЧТЕНИЕ (READ-ONLY)**. Модификация файлов разрешена **ТОЛЬКО внутри директории текущего активного проекта** (например, `projects/1c_odata/` при работе с 1С/CRM).
-- **Dry-Run First для 1С, VPS и Битрикс24:** В системах 1С:УНФ, CRM Битрикс24 и на сервере VPS **ЛЮБЫЕ модифицирующие операции** (OData PATCH/POST, создание сущностей CRM, отправка писем, перезапуск Docker, деплой) **РАЗРЕШЕНЫ ИСКЛЮЧИТЕЛЬНО ПОСЛЕ СОГЛАСОВАНИЯ ВЫВОДА В РЕЖИМЕ `--dry-run` С ПОЛЬЗОВАТЕЛЕМ В ЧАТЕ!**
-- **Рабочий Git (`wlissespanchame370-cyber/*`, включая `tender-rag-api`):** **СТРОГО ТОЛЬКО ЧТЕНИЕ (READ-ONLY)** без прямых указаний пользователя.
+- **Read-Only по умолчанию:** Вся файловая система и внешние контуры — СТРОГО READ-ONLY. Модификация файлов разрешена ТОЛЬКО внутри целевой директории задачи. Рабочий Git (`wlissespanchame370-cyber/*`) — строго Read-Only.
+- **Dry-Run First для 1С, VPS и Битрикс24:** Любые модифицирующие операции (PATCH/POST OData, создание сущностей CRM, отправка писем, рестарт Docker) разрешены **ИСКЛЮЧИТЕЛЬНО ПОСЛЕ СОГЛАСОВАНИЯ ВЫВОДА В РЕЖИМЕ `--dry-run` С ПОЛЬЗОВАТЕЛЕМ В ЧАТЕ!**
 
 ---
 
-## 6. Zero Secrets in Git & Developer Key Isolation Policy
-- **Тотальный запрет на утечку секретов:** КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО публиковать и коммитить в любой Git (личный или рабочий) API-ключи, токены нейросетей, вебхуки Битрикс24, пароли ящиков IMAP/SMTP, SSH-ключи, файлы `.env` и дампы учетных записей.
-- Все секреты читаются строго из переменных окружения (`os.getenv`).
-- **Запрет скрытых дефолтных паролей (No Fallback Secrets Guard):** Категорически запрещено указывать реальные боевые пароли, ключи API или вебхуки в качестве дефолтных значений во втором аргументе: `os.getenv("VAR", "secret_pass")`. Если переменная окружения не задана, дефолт должен быть пустым `os.getenv("VAR", "")`, а боевые значения обязаны загружаться строго из изолированных локальных файлов `.env` (входящих в `.gitignore`).
-- **Developer LLM Key Isolation Guard:** Запрещено прописывать один и тот же боевой ключ LLM (DeepSeek / Gemini) одновременно в сервисах продакшена и в открытых файлах `.env` разработчиков (`/home/mikhail/`). Разработчикам выдается либо персональный ключ с жестким лимитом баланса ($5–10), либо доступ предоставляется через локальный внутренний прокси-шлюз на VPS (`http://127.0.0.1:8002`), который логирует инициатора (`initiated_by = 'mikhail'`), а настоящий ключ скрывает в контуре root.
+## 6. Zero Secrets in Git & Developer Key Isolation
+- **Тотальный запрет утечки секретов:** КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО коммитить в Git токены, вебхуки, пароли, ключи SSH и файлы `.env`. Все секреты читаются из переменных окружения.
+- **Zero Fallback Secrets:** Запрещены боевые пароли во втором аргументе `os.getenv("VAR", "secret")`. Дефолт обязан быть пустым `os.getenv("VAR", "")`.
+- **Developer LLM Key Isolation:** Доступ разработчиков к LLM на VPS изолируется через локальный прокси `http://127.0.0.1:8002` с логированием инициатора без передачи боевого ключа.
 
 ---
 
 ## 7. Быстрые фразы-триггеры пользователя
 
-| Триггер / Команда | Боевой скрипт | Назначение и обязательные правила |
+| Триггер / Команда | Боевой канонический скрипт | Ключевые правила и регламент |
 |---|---|---|
-| **«конец чата»** (`/compress`, `/end-session`, `!конец`) | `py scripts/session_compress.py` | **Zero-Prose Guard**. Синхронизация правил, очистка `scratch/`, формирование `.ai/SESSION_SUMMARY.md`, `git push origin master`. |
-| **«почисти и проверь мой ПК (ноутбук)»** | `py scripts/check_and_clean_pc.py` | Диагностика GPU Код 43, MPO, фантомов SIMULATED, BCD F8, свободного места. |
-| **«полная ревизия и форматирование гравити»** | `py scripts/full_gravity_audit.py` | Сканирование контуров, отсев vendor, пересборка `SCRIPTS_CATALOG.md` и памяток на Рабочем столе. |
-| **«follow up deals today»** (`follow up сделки [ответственный] [лимит]`) | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run по умолчанию**. Обязательный аппаратный Self-Check, белый список PDF, кулдаун 7 дн, подпись ящика из Б24, запрет сделок «В работе» (только pre-sale), закрепленный комментарий-резюме со стратегическим вердиктом ИИ вверху таймлайна. Читать: [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md). Архив версий: [scripts/archive/](file:///C:/Codex/projects/1c_odata/scripts/archive/). |
-| **«обработай лидов [ящик/лид] [ответственный]»** (`/process-sales-leads`, «сделай Обработка новых лидов») | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Параметры обязательны!** **Dry-run по умолчанию**. Канонический конвейер лидов CRM и почты: сделка в `PREPARATION`, задача Азату `[USER=20]` (Группа 14, дедлайн +4 раб. дня / сегодня с `--deadline-today`, двуязычный чат RU+CN с пингом `[USER=20]阿扎特[/USER]`), отсев реквизитов РФ, отсев перепродажников и веерных заявок (Reseller & Bulk RFQ Guard), Шаблон № 66, скоринг СБИС, 1С OData. Читать: [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md). |
-| **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Параметры обязательны!** Чистая сверка 1С и Б24 без создания сделок и задач. Читать: [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md). |
+| **«конец чата»** (`/compress`, `!конец`) | `py scripts/session_compress.py` | Zero-Prose. Синхронизация правил, `.ai/SESSION_SUMMARY.md`, git push. |
+| **«почисти и проверь мой ПК»** | `py scripts/check_and_clean_pc.py` | Диагностика GPU Код 43, MPO, фантомов SIMULATED, BCD F8, диска. |
+| **«полная ревизия и форматирование гравити»** | `py scripts/full_gravity_audit.py` | Сканирование контуров, отсев vendor, пересборка `SCRIPTS_CATALOG.md`. |
+| **«follow up deals today»** | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run**. Белый список PDF, кулдаун 7 дн, подпись Б24, закрепленное ИИ-резюме. |
+| **«обработай лидов [ящик/лид] [ответственный]»** | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Dry-run**. Задача Азату `[USER=20]` (Гр. 14, дедлайн +4 дн / `--deadline-today`, RU+CN), Шаблон №66, Multi-Item RFQ Excel, скоринг СБИС/DaData, 1С OData. |
+| **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Dry-run**. Чистая сверка 1С и Б24 без создания сделок, поддержка `--mxl`. |
 
-> **Explicit Scope Guard:** Если в командах «follow up сделки», «обработай лидов» или «синхронизируй лидов» не указаны сотрудник, ящик или лимит — **не запускать вслепую, а немедленно переспросить пользователя!**
+> **Explicit Scope Guard:** Если в командах лидов или сделок не указаны сотрудник, ящик или лимит — не запускать вслепую, а немедленно переспросить пользователя!
 
 ---
 
-## 8. Dynamic Context Dispatcher (Таблица Маршрутизации к Доменным Манифестам)
+## 8. Cascade On-Demand TOC Dispatcher (Навигатор оглавлений)
 
 > [!IMPORTANT]
-> При упоминании в запросе пользователя ключевых тем или триггеров из таблицы ниже, ассистент **ОБЯЗАН ПЕРВЫМ ШАГОМ ПРОЧЕСТЬ УКАЗАННЫЙ ФАЙЛ МАНИФЕСТА ЧЕРЕЗ `view_file`** перед выполнением каких-либо действий.
+> При работе с предметной областью ассистент считывает **СТРОГО ОГЛАВЛЕНИЕ (строки 1–35)** целевого манифеста через `view_file` с `StartLine: 1, EndLine: 35`. Полное чтение файла запрещено (Slice Reading Guard).
 
-| Ключевые слова / Темы в запросе | Домен контура | Файл детального регламента (Обязателен к прочтению) |
+| Ключевые темы в запросе | Домен | Целевой манифест (Читать строки 1–35) |
 |---|---|---|
-| follow-up, лиды, письма, КП, клиенты, продажи, реанимация | **B2B Продажи & CRM** | [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md)<br>[LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md)<br>[LEAD_REACTIVATION_POLICY.md](file:///C:/Codex/projects/lead_reactivation/LEAD_REACTIVATION_POLICY.md)<br>[B2B_SALES_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_SALES_POLICY.md) |
-| 1С, УНФ, OData, реквизиты, контрагенты, скоринг, себестоимость | **ERP 1С:УНФ** | [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md)<br>Скилл: [1c_unf](file:///C:/Users/Артем/.gemini/config/skills/1c_unf/SKILL.md) |
-| тендер, ГОЗ, АСТ ГОЗ, спецификация, ЕИС, извещение | **Тендерный RAG** | [TENDER_RAG_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_RAG_POLICY.md)<br>Скилл: [tender_automation](file:///C:/Users/Артем/.gemini/config/skills/tender_automation/SKILL.md) |
-| китай, снабжение, фабрика, дечжоу, miss wang, брак, рекламация | **ВЭД & Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md)<br>[CHINA_OFFICE_MASTER_REGISTRY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_OFFICE_MASTER_REGISTRY.md) |
-| регламенты, HR, аттестация, ошибки сотрудников, заместитель | **Операции & HR** | [OPERATIONS_HR_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hr_and_operations/OPERATIONS_HR_POLICY.md) |
-| vps, сервер, docker, nginx, apache, порт, бэкап, sqlite, n8n | **VPS & DevOps** | [INFRA_VPS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md)<br>Скилл: [linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md) |
-| victus, ноутбук, видеокарта, rtx, код 43, экран, mpo, дисплей, bcd | **HP Victus 16** | [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md)<br>Скилл: [windows](file:///C:/Users/Артем/.gemini/config/skills/windows/SKILL.md) |
-| metabase, дашборд, сквозная аналитика, воронка, dwh, графики, bi | **Сквозная Аналитика & BI** | [METABASE_ANALYTICS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md)<br>Скилл: [metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md) |
+| Лиды, входящая почта, заявки КНР | **Лиды & CRM** | [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md) |
+| Follow-up, зависшие КП, pre-sale | **Follow-up** | [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md) |
+| Спящие клиенты, реактивация | **Реактивация** | [LEAD_REACTIVATION_POLICY.md](file:///C:/Codex/projects/lead_reactivation/LEAD_REACTIVATION_POLICY.md) |
+| 1С:УНФ, OData, БСП JSON, скоринг | **ERP 1С:УНФ** | [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md) |
+| Тендер, ГОЗ, АСТ ГОЗ, извещение | **Тендерный RAG** | [TENDER_RAG_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_RAG_POLICY.md) |
+| Китай, фабрика, Дечжоу, Miss Wang | **Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md) |
+| VPS, сервер, docker, nginx, порт | **VPS & DevOps** | [INFRA_VPS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md) |
+| Victus, ноутбук, GPU, экран, MPO | **HP Victus 16** | [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md) |
+| Metabase, дашборд, воронка, SQL | **Аналитика BI** | [METABASE_ANALYTICS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md) |

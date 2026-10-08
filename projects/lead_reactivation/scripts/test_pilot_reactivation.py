@@ -505,6 +505,41 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
                     msg = cand
                     break
 
+    is_outbound_quote = False
+    if not msg:
+        # 3. ФОЛБЭК: Если входящих писем от клиента не было, ищем последнее ИСХОДЯЩЕЕ письмо (КП / спецификацию)
+        # для формирования связки ветки (In-Reply-To) и цитирования ранее отправленного предложения
+        out_cand_msgs = db.query(EmailMessage).join(
+            EmailMatchResult, EmailMessage.message_id == EmailMatchResult.message_id
+        ).filter(
+            EmailMatchResult.contact_ref_key == contact_ref_key,
+            EmailMessage.is_junk == False
+        ).order_by(EmailMessage.received_at.desc()).limit(15).all()
+        
+        for cand in out_cand_msgs:
+            payload = cand.raw_payload or {}
+            is_sent = payload.get("is_sent") in (True, 'true', 'True')
+            sm = (cand.source_mailbox or "").lower()
+            in_sent = any(f in sm for f in ["sent", "отправлен", "outbox"])
+            if is_sent or in_sent:
+                msg = cand
+                is_outbound_quote = True
+                break
+                
+        if not msg:
+            out_by_to = db.query(EmailMessage).filter(
+                EmailMessage.raw_payload.op('->>')('to').like(f"%{email}%"),
+                EmailMessage.is_junk == False
+            ).order_by(EmailMessage.received_at.desc()).limit(10).all()
+            for cand in out_by_to:
+                payload = cand.raw_payload or {}
+                is_sent = payload.get("is_sent") in (True, 'true', 'True')
+                sm = (cand.source_mailbox or "").lower()
+                if is_sent or any(f in sm for f in ["sent", "отправлен"]):
+                    msg = cand
+                    is_outbound_quote = True
+                    break
+
     if msg:
         import re
         subject = msg.subject or ""
@@ -515,18 +550,24 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
         payload = msg.raw_payload or {}
         body = payload.get("cleaned_text") or payload.get("text") or payload.get("snippet") or ""
         if not body or len(body.strip()) < 15:
-            return clean_subj, ""
+            return clean_subj, "", None
             
         date_str = msg.received_at.strftime("%d.%m.%Y, %H:%M") if msg.received_at else "Неизвестная дата"
         from_name = msg.from_name or msg.from_email
         
-        quote_header = f"{date_str}, {from_name} &lt;{msg.from_email}&gt;:"
+        if is_outbound_quote:
+            quote_header = f"{date_str}, {from_name} написал(а):"
+            # Для исходящего КП убираем длинную футерную подпись, оставляя суть предложения
+            body = re.sub(r'(?i)(?:<br\s*/?>|\n)\s*(?:с\s+уважением|best\s+regards|менеджер|longwang|------------------------------).*$', '', body, flags=re.DOTALL).strip()
+        else:
+            quote_header = f"{date_str}, {from_name} &lt;{msg.from_email}&gt;:"
+            
         quoted_lines = []
         for line in body.split('\n'):
             line_str = line.strip()
             if line_str:
                 quoted_lines.append(f"&gt; {line_str}")
-            if len(quoted_lines) >= 15:
+            if len(quoted_lines) >= 12:
                 break
         
         quote_text = quote_header + "<br>\n" + "<br>\n".join(quoted_lines)

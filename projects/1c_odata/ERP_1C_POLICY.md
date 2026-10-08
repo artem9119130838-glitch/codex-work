@@ -1,8 +1,24 @@
 # Регламент интеграции и безопасности 1С:УНФ и Битрикс24 (ERP 1C & OData Integrity Policy)
 
 > **Статус документа:** Непререкаемый устав безопасности при работе со шлюзом OData 1С:УНФ, зеркальной синхронизации данных с Битрикс24 и Reverse Engineering механизмов платформы.  
-> **Связанные скрипты:** `projects/1c_odata/scripts/sync_leads_1c_bitrix.py`, `projects/1c_odata/scripts/lead_enrichment_saby.py`  
-> **Связанный навык:** [1c_unf](file:///C:/Users/Артем/.gemini/config/skills/1c_unf/SKILL.md)
+> **Связанные скрипты:** projects/1c_odata/scripts/sync_leads_1c_bitrix.py, projects/1c_odata/scripts/lead_enrichment_saby.py  
+> **Правило чтения (Slice Reading Guard):** Читать строго строки 1–35 (TOC), затем целевой диапазон через view_file с StartLine и EndLine.
+
+---
+
+## 🧭 Оглавление регламента (TOC & Slice Navigator)
+
+| Раздел | Тема / Назначение | Строки |
+|---|---|---|
+| **1. Strict Write Policy** | Dry-Run First, логин odata.writer, запрет слепой записи | 25–30 |
+| **2. Two-Way Sync Guard** | Зеркальная синхронизация: обновили в Б24 -> в 1С и наоборот | 31–38 |
+| **3. Zero-Blank Lead Guard** | ТЧ КонтактнаяИнформация (БСП JSON), Document_Событие | 39–54 |
+| **4. Integrity & Bounce** | Bounce Guard: очистка email без удаления контакта | 55–61 |
+| **5. Reverse Engineering** | Запрет переписывания типовых алгоритмов расчета прибыли/себестоимости | 62–68 |
+| **6. .env First & Secrets** | Изоляция учетных данных, zero fallback secrets | 69–75 |
+| **7. DaData + Saby Scoring** | Safe Merge для COMMENTS Б24, компактный однострочник 1С | 76–84 |
+| **8. Tag Integrity Guard** | Эталонные системные GUID тегов классификации в ТЧ Теги 1С | 85–104 |
+| **9. Batch MXL Inbound Sync** | Обработка выгрузок .mxl 1С, авто-отсев отскоков | 105–125 |
 
 ---
 

@@ -1466,18 +1466,29 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         verify_lead_processing_result(deal_id=None, contact_id=cnt_id, company_id=cid, task_id=None, expected_phone=contact_phone)
         return {"lead_id": lead_id, "branch": "Ambiguous / Reseller Guard", "company_id": cid, "contact_id": cnt_id, "reason": rfq_reason}
 
-    # ---------------- ВЕТКА А: Однозначная заявка (Clear RFQ) ----------------
-    # Извлечение параметров ТЗ
-    rfq_details = extract_rfq_procurement_details(lead_title, email_subject, email_desc)
-    cn_nomenclature = rfq_details.get("cn_nomenclature") or translate_nomenclature_to_chinese(lead_title, email_subject, email_desc)
-    clean_company = re.sub(r'[«»"“”\']', '', company_title).strip()
-    title_naming = f"{company_title}, {cn_nomenclature}"
-
     # Multi-Item RFQ Excel Specification Guard (Генерация двуязычного Excel по мастер-шаблону)
     from generate_supply_rfq_excel import generate_rfq_excel, KNOWN_SPECIFICATIONS
     clean_co_lower = company_title.lower()
     has_known_spec = any(k in clean_co_lower for k in KNOWN_SPECIFICATIONS)
     is_multi_item_rfq = has_known_spec or (gpt_items_count >= 2) or (len(re.findall(r'(?:^|\n)\s*[-*•\d]+[.)]?\s*[A-Za-zА-Яа-я]', email_desc)) >= 2)
+
+    # Извлечение параметров ТЗ
+    rfq_details = extract_rfq_procurement_details(lead_title, email_subject, email_desc)
+    if has_known_spec:
+        spec_key = next(k for k in KNOWN_SPECIFICATIONS if k in clean_co_lower)
+        spec_items = KNOWN_SPECIFICATIONS[spec_key]
+        item_labels = []
+        for it in spec_items:
+            b = it.get("brand", "")
+            p_cn = it.get("pname_cn", "")
+            label = f"{b} {p_cn}".strip() if b and b not in p_cn else p_cn.strip()
+            item_labels.append(label)
+        cn_nomenclature = ", ".join(item_labels)
+    else:
+        cn_nomenclature = rfq_details.get("cn_nomenclature") or translate_nomenclature_to_chinese(lead_title, email_subject, email_desc)
+
+    clean_company = re.sub(r'[«»"“”\']', '', company_title).strip()
+    title_naming = f"{company_title}, {cn_nomenclature}"
 
     # Фильтрация вложений: Inquiry-Only Attachment Guard
     supply_disk_ids = []

@@ -15,7 +15,7 @@ from app.db.database import SessionLocal
 from app.db.models import ClientIntel, OnecContact, OnecOwner, ClientReactivationHistory, ReactivationFunnelState, EmailMessage
 from app.services.llm_service import llm_service
 from app.services.cooldown_guard import CooldownGuard
-from scripts.test_pilot_reactivation import (
+from app.services.email_composer import (
     extract_first_name, resolve_client_name, get_emails_text_for_contact, get_emails_text_for_company,
     load_articles, find_best_article, get_last_incoming_email_details, save_draft_to_imap,
     get_next_style_for_client, clean_company_name, format_b2b_subject
