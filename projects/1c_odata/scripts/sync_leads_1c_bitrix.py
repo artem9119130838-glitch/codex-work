@@ -789,7 +789,38 @@ def dadata_party_lookup(query: str):
             return suggs[0]
     except Exception:
         pass
-    return None
+def update_address_book_entry(sender_email: str, company_title: str, contact_guid: str = None, contact_type: str = "StandardODATA.Catalog_Лиды"):
+    """Актуализация наименования контакта в Catalog_АдресатыПисем и привязка к CRM-сущности."""
+    if not sender_email:
+        return
+    try:
+        auth_1c = (ODATA_USER, ODATA_PASS)
+        headers_1c = {"Accept": "application/json"}
+        r_adr = requests.get(
+            f"{ODATA_BASE}/Catalog_АдресатыПисем?$filter=Адресат eq '{sender_email}'",
+            auth=auth_1c,
+            headers=headers_1c,
+            timeout=10
+        )
+        if r_adr.status_code == 200:
+            for item in r_adr.json().get('value', []):
+                ref_key = item.get('Ref_Key')
+                payload = {}
+                if company_title:
+                    payload["Description"] = company_title
+                if contact_guid:
+                    payload["Контакт"] = contact_guid
+                    payload["Контакт_Type"] = contact_type
+                if payload:
+                    requests.patch(
+                        f"{ODATA_BASE}/Catalog_АдресатыПисем(guid'{ref_key}')",
+                        auth=auth_1c,
+                        headers=headers_1c,
+                        json=payload,
+                        timeout=10
+                    )
+    except Exception:
+        pass
 
 
 def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = True) -> dict:
@@ -1009,32 +1040,173 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
         print(f"  Теги классификации: {', '.join(tag_names)}")
         print(f"  Входящих писем в 1С: {len(onec_events)} шт.")
 
-        # План действий в CRM
+        # Исполнение / План действий в CRM
+        b24_company_id = None
         if b24_company:
-            print(f"  [B24 Company #{b24_company['ID']}] Найдена: '{b24_company.get('TITLE')}' (ИНН: {b24_company.get('UF_CRM_699421CD2A684') or 'обогатить'})")
+            b24_company_id = int(b24_company["ID"])
+            print(f"  [B24 Company #{b24_company_id}] Найдена: '{b24_company.get('TITLE')}' (ИНН: {b24_company.get('UF_CRM_699421CD2A684') or 'обогатить'})")
+            if not dry_run and inn and not b24_company.get("UF_CRM_699421CD2A684"):
+                call_b24("crm.company.update", {"id": b24_company_id, "fields": {"UF_CRM_699421CD2A684": inn}})
+                print(f"  [B24 OK] ИНН {inn} записан в Компанию #{b24_company_id}")
         else:
             print(f"  [B24 Company] Создать новую Компанию '{company_name}' (ИНН: {inn})")
+            if not dry_run:
+                r_c = call_b24("crm.company.add", {
+                    "fields": {
+                        "TITLE": company_name,
+                        "UF_CRM_699421CD2A684": inn,
+                        "ASSIGNED_BY_ID": assigned_to,
+                        "OPENED": "Y"
+                    }
+                })
+                b24_company_id = int(r_c.get("result", 0))
+                print(f"  [B24 OK] Создана Компания #{b24_company_id}")
+            else:
+                b24_company_id = 9999901
 
+        b24_contact_id = None
         if b24_contact:
-            print(f"  [B24 Contact #{b24_contact['ID']}] Найден: '{b24_contact.get('NAME')}'")
+            b24_contact_id = int(b24_contact["ID"])
+            print(f"  [B24 Contact #{b24_contact_id}] Найден: '{b24_contact.get('NAME')}'")
+            if not dry_run and b24_company_id and not b24_contact.get("COMPANY_ID"):
+                call_b24("crm.contact.update", {"id": b24_contact_id, "fields": {"COMPANY_ID": b24_company_id}})
         else:
             print(f"  [B24 Contact] Создать новый Контакт '{contact_name}' ({email})")
+            if not dry_run:
+                c_fields = {
+                    "NAME": contact_name,
+                    "EMAIL": [{"VALUE_TYPE": "WORK", "VALUE": email}],
+                    "COMPANY_ID": b24_company_id,
+                    "ASSIGNED_BY_ID": assigned_to,
+                    "OPENED": "Y"
+                }
+                if phone:
+                    c_fields["PHONE"] = [{"VALUE_TYPE": "WORK", "VALUE": phone}]
+                r_ct = call_b24("crm.contact.add", {"fields": c_fields})
+                b24_contact_id = int(r_ct.get("result", 0))
+                print(f"  [B24 OK] Создан Контакт #{b24_contact_id}")
+            else:
+                b24_contact_id = 9999902
 
+        b24_lead_id = None
         if b24_lead:
-            print(f"  [B24 Lead #{b24_lead['ID']}] Связать с Компанией и Контактом")
+            b24_lead_id = int(b24_lead["ID"])
+            print(f"  [B24 Lead #{b24_lead_id}] Связать с Компанией #{b24_company_id} и Контактом #{b24_contact_id}")
+            if not dry_run:
+                upd_lead = {}
+                if b24_company_id and str(b24_lead.get("COMPANY_ID")) != str(b24_company_id):
+                    upd_lead["COMPANY_ID"] = b24_company_id
+                if b24_contact_id and str(b24_lead.get("CONTACT_ID")) != str(b24_contact_id):
+                    upd_lead["CONTACT_ID"] = b24_contact_id
+                if upd_lead:
+                    call_b24("crm.lead.update", {"id": b24_lead_id, "fields": upd_lead})
         else:
             print(f"  [B24 Lead] Создать Лид и связать с Компанией и Контактом")
+            if not dry_run:
+                r_ld = call_b24("crm.lead.add", {
+                    "fields": {
+                        "TITLE": company_name,
+                        "COMPANY_ID": b24_company_id,
+                        "CONTACT_ID": b24_contact_id,
+                        "ASSIGNED_BY_ID": assigned_to,
+                        "STATUS_ID": "NEW",
+                        "OPENED": "Y"
+                    }
+                })
+                b24_lead_id = int(r_ld.get("result", 0))
+                print(f"  [B24 OK] Создан Лид #{b24_lead_id}")
+            else:
+                b24_lead_id = 9999903
 
-        # План действий в 1С
+        # Исполнение / План действий в 1С
+        onec_lead_guid = None
+        onec_lead_code = None
         if onec_lead:
-            print(f"  [1C Lead #{onec_lead.get('Code')}] Найден: '{onec_lead.get('Description')}' ({onec_lead.get('Ref_Key')})")
+            onec_lead_guid = onec_lead.get("Ref_Key")
+            onec_lead_code = onec_lead.get("Code")
+            print(f"  [1C Lead #{onec_lead_code}] Найден: '{onec_lead.get('Description')}' ({onec_lead_guid})")
         else:
             print(f"  [1C Lead] Создать Лид '{company_name}' (Zero-Blank Lead Guard, ИНН: {inn}, Ответственный: Артем)")
             print(f"            Заполнить ТЧ КонтактнаяИнформация: Email '{email}', Телефон '{phone}', Адрес '{address}'")
             print(f"            Установить Теги: {', '.join(tag_names)}")
+            if not dry_run:
+                base_payload = {
+                    "Description": company_name,
+                    "НаименованиеКомпании": company_name,
+                    "Тема": f"ИНН: {inn}" if inn else company_name,
+                    "Вид": "ПервичноеОбращение",
+                    "Ответственный_Key": "209d4fb0-3142-11ed-a3f1-3085a9a0f5bf",
+                    "ИсточникПривлечения_Key": "9dbbff5e-23c6-11ed-91a8-a068f8f3337c",
+                    "СостояниеЛида_Key": "0c989b06-70c5-11ed-b990-f01898a67170",
+                    "Комментарий": f"Лид Битрикс24 #{b24_lead_id}." if b24_lead_id else "Синхронизация из почты 1С"
+                }
+                try:
+                    r_post = requests.post(f"{ODATA_BASE}/Catalog_Лиды?$format=json", json=base_payload, auth=auth_1c, headers=headers_1c, timeout=20)
+                    if r_post.status_code in (200, 201):
+                        p_data = r_post.json()
+                        onec_lead_guid = p_data.get("Ref_Key")
+                        onec_lead_code = p_data.get("Code")
+                        ci_rows = [
+                            {"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c", "Представление": email, "Значение": email, "АдресЭП": email}
+                        ]
+                        if phone:
+                            ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc76d-23c6-11ed-91a8-a068f8f3337c", "Представление": phone, "Значение": phone, "НомерТелефона": phone})
+                        if address:
+                            ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Адрес", "Вид_Key": "5c0dc76f-23c6-11ed-91a8-a068f8f3337c", "Представление": address, "Значение": ""})
+                        tag_rows = [{"LineNumber": str(i+1), "Тег_Key": t} for i, t in enumerate(tags)]
+                        patch_payload = {
+                            "КонтактнаяИнформация": ci_rows,
+                            "АдресЭПДляПоиска": email,
+                            "Теги": tag_rows
+                        }
+                        if phone:
+                            patch_payload["НомерТелефонаДляПоиска"] = phone
+                        requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{onec_lead_guid}')?$format=json", json=patch_payload, auth=auth_1c, headers=headers_1c, timeout=20)
+                        print(f"  [1C OK] Создан Лид #{onec_lead_code} ({onec_lead_guid})")
+                    else:
+                        print(f"  [1C-ERROR] Ошибка создания лида: HTTP {r_post.status_code} -> {r_post.text}")
+                except Exception as e_cr:
+                    print(f"  [1C-ERROR] Исключение при создании Лида: {e_cr}")
 
+        # Привязка входящих писем 1С (Event Linking Guard)
         for ev in onec_events:
             print(f"  [1C Event #{ev['Number']}] Привязать к Лиду 1С (снятие плашки [сохранить в CRM])")
+            if not dry_run and onec_lead_guid:
+                ev_ref = ev.get("Ref_Key")
+                ev_patch = {
+                    "Участники": [{
+                        "LineNumber": "1",
+                        "КакСвязаться": email,
+                        "НомерДляОтправки": "",
+                        "ИдентификаторСообщения": "",
+                        "СтатусДоставки": "",
+                        "ТипПолучателяЭлектронногоПисьма": "ОтКого",
+                        "Контакт": onec_lead_guid,
+                        "Контакт_Type": "StandardODATA.Catalog_Лиды"
+                    }]
+                }
+                try:
+                    r_evp = requests.patch(f"{ODATA_BASE}/Document_Событие(guid'{ev_ref}')?$format=json", json=ev_patch, auth=auth_1c, headers=headers_1c, timeout=20)
+                    if r_evp.status_code in (200, 204):
+                        update_address_book_entry(email, company_name, contact_guid=onec_lead_guid)
+                        print(f"  [1C Event OK] Событие #{ev['Number']} привязано к Лиду {onec_lead_code or onec_lead_guid}")
+                except Exception as e_lk:
+                    print(f"  [1C Event WARN] Ошибка привязки события #{ev['Number']}: {e_lk}")
+
+        # Скоринг СБИС и обогащение полей комментариев
+        if inn:
+            try:
+                from check_contractor import verify_and_enrich_contractor
+                verify_and_enrich_contractor(
+                    inn=inn,
+                    b24_company_id=b24_company_id if b24_company_id and b24_company_id != 9999901 else None,
+                    b24_lead_id=b24_lead_id if b24_lead_id and b24_lead_id != 9999903 else None,
+                    one_c_guid=onec_lead_guid if onec_lead_guid and onec_lead_guid != "00000000-0000-0000-0000-000000000000" else None,
+                    email=email,
+                    dry_run=dry_run
+                )
+            except Exception as e_sb:
+                print(f"  [СБИС-WARN] Ошибка скоринга СБИС: {e_sb}")
 
         summary_results.append({
             "idx": idx,
@@ -1043,10 +1215,10 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             "email": email,
             "phone": phone,
             "tags": tag_names,
-            "b24_lead_id": b24_lead["ID"] if b24_lead else "Создать",
-            "b24_company_id": b24_company["ID"] if b24_company else "Создать",
-            "b24_contact_id": b24_contact["ID"] if b24_contact else "Создать",
-            "onec_lead_code": onec_lead.get("Code") if onec_lead else "Создать",
+            "b24_lead_id": b24_lead["ID"] if b24_lead else (b24_lead_id or "Создать"),
+            "b24_company_id": b24_company["ID"] if b24_company else (b24_company_id or "Создать"),
+            "b24_contact_id": b24_contact["ID"] if b24_contact else (b24_contact_id or "Создать"),
+            "onec_lead_code": onec_lead.get("Code") if onec_lead else (onec_lead_code or "Создать"),
             "events_count": len(onec_events)
         })
         idx += 1

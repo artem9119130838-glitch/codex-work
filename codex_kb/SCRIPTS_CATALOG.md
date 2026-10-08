@@ -190,7 +190,7 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Канонический** | `check_contractor.py` | `projects/1c_odata/scripts/check_contractor.py` | Единый модуль комплексной проверки и обогащения досье контрагента по ИНН (DaData API + Saby/СБИС RPC). Автоматическая классификация: Выручка, Масштаб бизнеса, ОКВЭД, Тендеры (Поставщик/Заказчик), Холдинг, Вердикт ИИ (Перепродажник/Завод/Конечник). Синхронная запись в marketing_db, Битрикс24 (COMMENTS + закрепленный комментарий таймлайна) и 1С:УНФ (Комментарий + теги) с проверкой кэша (`is_contractor_already_verified`). | 0 |
-| **Канонический** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | Сквозная синхронизация лидов 1С:УНФ и Битрикс24 (Zero-Blank Lead Guard) + Tag Integrity Guard & Repair (аудит и исправление битых тегов `--audit-tags`/`--fix-tags`, автозамена опечатки 7e8d7ab6 -> 7e8d7ab8) + Bounce & Unsubscribe Guard (`--clean-email`) + авто-обогащение через СБИС/DaData (`check_contractor.py`). Поддерживает `--dry-run`. | 0 |
+| **Канонический** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | Сквозная синхронизация лидов 1С:УНФ и Битрикс24 (Zero-Blank Lead Guard) + синхронизация из выгрузок 1С (.mxl, аргумент `--mxl`) + Tag Integrity Guard & Repair (`--audit-tags`/`--fix-tags`, автозамена опечатки 7e8d7ab6 -> 7e8d7ab8) + Bounce & Unsubscribe Guard (`--clean-email`) + авто-обогащение через СБИС/DaData (`check_contractor.py`). Поддерживает `--dry-run`. | 0 |
 
 
 ---

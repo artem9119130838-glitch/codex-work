@@ -201,6 +201,48 @@ KNOWN_SPECIFICATIONS = {
             "name_ru": "Заглушка (пылезащитный колпачок) для розетки БРС 1/4",
             "qty": 2,
         }
+    ],
+    "рчк": [
+        {
+            "num": 1,
+            "brand": "SMC",
+            "pname_cn": "减震器 RBC 1006",
+            "model": "RBC 1006",
+            "name_ru": "Демпфер гидравлический SMC Shock absorber RBC 1006",
+            "qty": 8,
+        },
+        {
+            "num": 2,
+            "brand": "Misumi",
+            "pname_cn": "滚珠丝杠 BSST1520-430",
+            "model": "BSST1520-430",
+            "name_ru": "ШВП (шарико-винтовая передача) Misumi BSST1520-430",
+            "qty": 2,
+        },
+        {
+            "num": 3,
+            "brand": "Misumi",
+            "pname_cn": "支撑座 BSW12",
+            "model": "BSW12",
+            "name_ru": "Опора ШВП Misumi BSW12",
+            "qty": 1,
+        },
+        {
+            "num": 4,
+            "brand": "Misumi",
+            "pname_cn": "支撑座 BUN12",
+            "model": "BUN12",
+            "name_ru": "Опора ШВП Misumi BUN12",
+            "qty": 1,
+        },
+        {
+            "num": 5,
+            "brand": "Misumi",
+            "pname_cn": "支架 BNFA1520S-40",
+            "model": "BNFA1520S-40",
+            "name_ru": "Кронштейн Misumi BNFA1520S-40",
+            "qty": 1,
+        }
     ]
 }
 
