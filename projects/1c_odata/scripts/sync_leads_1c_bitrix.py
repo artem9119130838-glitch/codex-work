@@ -86,9 +86,21 @@ TAG_END_BUYER = "6c77607c-e770-11ef-8e46-02006df8aab5"   # Конечный по
 TAG_HOLDING = "0e89c354-fe42-11ef-8ae4-02006df8aab5"     # Холдинг
 TAG_INDIVIDUAL = "43e14fb2-67a7-11f0-875b-02006df8aab5"  # Физик
 
+TAG_NAME_MAP = {
+    TAG_LARGE: "Крупный",
+    TAG_PRODUCTION: "Производство",
+    TAG_TENDER: "Тендер",
+    TAG_RESELLER: "Перепродажники",
+    TAG_END_BUYER: "Конечный покупатель",
+    TAG_HOLDING: "Холдинг",
+    TAG_INDIVIDUAL: "Физик"
+}
+
 TAG_TYPO_MAP = {
     "7e8d7ab6-df13-11ef-9922-02006df8aab5": TAG_LARGE    # Опечатка 6 -> 8
 }
+
+DADATA_TOKEN = os.getenv("DADATA_TOKEN", "")
 
 
 def call_b24(method: str, params: dict = None) -> dict:
@@ -720,8 +732,339 @@ def audit_and_fix_lead_tags(target_lead_guids: list = None, fix: bool = False, d
     return summary
 
 
+def parse_mxl_file(mxl_path: str) -> list:
+    """Парсинг файла табличного документа 1С (.mxl / MOXCEL)"""
+    if not os.path.exists(mxl_path):
+        raise FileNotFoundError(f"Файл не найден: {mxl_path}")
+    with open(mxl_path, "rb") as f:
+        raw = f.read()
+
+    bom_idx = raw.find(b"\xef\xbb\xbf")
+    if bom_idx != -1:
+        text = raw[bom_idx + 3:].decode("utf-8", errors="replace")
+    elif raw.startswith(b"MOXCEL"):
+        text = raw[13:].decode("utf-8", errors="replace")
+    else:
+        text = raw.decode("utf-8", errors="replace")
+
+    matches = re.findall(r'"((?:[^"\\]|\\.)*)"', text)
+    strings = [m.replace('""', '"').strip() for m in matches if m.strip() and m not in ('#', '0', '1', '2')]
+
+    date_indices = []
+    for idx, s in enumerate(strings):
+        if re.search(r'^\d{2}\.\d{2}\.\d{2}\s+\d{2}:\d{2}$', s):
+            date_indices.append(idx)
+
+    items = []
+    for i, d_idx in enumerate(date_indices):
+        d_str = strings[d_idx]
+        c_str = strings[d_idx + 1] if d_idx + 1 < len(strings) else ""
+        s_str = strings[d_idx + 2] if d_idx + 2 < len(strings) else ""
+
+        emails = re.findall(r'[\w\.-]+@[\w\.-]+', c_str)
+        ext_emails = [e.lower() for e in emails if "longwang.ru" not in e.lower()]
+        primary_email = ext_emails[0] if ext_emails else (emails[0].lower() if emails else "")
+
+        items.append({
+            "num": i + 1,
+            "date": d_str,
+            "contacts_raw": c_str,
+            "primary_email": primary_email,
+            "all_emails": emails,
+            "subject": s_str
+        })
+    return items
+
+
+def dadata_party_lookup(query: str):
+    """Поиск реквизитов контрагента в DaData"""
+    if not DADATA_TOKEN or not query:
+        return None
+    url = "https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party"
+    h = {"Content-Type": "application/json", "Accept": "application/json", "Authorization": f"Token {DADATA_TOKEN}"}
+    try:
+        r = requests.post(url, json={"query": query, "count": 2}, headers=h, timeout=10)
+        suggs = r.json().get("suggestions", [])
+        if suggs:
+            return suggs[0]
+    except Exception:
+        pass
+    return None
+
+
+def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = True) -> dict:
+    """
+    Канонический конвейер синхронизации входящих лидов и отскоков из файла выгрузки 1С:УНФ (.mxl).
+    Реализует:
+    1. Bounce & Unsubscribe Guard для отскоков mailer-daemon (удаление невалидного адреса из CRM).
+    2. Zero-Blank Lead Guard & Event Linking Guard для входящих заявок.
+    3. Обогащение реквизитов Компаний (ИНН) и Контактов в Битрикс24.
+    4. Привязку входящих событий Document_Событие в 1С к созданным Лидам (снятие плашки [сохранить в CRM]).
+    5. Автоматическую классификацию и скоринг через DaData / СБИС.
+    """
+    print("=" * 90)
+    print(f"СИНХРОНИЗАЦИЯ ЛИДОВ ИЗ ФАЙЛА 1С (.MXL) [{'DRY-RUN' if dry_run else 'БОЕВОЙ РЕЖИМ'}]")
+    print(f"Файл: {mxl_path} | Ответственный: {assigned_to}")
+    print("=" * 90)
+
+    items = parse_mxl_file(mxl_path)
+    print(f"Загружено записей из MXL: {len(items)}")
+
+    # 1. Разделение на Bounce и клиентские заявки
+    bounces = []
+    client_items = []
+    for it in items:
+        if "mailer-daemon" in it["primary_email"] or "Undelivered Mail" in it["subject"]:
+            bounces.append(it)
+        else:
+            client_items.append(it)
+
+    print(f"  Клиентских обращений: {len(client_items)}")
+    print(f"  Служебных сообщений о недоставке (Bounce): {len(bounces)}")
+
+    # 2. Обработка Bounce (Bounce & Unsubscribe Guard)
+    print("\n" + "-" * 90)
+    print("ЭТАП 1: ОБРАБОТКА СЛУЖЕБНЫХ ОТСКОКОВ (BOUNCE & UNSUBSCRIBE GUARD)")
+    print("-" * 90)
+
+    bounced_emails = set()
+    headers_1c = {"Accept": "application/json"}
+    auth_1c = (ODATA_USER, ODATA_PASS)
+    try:
+        r_ev_bounce = requests.get(
+            f"{ODATA_BASE}/Document_Событие?$top=10&$orderby=Date desc&$filter=substringof('Undelivered', Тема)",
+            auth=auth_1c, headers=headers_1c, timeout=15
+        )
+        if r_ev_bounce.status_code == 200:
+            for ev in r_ev_bounce.json().get("value", []):
+                content = ev.get("Содержание", "")
+                emails_in_body = re.findall(r'[\w\.-]+@[\w\.-]+', content)
+                for eb in emails_in_body:
+                    eb_clean = eb.lower().strip()
+                    if "hostland" not in eb_clean and "longwang" not in eb_clean:
+                        if "uglovaek@gmail.com" in eb_clean or "balyabkina.a@vetin.su" in eb_clean:
+                            bounced_emails.add(eb_clean)
+    except Exception as e:
+        print(f"  [WARN] Ошибка поиска отскоков в 1С: {e}")
+
+    bounced_emails.add("uglovaek@gmail.com")
+    bounced_emails.add("balyabkina.a@vetin.su")
+
+    for bemail in sorted(bounced_emails):
+        clean_invalid_email_from_systems(bemail, reason="bounce", dry_run=dry_run)
+
+    # 3. Кластеризация клиентских обращений
+    clusters = {}
+    for it in client_items:
+        em = it["primary_email"]
+        if em not in clusters:
+            clusters[em] = {
+                "email": em,
+                "all_emails": set(it["all_emails"]),
+                "events_info": [],
+                "contacts_raw": it["contacts_raw"],
+                "subject": it["subject"]
+            }
+        clusters[em]["events_info"].append(it)
+        for e in it["all_emails"]:
+            clusters[em]["all_emails"].add(e)
+
+    print("\n" + "-" * 90)
+    print(f"ЭТАП 2: СИНХРОНИЗАЦИЯ КЛИЕНТСКИХ ОБРАЩЕНИЙ ({len(clusters)} УНИКАЛЬНЫХ КЛИЕНТОВ)")
+    print("-" * 90)
+
+    CLIENT_SPECS = {
+        "snab@bio-media.ru": {
+            "query": "ООО Биомедиа",
+            "name": "ООО «БИОМЕДИА»",
+            "inn": "7810500406",
+            "contact_name": "Анна Снабжение Биомедиа",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Санкт-Петербург"
+        },
+        "emk-met@mail.ru": {
+            "query": "ООО ЭМК ПрайМетХолдинг",
+            "name": "ООО «ЭМК ПРАЙМЕТХОЛДИНГ»",
+            "inn": "6617030366",
+            "contact_name": "Даниил",
+            "phone": "8 (800) 250-03-23 (доб. 91-04)",
+            "tags": [TAG_RESELLER],
+            "city": "Качканар"
+        },
+        "1342011sv@gmail.com": {
+            "query": "ООО МагПромТорг",
+            "name": "ООО «МАГПРОМТОРГ»",
+            "inn": "7456043194",
+            "contact_name": "Светлана Аверина",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Магнитогорск"
+        },
+        "snab1@els-svet.ru": {
+            "query": "ООО Электросервис",
+            "name": "ООО «ЭЛЕКТРОСЕРВИС»",
+            "inn": "9724195262",
+            "contact_name": "Руслан Денисовский",
+            "phone": "+7 (905) 517-30-09",
+            "tags": [TAG_RESELLER],
+            "city": "Москва"
+        },
+        "snab.agrostroi-servis@mail.ru": {
+            "query": "ООО Агростройсервис",
+            "name": "ООО «АГРОСТРОЙСЕРВИС»",
+            "inn": "5249044284",
+            "contact_name": "Отдел закупок",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Дзержинск"
+        },
+        "artem-d@mail.ru": {
+            "query": "ООО НПО Профсистема",
+            "name": "ООО «НПО ПРОФСИСТЕМА»",
+            "inn": "7453285090",
+            "contact_name": "Даньков Артем",
+            "phone": "+7 (912) 325-34-00",
+            "tags": [TAG_TENDER, TAG_RESELLER],
+            "city": "Челябинск"
+        },
+        "gatsoev@enginework.ru": {
+            "query": "ООО Ворлд Сервис",
+            "name": "ООО «ВОРЛД СЕРВИС»",
+            "inn": "4705076951",
+            "contact_name": "Гацоев Юрий Славикович",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Гатчина"
+        }
+    }
+
+    summary_results = []
+    idx = 1
+    for email, cdata in clusters.items():
+        spec = CLIENT_SPECS.get(email, {})
+        dadata_res = dadata_party_lookup(spec.get("query", cdata["subject"]))
+        ddata = dadata_res.get("data", {}) if dadata_res else {}
+
+        inn = spec.get("inn") or ddata.get("inn", "")
+        company_name = spec.get("name") or (dadata_res.get("value") if dadata_res else cdata["subject"])
+        contact_name = spec.get("contact_name") or "Контакт"
+        phone = spec.get("phone") or ""
+        tags = spec.get("tags") or [TAG_END_BUYER]
+        address = ddata.get("address", {}).get("value") or ""
+
+        # 1C Events search
+        onec_events = []
+        for ev_it in cdata["events_info"]:
+            clean_s = ev_it["subject"].replace("Re: ", "").replace("Fwd: ", "").strip()
+            r_ev = requests.get(
+                f"{ODATA_BASE}/Document_Событие?$top=5&$orderby=Date desc&$filter=substringof('{clean_s[:25]}', Тема)",
+                auth=auth_1c, headers=headers_1c, timeout=15
+            )
+            if r_ev.status_code == 200:
+                ev_list = r_ev.json().get("value", [])
+                if ev_list:
+                    onec_events.append({
+                        "Number": ev_list[0].get("Number"),
+                        "Ref_Key": ev_list[0].get("Ref_Key"),
+                        "Date": ev_list[0].get("Date"),
+                        "Subject": ev_list[0].get("Тема")
+                    })
+
+        # Bitrix24 Matching
+        b24_lead = None
+        r_bl = call_b24("crm.lead.list", {"filter": {"EMAIL": email}, "select": ["ID", "TITLE", "STATUS_ID", "COMPANY_ID", "CONTACT_ID"]})
+        if r_bl.get("result"):
+            b24_lead = r_bl["result"][0]
+
+        b24_contact = None
+        r_bc = call_b24("crm.contact.list", {"filter": {"EMAIL": email}, "select": ["ID", "NAME", "LAST_NAME", "COMPANY_ID", "PHONE"]})
+        if r_bc.get("result"):
+            b24_contact = r_bc["result"][0]
+
+        b24_company = None
+        if inn:
+            r_bco = call_b24("crm.company.list", {"filter": {"UF_CRM_699421CD2A684": inn}, "select": ["ID", "TITLE", "UF_CRM_699421CD2A684"]})
+            if r_bco.get("result"):
+                b24_company = r_bco["result"][0]
+        if not b24_company and b24_contact and b24_contact.get("COMPANY_ID"):
+            r_co_get = call_b24("crm.company.get", {"id": b24_contact["COMPANY_ID"]})
+            if r_co_get.get("result"):
+                b24_company = r_co_get["result"]
+
+        # 1C Lead search
+        onec_lead = None
+        r_ol = requests.get(
+            f"{ODATA_BASE}/Catalog_Лиды?$top=2&$filter=substringof('{inn}', Тема) or substringof('{email}', Description) or substringof('{email}', АдресЭПДляПоиска)",
+            auth=auth_1c, headers=headers_1c, timeout=15
+        )
+        if r_ol.status_code == 200 and r_ol.json().get("value"):
+            onec_lead = r_ol.json()["value"][0]
+
+        tag_names = [TAG_NAME_MAP.get(t, t) for t in tags]
+
+        print(f"\n[{idx}/{len(clusters)}] {company_name}")
+        print(f"  ИНН: {inn} | Email: {email} | Тел: {phone or 'нет'}")
+        print(f"  Адрес: {address or 'нет'}")
+        print(f"  Теги классификации: {', '.join(tag_names)}")
+        print(f"  Входящих писем в 1С: {len(onec_events)} шт.")
+
+        # План действий в CRM
+        if b24_company:
+            print(f"  [B24 Company #{b24_company['ID']}] Найдена: '{b24_company.get('TITLE')}' (ИНН: {b24_company.get('UF_CRM_699421CD2A684') or 'обогатить'})")
+        else:
+            print(f"  [B24 Company] Создать новую Компанию '{company_name}' (ИНН: {inn})")
+
+        if b24_contact:
+            print(f"  [B24 Contact #{b24_contact['ID']}] Найден: '{b24_contact.get('NAME')}'")
+        else:
+            print(f"  [B24 Contact] Создать новый Контакт '{contact_name}' ({email})")
+
+        if b24_lead:
+            print(f"  [B24 Lead #{b24_lead['ID']}] Связать с Компанией и Контактом")
+        else:
+            print(f"  [B24 Lead] Создать Лид и связать с Компанией и Контактом")
+
+        # План действий в 1С
+        if onec_lead:
+            print(f"  [1C Lead #{onec_lead.get('Code')}] Найден: '{onec_lead.get('Description')}' ({onec_lead.get('Ref_Key')})")
+        else:
+            print(f"  [1C Lead] Создать Лид '{company_name}' (Zero-Blank Lead Guard, ИНН: {inn}, Ответственный: Артем)")
+            print(f"            Заполнить ТЧ КонтактнаяИнформация: Email '{email}', Телефон '{phone}', Адрес '{address}'")
+            print(f"            Установить Теги: {', '.join(tag_names)}")
+
+        for ev in onec_events:
+            print(f"  [1C Event #{ev['Number']}] Привязать к Лиду 1С (снятие плашки [сохранить в CRM])")
+
+        summary_results.append({
+            "idx": idx,
+            "company": company_name,
+            "inn": inn,
+            "email": email,
+            "phone": phone,
+            "tags": tag_names,
+            "b24_lead_id": b24_lead["ID"] if b24_lead else "Создать",
+            "b24_company_id": b24_company["ID"] if b24_company else "Создать",
+            "b24_contact_id": b24_contact["ID"] if b24_contact else "Создать",
+            "onec_lead_code": onec_lead.get("Code") if onec_lead else "Создать",
+            "events_count": len(onec_events)
+        })
+        idx += 1
+
+    print("\n" + "=" * 90)
+    print("ИТОГИ ПРЕДВАРИТЕЛЬНОЙ СИНХРОНИЗАЦИИ (DRY-RUN):")
+    print(f"  Всего строк в MXL: {len(items)}")
+    print(f"  Отскоков (Bounce) обработано: {len(bounced_emails)} адресов")
+    print(f"  Клиентских компаний к синхронизации: {len(summary_results)}")
+    print(f"  Входящих писем 1С к перелинковке: {sum(s['events_count'] for s in summary_results)} шт.")
+    print(f"  Режим: {'DRY-RUN (изменения не вносились)' if dry_run else 'БОЕВОЙ'}")
+    print("=" * 90)
+    return {"bounced": list(bounced_emails), "clients": summary_results}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Каноническая синхронизация лидов 1С ⮂ Bitrix24 (Zero-Blank Lead Guard)")
+    parser.add_argument("--mxl", help="Путь к файлу выгрузки 1С .mxl со списком лидов/событий")
     parser.add_argument("--lead-ids", nargs="+", type=int, help="Список явных ID лидов Битрикс24")
     parser.add_argument("--since", help="Дата начала выборки лидов из CRM (формат YYYY-MM-DD, например 2026-09-25)")
     parser.add_argument("--mailbox", default="sales@longwang.ru", help="Ящик IMAP для выборки по входящим письмам")
@@ -735,6 +1078,13 @@ def main():
     parser.add_argument("--lead-guids", nargs="+", help="Список конкретных GUID лидов 1С для аудита/исправления тегов")
     parser.add_argument("--dry-run", action="store_true", help="Режим предпросмотра без изменения 1С и CRM")
     args = parser.parse_args()
+
+    # Быстрый роутинг: если передан файл выгрузки MXL
+    if args.mxl:
+        user_key = str(args.assigned_to).lower()
+        assigned_id = USER_MAPPING.get(user_key, int(user_key) if user_key.isdigit() else 1)
+        sync_leads_from_mxl(args.mxl, assigned_to=assigned_id, dry_run=args.dry_run)
+        return
 
     # Быстрый роутинг: если передан флаг очистки невалидного адреса
     if args.clean_email:

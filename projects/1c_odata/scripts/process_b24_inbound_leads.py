@@ -405,9 +405,41 @@ def is_prohibited_china_supply_file(filename: str) -> bool:
     prohibited_keywords = [
         "карта", "карточка", "партнер", "партнера", "реквизит", "реквизиты",
         "инн", "огрн", "устав", "договор", "выписка", "егрюл", "свидетельств",
-        "паспорт", "доверенност", "бухгалтер", "счет"
+        "паспорт", "доверенност", "бухгалтер", "счет", "akt", "акт", "счет-фактур",
+        "упд", "upd"
     ]
     return any(kw in fn for kw in prohibited_keywords)
+
+def is_technical_inquiry_file(filename: str) -> bool:
+    """
+    Разрешительный фильтр вложений для снабжения КНР (Inquiry-Only Attachment Guard):
+    Прикреплять к задаче ТОЛЬКО то, что непосредственно касается запроса:
+    чертежи, фото шильдиков/оборудования, описания и спецификации.
+    Категорически отсеивать:
+    1. Юридические, бухгалтерские и банковские документы РФ;
+    2. Служебную графику подписей почты (логотипы, иконки соцсетей, баннеры).
+    """
+    fn = filename.lower().strip()
+    if is_prohibited_china_supply_file(fn):
+        return False
+
+    base_name = os.path.splitext(fn)[0]
+    signature_artifacts = ["logo", "icon", "banner", "signature", "footer", "header", "facebook", "vk", "telegram", "whatsapp", "mail_ru", "yandex"]
+    if any(sa in base_name for sa in signature_artifacts):
+        return False
+
+    ext = os.path.splitext(fn)[1]
+    allowed_exts = {
+        # Чертежи и 3D-модели
+        ".dwg", ".dxf", ".stp", ".step", ".igs", ".iges", ".cdw", ".frw", ".spw", ".m3d", ".a3d", ".sldprt", ".sldasm",
+        # Спецификации, опросные листы, ТЗ, опросники
+        ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".csv", ".txt", ".rtf",
+        # Фотографии оборудования и шильдиков
+        ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff",
+        # Архивы
+        ".zip", ".rar", ".7z"
+    }
+    return ext in allowed_exts
 
 def get_deadline_business_days(days=4, today=False):
     """
@@ -732,8 +764,12 @@ def create_b24_deal(title, company_id, contact_id, lead_id=None, assigned_by_id=
 
 def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_id=None, contact_email="", dry_run=False):
     """
-    Связывает все дела-письма лида со Сделкой, Контактом и Компанией (Triple Activity Binding Guard),
+    Связывает дела-письма лида со Сделкой, Контактом и Компанией (Triple Activity Binding Guard),
     а также обновляет COMMUNICATIONS и владельца активности на Сделку.
+    ВНИМАНИЕ (Task Activity Isolation Invariant):
+    Тройная привязка к Контакту и Компании выполняется СТРОГО ДЛЯ ПИСЕМ (CRM_EMAIL / TYPE_ID: 4)!
+    Активности задач (CRM_TASKS_TASK) и звонки категорически запрещено привязывать к Контакту/Компании,
+    чтобы не засорять CRM и не ломать привязку задачи ufCrmTask к Сделке!
     """
     acts = call_b24("crm.activity.list", {
         "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id},
@@ -749,35 +785,37 @@ def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_
         act_id = act.get("ID")
         if not act_id:
             continue
+        is_email = (act.get("PROVIDER_ID") == "CRM_EMAIL") or (str(act.get("TYPE_ID")) == "4")
         if not dry_run:
             existing_bindings = call_b24("crm.activity.binding.list", {"activityId": act_id}) or []
             existing_set = {(int(b.get("entityTypeId", 0)), int(b.get("entityId", 0))) for b in existing_bindings}
 
-            # 1. Привязка к Сделке
+            # 1. Привязка к Сделке (любые активности лида)
             if deal_id and (2, int(deal_id)) not in existing_set:
                 call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 2, "entityId": deal_id})
-            # 2. Привязка к Контакту
-            if contact_id and (3, int(contact_id)) not in existing_set:
-                call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 3, "entityId": contact_id})
-            # 3. Привязка к Компании
-            if company_id and (4, int(company_id)) not in existing_set:
-                call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 4, "entityId": company_id})
 
-            # 4. Обновление COMMUNICATIONS и главного владельца (OWNER_ID)
-            fields_upd = {}
-            if deal_id:
-                fields_upd["OWNER_TYPE_ID"] = 2
-                fields_upd["OWNER_ID"] = deal_id
-            if contact_email and (contact_id or company_id):
-                comms = []
-                if contact_id:
-                    comms.append({"ENTITY_TYPE_ID": 3, "ENTITY_ID": contact_id, "TYPE": "EMAIL", "VALUE": contact_email})
-                if company_id:
-                    comms.append({"ENTITY_TYPE_ID": 4, "ENTITY_ID": company_id, "TYPE": "EMAIL", "VALUE": contact_email})
-                fields_upd["COMMUNICATIONS"] = comms
+            # 2 & 3. Привязка к Контакту и Компании — СТРОГО ТОЛЬКО ДЛЯ ПИСЕМ!
+            if is_email:
+                if contact_id and (3, int(contact_id)) not in existing_set:
+                    call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 3, "entityId": contact_id})
+                if company_id and (4, int(company_id)) not in existing_set:
+                    call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 4, "entityId": company_id})
 
-            if fields_upd:
-                call_b24("crm.activity.update", {"id": act_id, "fields": fields_upd})
+                # 4. Обновление COMMUNICATIONS и главного владельца (OWNER_ID) для писем
+                fields_upd = {}
+                if deal_id:
+                    fields_upd["OWNER_TYPE_ID"] = 2
+                    fields_upd["OWNER_ID"] = deal_id
+                if contact_email and (contact_id or company_id):
+                    comms = []
+                    if contact_id:
+                        comms.append({"ENTITY_TYPE_ID": 3, "ENTITY_ID": contact_id, "TYPE": "EMAIL", "VALUE": contact_email})
+                    if company_id:
+                        comms.append({"ENTITY_TYPE_ID": 4, "ENTITY_ID": company_id, "TYPE": "EMAIL", "VALUE": contact_email})
+                    fields_upd["COMMUNICATIONS"] = comms
+
+                if fields_upd:
+                    call_b24("crm.activity.update", {"id": act_id, "fields": fields_upd})
 
         bound_count += 1
     return bound_count
@@ -789,17 +827,19 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
     if not dry_run and deal_id:
         existing_tasks = call_b24("tasks.task.list", {
             "filter": {"UF_CRM_TASK": f"D_{deal_id}", "GROUP_ID": group_id},
-            "select": ["ID", "TITLE", "STATUS", "RESPONSIBLE_ID", "DESCRIPTION"]
+            "select": ["ID", "TITLE", "STATUS", "RESPONSIBLE_ID", "DESCRIPTION", "UF_CRM_TASK"]
         })
         tasks_list = existing_tasks.get("tasks", []) if isinstance(existing_tasks, dict) else []
         if tasks_list:
             existing_id = tasks_list[0]["id"]
             existing_desc = tasks_list[0].get("description", "")
             print(f"  [Single Task Guard] Для сделки {deal_id} уже найдена активная задача #{existing_id}. Дубль не создается.")
-            # Если описание в существующей задаче пустое, а новое передано — обогащаем задачу
-            if description and not existing_desc:
-                call_b24("tasks.task.update", {"taskId": existing_id, "fields": {"DESCRIPTION": description}})
-                print(f"  [Task Enrichment] В задачу #{existing_id} добавлено подробное ТЗ (ранее было пустым).")
+            # Обеспечиваем строгую привязку задачи ТОЛЬКО к Сделке (Task Deal-Only Guard)
+            upd_fields = {"UF_CRM_TASK": [f"D_{deal_id}"]}
+            if description and (not existing_desc or "Вложения доступны в карточке задачи" in existing_desc):
+                upd_fields["DESCRIPTION"] = description
+                print(f"  [Task Enrichment] В задачу #{existing_id} добавлено подробное ТЗ (ранее было пустым/неполным).")
+            call_b24("tasks.task.update", {"taskId": existing_id, "fields": upd_fields})
             return existing_id
 
     deadline_str = get_deadline_business_days(days=deadline_days, today=deadline_today)
@@ -824,29 +864,74 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
     task_id = task_res.get('task', {}).get('id') if isinstance(task_res, dict) else task_res
     return task_id
 
+def build_supply_task_chat_message(azat_id, cn_nomenclature, brand, model, quantity, equivalents_allowed, download_links_chat="", clean_inquiry=""):
+    """
+    Формирует чистое рабочее сообщение для чата задачи снабжения:
+    - Без раскрытия клиента РФ (China Supply Anonymity Guard);
+    - Без паразитных мета-фраз ('Подробное ТЗ внесено в карточку...');
+    - Четкое указание: что искать, бренд, модель, количество, статус аналога;
+    - Если есть файлы: кликабельные ссылки на Диск; если файлов нет: оригинальный запрос в [QUOTE].
+    """
+    equiv_str = "可推荐同等参数国内优质替代品 (Разрешен качественный аналог)" if equivalents_allowed else "仅限原装正品 (Только оригинал)"
+
+    msg_lines = [
+        f"[USER={azat_id}]阿扎特[/USER] Новая заявка в снабжение КНР:",
+        f"请协助询价以下设备（采购清单）：",
+        f"- 品牌及型号：{cn_nomenclature}",
+        f"- 数量：{quantity}",
+        f"- 替代品要求：{equiv_str}"
+    ]
+
+    has_files = bool(download_links_chat and "无图纸附件" not in download_links_chat and "Вложений нет" not in download_links_chat)
+    if has_files:
+        msg_lines.append(f"- 采购清单及图纸下载 (Файлы и чертежи):\n{download_links_chat}")
+
+    if clean_inquiry:
+        msg_lines.append(f"- 客户原始需求 (Оригинальный запрос клиента):\n[QUOTE]{clean_inquiry.strip()}[/QUOTE]")
+
+    return "\n".join(msg_lines)
+
 def send_b24_task_chat_message(task_id, message_text, dry_run=False):
     if dry_run:
         return "PREVIEW_MSG_ID"
     task_info = call_b24("tasks.task.get", {"taskId": task_id, "select": ["CHAT_ID"]})
     chat_id = task_info.get('task', {}).get('chatId') if task_info else None
-    if chat_id:
-        return call_b24("im.message.add", {
-            "DIALOG_ID": f"chat{chat_id}",
-            "MESSAGE": message_text
-        })
-    return None
+    if not chat_id:
+        return None
+    dialog_id = f"chat{chat_id}"
+
+    # Anti-Duplicate Guard: проверка на наличие уже отправленного идентичного сообщения
+    recent_msgs = call_b24("im.dialog.messages.get", {"DIALOG_ID": dialog_id, "LIMIT": 10}) or {}
+    messages = recent_msgs.get("messages", []) if isinstance(recent_msgs, dict) else []
+    clean_new = "".join(message_text.split())
+    for m in messages:
+        m_text = m.get("text", "")
+        clean_existing = "".join(m_text.split())
+        if clean_new and clean_new == clean_existing:
+            print(f"  [Anti-Duplicate Guard] В чате {dialog_id} уже есть идентичное сообщение. Пропускаем отправку.")
+            return m.get("id")
+        if "请协助询价以下设备" in m_text and "请协助询价以下设备" in message_text:
+            if any(part in m_text for part in message_text.split("\n") if len(part.strip()) > 10 and "请协助" not in part and "阿扎特" not in part):
+                print(f"  [Anti-Duplicate Guard] В чате {dialog_id} уже присутствует активный запрос снабжению по данной номенклатуре. Повторная отправка заблокирована.")
+                return m.get("id")
+
+    return call_b24("im.message.add", {
+        "DIALOG_ID": dialog_id,
+        "MESSAGE": message_text
+    })
 
 def verify_lead_processing_result(deal_id=None, contact_id=None, company_id=None, task_id=None, expected_phone="") -> dict:
     """
     Аппаратный Result Self-Check Guard:
     Автоматически верифицирует созданные в Битрикс24 сущности, привязку писем,
-    наличие контактов и полноту ТЗ в задаче.
+    наличие контактов, чистоту привязки задачи строго к сделке и полноту ТЗ в задаче.
     """
     report = {
         "deal_acts_ok": False,
         "contact_phone_ok": False,
         "company_phone_ok": False,
         "task_desc_ok": False,
+        "task_crm_deal_only_ok": False,
         "errors": []
     }
 
@@ -877,15 +962,23 @@ def verify_lead_processing_result(deal_id=None, contact_id=None, company_id=None
         else:
             report["errors"].append(f"У компании #{company_id} отсутствует телефон!")
 
-    # 4. Проверка задачи и запрет фантомных ссылок
+    # 4. Проверка задачи, запрет фантомных ссылок и Task Deal-Only Guard
     if task_id:
-        t_info = call_b24("tasks.task.get", {"taskId": task_id, "select": ["ID", "DESCRIPTION", "TITLE"]})
+        t_info = call_b24("tasks.task.get", {"taskId": task_id, "select": ["ID", "DESCRIPTION", "TITLE", "UF_CRM_TASK"]})
         t_data = t_info.get("task", {}) if isinstance(t_info, dict) else {}
         desc = t_data.get("description", "")
+        uf_crm = t_data.get("ufCrmTask", [])
+        deal_tag = f"D_{deal_id}" if deal_id else ""
         if len(desc) >= 50 and "Вложения доступны в карточке задачи" not in desc:
             report["task_desc_ok"] = True
         else:
             report["errors"].append(f"У задачи #{task_id} пустое описание или обнаружены фантомные ссылки на вложения!")
+
+        has_non_deal = any(x.startswith("CO_") or x.startswith("C_") for x in uf_crm)
+        if deal_tag and (deal_tag not in uf_crm or has_non_deal):
+            report["errors"].append(f"Нарушение Task Deal-Only Guard: задача #{task_id} привязана не только к сделке: {uf_crm}")
+        else:
+            report["task_crm_deal_only_ok"] = True
 
     print("\n[RESULT-SELF-CHECK]")
     for k, v in report.items():
@@ -1370,12 +1463,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     clean_company = re.sub(r'[«»"“”\']', '', company_title).strip()
     title_naming = f"{company_title}, {cn_nomenclature}"
 
-    # Фильтрация вложений: Attachment Hygiene Guard
+    # Фильтрация вложений: Inquiry-Only Attachment Guard
     supply_disk_ids = []
     clean_attachments = []
     for fid, fname in lead_file_ids:
-        if is_prohibited_china_supply_file(fname):
-            print(f"  [HYGIENE-GUARD] Файл '{fname}' отсеян (юридический/бухгалтерский документ РФ)")
+        if not is_technical_inquiry_file(fname):
+            print(f"  [HYGIENE-GUARD] Файл '{fname}' отсеян (не относится к техническому ТЗ / юр. документ РФ / графика подписи)")
             continue
         clean_attachments.append((fid, fname))
 
@@ -1428,20 +1521,19 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             except Exception as e:
                 print(f"    [WARN] Ошибка загрузки файла {fname}: {e}")
 
-    # Формирование описания задачи и статуса вложений (Запрет фантомных ссылок!)
+    # Формирование описания задачи и ссылок на вложения (Inquiry-Only Attachment Guard)
     if supply_disk_ids:
         download_links_chat = "\n".join([f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{fid}/]Вложение {fid}[/URL]" for fid in supply_disk_ids])
-        attachments_task_status = f"Файлы загружены на Диск группы 14 ({len(supply_disk_ids)} шт.):\n" + download_links_chat
+        attachments_task_block = f"\n\n[B]ВЛОЖЕНИЯ И ЧЕРТЕЖИ / 附件及图纸:[/B]\nФайлы запроса прикреплены к задаче и загружены на Диск группы 14 ({len(supply_disk_ids)} шт.):\n{download_links_chat}"
     else:
-        download_links_chat = "无图纸附件，为纯文本询价 (Вложений нет, заявка чисто текстовая)"
-        attachments_task_status = "Текстовый запрос без чертежей и файлов / 无图纸附件，为纯文本询价.\n(В исходном письме чертежи отсутствовали либо содержались только юр. реквизиты РФ)."
+        download_links_chat = ""
+        attachments_task_block = ""
 
     equiv_text_ru_cn = "ДА / 可推荐同等参数国内替代品 (Заказчик прямо разрешил качественный аналог / or an equivalent)" if rfq_details.get("equivalents_allowed") else "СТРОГО ОРИГИНАЛ / 仅限原装正品 (Аналоги не запрашивались)"
 
     task_description = (
         f"[B]ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ЗАКУПКУ / 采购技术要求[/B]\n"
         f"--------------------------------------------------\n"
-        f"• Клиент / 客户: {company_title}\n"
         f"• Сделка / 商机: [URL=https://b24-g4wfjq.bitrix24.ru/crm/deal/details/{deal_id}/]Сделка #{deal_id}[/URL]\n"
         f"• Оборудование / 设备名称: {cn_nomenclature}\n"
         f"• Бренд / 品牌: {rfq_details.get('brand', 'Hydac')}\n"
@@ -1449,9 +1541,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         f"• Количество / 数量: {rfq_details.get('quantity', '1 шт. (1 unit / 1台)')}\n"
         f"• Допустимость аналога / 同等替代品: [B]{equiv_text_ru_cn}[/B]\n\n"
         f"[B]ОРИГИНАЛЬНЫЙ ТЕКСТ ЗАПРОСА КЛИЕНТА / 客户原始询价:[/B]\n"
-        f"{rfq_details.get('clean_inquiry', email_desc[:600])}\n\n"
-        f"[B]ВЛОЖЕНИЯ И ЧЕРТЕЖИ / 附件及图纸:[/B]\n"
-        f"{attachments_task_status}"
+        f"{rfq_details.get('clean_inquiry', email_desc[:600])}"
+        f"{attachments_task_block}"
     )
 
     # Создание задачи снабжению Азату (user/20) с полным DESCRIPTION
@@ -1467,16 +1558,16 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     )
     print(f"  [B24] Создана Задача #{task_id} (Ответственный: Азат, Дедлайн: {deadline_plan})")
 
-    # Двуязычный комментарий в чат задачи для Азата
-    bilingual_comment = (
-        f"[USER={USER_AZAT}]阿扎特[/USER] Новая заявка в снабжение КНР:\n"
-        f"- Клиент: {company_title}\n"
-        f"- Запрос: {cn_nomenclature}\n\n"
-        f"请协助询价以下设备（采购清单）：\n"
-        f"- 品牌及型号：{cn_nomenclature}\n"
-        f"- 数量：{rfq_details.get('quantity', '1台 (1 unit)')}\n"
-        f"- 替代品要求：{'可推荐同等参数国内优质替代品' if rfq_details.get('equivalents_allowed') else '仅限原装正品'}\n"
-        f"- 采购清单及图纸下载：\n{download_links_chat}"
+    # Двуязычный комментарий в чат задачи для Азата (China Supply Anonymity Guard)
+    bilingual_comment = build_supply_task_chat_message(
+        azat_id=USER_AZAT,
+        cn_nomenclature=cn_nomenclature,
+        brand=rfq_details.get('brand', 'Hydac'),
+        model=rfq_details.get('model', 'VD 8 C.0'),
+        quantity=rfq_details.get('quantity', '1台 (1 unit)'),
+        equivalents_allowed=rfq_details.get('equivalents_allowed', False),
+        download_links_chat=download_links_chat,
+        clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600])
     )
     send_b24_task_chat_message(task_id, bilingual_comment)
 
@@ -1708,7 +1799,6 @@ def repair_previously_processed_lead(lead_id: int, dry_run: bool = False):
         task_description = (
             f"[B]ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ЗАКУПКУ / 采购技术要求[/B]\n"
             f"--------------------------------------------------\n"
-            f"• Клиент / 客户: {company_title}\n"
             f"• Сделка / 商机: [URL=https://b24-g4wfjq.bitrix24.ru/crm/deal/details/{deal_id}/]Сделка #{deal_id}[/URL]\n"
             f"• Оборудование / 设备名称: {cn_nomenclature}\n"
             f"• Бренд / 品牌: {brand}\n"
@@ -1716,27 +1806,29 @@ def repair_previously_processed_lead(lead_id: int, dry_run: bool = False):
             f"• Количество / 数量: {quantity}\n"
             f"• Допустимость аналога / 同等替代品: [B]{equiv_text_ru_cn}[/B]\n\n"
             f"[B]ОРИГИНАЛЬНЫЙ ТЕКСТ ЗАПРОСА КЛИЕНТА / 客户原始询价:[/B]\n"
-            f"{clean_inquiry}\n\n"
-            f"[B]ВЛОЖЕНИЯ И ЧЕРТЕЖИ / 附件及图纸:[/B]\n"
-            f"Текстовый запрос без чертежей и файлов / 无图纸附件，为纯文本询价.\n"
-            f"(В исходном письме была только российская карточка предприятия, отсеяна согласно правилам безопасности)."
+            f"{clean_inquiry}"
         )
-        call_b24("tasks.task.update", {"taskId": task_id, "fields": {"DESCRIPTION": task_description}})
-        print(f"  [B24] Задача #{task_id} обновлена полным структурированным ТЗ")
+        call_b24("tasks.task.update", {
+            "taskId": task_id,
+            "fields": {
+                "DESCRIPTION": task_description,
+                "UF_CRM_TASK": [f"D_{deal_id}"]
+            }
+        })
+        print(f"  [B24] Задача #{task_id} обновлена полным структурированным ТЗ и привязана строго к Сделке #{deal_id}")
 
-        chat_msg = (
-            f"[USER={USER_AZAT}]阿扎特[/USER] Уточнение параметров заявки в снабжение КНР:\n"
-            f"- Клиент: {company_title}\n"
-            f"- Запрос: {cn_nomenclature}\n\n"
-            f"请协助询价以下设备（采购清单）：\n"
-            f"- 品牌及型号：{cn_nomenclature}\n"
-            f"- 数量：{quantity}\n"
-            f"- 替代品要求：{'可推荐同等参数国内优质替代品 (Допустим качественный китайский аналог!)' if equivalents_allowed else '仅限原装正品'}\n"
-            f"- 图纸及附件：无图纸附件，纯文本询价 (Вложений нет, заявка чисто текстовая)\n\n"
-            f"Подробное ТЗ и оригинальный текст запроса клиента внесены в карточку задачи."
+        chat_msg = build_supply_task_chat_message(
+            azat_id=USER_AZAT,
+            cn_nomenclature=cn_nomenclature,
+            brand=brand,
+            model=model,
+            quantity=quantity,
+            equivalents_allowed=equivalents_allowed,
+            download_links_chat="",
+            clean_inquiry=clean_inquiry
         )
         send_b24_task_chat_message(task_id, chat_msg)
-        print(f"  [B24] В чат Задачи #{task_id} отправлено уточняющее сообщение")
+        print(f"  [B24] В чат Задачи #{task_id} отправлено рабочее ТЗ снабжению")
 
     # 4. Обновление 1С:УНФ
     if extracted_phone:

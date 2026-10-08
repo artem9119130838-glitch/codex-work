@@ -103,6 +103,104 @@ KNOWN_SPECIFICATIONS = {
             "name_ru": "Мембраны GEMU для мембранных клапанов (типоразмеры MG10, MG25, MG40)",
             "qty": 1,
         }
+    ],
+    "гидросистемы": [
+        {
+            "num": 1,
+            "brand": "Luen",
+            "pname_cn": "制动阀 (模块式安装制动模块阀)",
+            "model": "A-OWC-DE-L10-X (01.292.0X0.A)",
+            "name_ru": "Тормозной клапан модульного монтажа CETOP5, линии А и В, расход >= 80 л/мин, давл. >= 32 МПа, пилот 1:4.5 (допустим качественный аналог)",
+            "qty": 5,
+        },
+        {
+            "num": 2,
+            "brand": "Tognella",
+            "pname_cn": "液压节流阀 (镀镍黄铜)",
+            "model": "FT 1251/2-01-12",
+            "name_ru": "Дроссель гидравлический с обратным клапаном, никелированная латунь",
+            "qty": 4,
+        },
+        {
+            "num": 3,
+            "brand": "Tognella",
+            "pname_cn": "两通高压球阀",
+            "model": "FT221/1-112",
+            "name_ru": "Двухходовой шаровый кран высокого давления",
+            "qty": 2,
+        },
+        {
+            "num": 4,
+            "brand": "Tognella",
+            "pname_cn": "压力表截止阀 (直通式)",
+            "model": "FT290-14",
+            "name_ru": "Отсечной вентиль под манометр (прямой)",
+            "qty": 3,
+        },
+        {
+            "num": 5,
+            "brand": "OEM / PONAR",
+            "pname_cn": "减压阀",
+            "model": "PZM5-P280/10N",
+            "name_ru": "Клапан редукционный давления",
+            "qty": 5,
+        },
+        {
+            "num": 6,
+            "brand": "Atos",
+            "pname_cn": "减压阀",
+            "model": "SKG-033/210/V",
+            "name_ru": "Редукционный клапан модульного монтажа",
+            "qty": 4,
+        },
+        {
+            "num": 7,
+            "brand": "Stauff / OEM",
+            "pname_cn": "压力检测点 (测压接头)",
+            "model": "S10714G00C (SMK20-G1/4)",
+            "name_ru": "Контрольная точка давления SMK20-G1/4",
+            "qty": 1,
+        },
+        {
+            "num": 8,
+            "brand": "MP Filtri",
+            "pname_cn": "吸油过滤器滤芯",
+            "model": "STR1004BG1M90",
+            "name_ru": "Фильтр всасывающий сетчатый (погружной)",
+            "qty": 2,
+        },
+        {
+            "num": 9,
+            "brand": "LSQ / RFS",
+            "pname_cn": "液压快换接头公头 (6605-4-4)",
+            "model": "LSQ-S1-02PF-G1/4 (6605-4-4)",
+            "name_ru": "Ниппель БРС G1/4 (быстроразъемное соединение)",
+            "qty": 2,
+        },
+        {
+            "num": 10,
+            "brand": "LSQ / RFS",
+            "pname_cn": "液压快换接头母头 (6603-4-4)",
+            "model": "LSQ-S1-02SF-G1/4 (6603-4-4)",
+            "name_ru": "Розетка БРС G1/4 (быстроразъемное соединение)",
+            "qty": 4,
+        },
+        {
+            "num": 11,
+            "brand": "LSQ / RFS",
+            "pname_cn": "快换接头公头用防尘帽",
+            "model": "LSQ-S1 PDC-1/4 M",
+            "name_ru": "Заглушка (пылезащитный колпачок) для ниппеля БРС 1/4",
+            "qty": 2,
+        },
+        {
+            "num": 12,
+            "brand": "LSQ / RFS",
+            "pname_cn": "快换接头母头用防尘塞",
+            "model": "LSQ-S1 PDC-1/4 F",
+            "name_ru": "Заглушка (пылезащитный колпачок) для розетки БРС 1/4",
+            "qty": 2,
+        }
     ]
 }
 
@@ -177,6 +275,8 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
             output_filename = "Запрос КП пресс для автокамер 85 Волтайр-Пром.xlsx"
         elif "муромец" in company_name.lower():
             output_filename = "Запрос КП Alfa Laval опреснитель JWP-16-C40 Илья Муромец.xlsx"
+        elif "гидросистемы" in company_name.lower():
+            output_filename = "Запрос КП Гидравлика 12 позиций НПО Гидросистемы.xlsx"
 
     output_path = os.path.join(DESKTOP_DIR, output_filename)
 
