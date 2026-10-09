@@ -45,13 +45,29 @@ def verify_workspace_hygiene(root_dir):
     agents_path = root_dir / "AGENTS.md"
     if agents_path.exists():
         sz = agents_path.stat().st_size
-        max_agents = 22500
+        max_agents = 12000
         if sz > max_agents:
             issues.append(f"КРИТИЧЕСКИЙ РАЗДУВ: AGENTS.md превысил лимит! {sz} байт > {max_agents} байт.")
-        elif sz > 22000:
+        elif sz > 11500:
             print(f"  [ПРЕДУПРЕЖДЕНИЕ] AGENTS.md близок к лимиту: {sz} / {max_agents} байт.")
         else:
             print(f"  [OK] AGENTS.md в пределах нормы: {sz} байт (лимит {max_agents}).")
+
+    # 1.1. Проверка TOC манифестов (Slice Reading Guard)
+    for pol_rel in [
+        "projects/1c_odata/LEAD_PROCESSING_POLICY.md",
+        "projects/1c_odata/ERP_1C_POLICY.md",
+        "projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md",
+        "codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md"
+    ]:
+        pol_path = root_dir / pol_rel
+        if pol_path.exists():
+            with open(pol_path, "r", encoding="utf-8") as pf:
+                first_35 = "".join([pf.readline() for _ in range(35)])
+                if "TOC" not in first_35 and "Оглавление" not in first_35:
+                    issues.append(f"ОТСУТСТВУЕТ TOC В СТРОКАХ 1-35: {pol_rel}")
+                else:
+                    print(f"  [OK] {pol_rel}: TOC в строках 1-35 верифицирован.")
 
     # 2. Проверка размера активного каталога скриптов
     catalog_path = root_dir / "codex_kb" / "SCRIPTS_CATALOG.md"
