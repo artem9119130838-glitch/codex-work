@@ -30,25 +30,32 @@ def run_batch(limit: int = 100, sleep_delay: float = 4.5):
         summary_service = get_summary_service(db)
         
         processed_count = 0
+        skipped_count = 0
         for email_addr in email_addresses:
             logger.info(f"Processing email {email_addr}")
             try:
                 result = summary_service.process_email_summary(email_addr)
                 if result:
-                    processed_count += 1
-                    write_db_log(db, "email_ai_summarizer", "client_summary_success", "info", f"Generated summary for {email_addr}")
-                
-                # Add delay to avoid 429 Rate Limits (max 15 RPM for free Gemini Flash API)
-                time.sleep(sleep_delay)
+                    if result.get("skipped"):
+                        skipped_count += 1
+                        time.sleep(0.05)
+                    else:
+                        processed_count += 1
+                        write_db_log(db, "email_ai_summarizer", "client_summary_success", "info", f"Generated summary for {email_addr}")
+                        # Add delay to avoid 429 Rate Limits (max 15 RPM for free Gemini Flash API)
+                        time.sleep(sleep_delay)
             except Exception as e:
                 db.rollback()
                 error_msg = f"Failed to process summary for {email_addr}: {e}"
                 logger.error(error_msg)
                 write_db_log(db, "email_ai_summarizer", "client_summary_error", "error", error_msg)
+                if "Exhausted all configured LLM providers" in str(e):
+                    logger.warning("All LLM providers exhausted for this batch. Halting batch early to preserve quota.")
+                    break
                 time.sleep(1.0)
                 continue
                 
-        write_db_log(db, "email_ai_summarizer", "batch_success", "info", f"Batch completed. Successfully processed {processed_count}/{len(email_addresses)} emails.")
+        write_db_log(db, "email_ai_summarizer", "batch_success", "info", f"Batch completed. New summaries: {processed_count}, Already up to date: {skipped_count}, Total examined: {len(email_addresses)}.")
         
     except Exception as e:
         error_msg = f"Error running summary batch: {e}"

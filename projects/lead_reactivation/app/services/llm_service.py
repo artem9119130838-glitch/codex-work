@@ -432,40 +432,64 @@ class LLMService:
                     self.current_provider_idx = current_idx
                     return response.text
                 elif ptype == "deepseek":
-                    # Check daily limit for DeepSeek (max 10/day)
+                    # DeepSeek Budget Protection & Priority Guard
                     import datetime
                     import json
                     
                     today_str = datetime.date.today().isoformat()
                     usage_file = "/app/logs/deepseek_usage.json"
-                    
-                    # Create directory if not exists
-                    usage_dir = os.path.dirname(usage_file)
-                    if not os.path.exists(usage_dir):
+                    if not os.path.exists(os.path.dirname(usage_file)):
                         try:
-                            os.makedirs(usage_dir)
-                        except:
-                            pass
+                            os.makedirs(os.path.dirname(usage_file), exist_ok=True)
+                        except Exception:
+                            usage_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs", "deepseek_usage.json"))
+                            try:
+                                os.makedirs(os.path.dirname(usage_file), exist_ok=True)
+                            except Exception:
+                                pass
                             
-                    # PROTECTION 1: Do not spend paid DeepSeek on background batch email summarization
-                    if request_type in ("contact_summary", "company_summary", "junk_classification"):
-                        logger.info(f"Skipping DeepSeek fallback for background task '{request_type}'. Waiting for free Gemini quota reset.")
+                    # 1. Запрет вызова DeepSeek для дешевого спам-фильтра
+                    if request_type in ("junk_classification", "spam_filter"):
+                        logger.info(f"Skipping DeepSeek fallback for low-value task '{request_type}'. Waiting for free Gemini quota reset.")
                         active_pos += 1
                         attempt += 1
                         continue
 
-                    try:
-                        if os.path.exists(usage_file):
-                            with open(usage_file, "r") as uf:
+                    # 2. Чтение персистентных счетчиков расхода (файл + in-memory fallback)
+                    usage_data = {}
+                    if os.path.exists(usage_file):
+                        try:
+                            with open(usage_file, "r", encoding="utf-8") as uf:
                                 usage_data = json.load(uf)
-                        else:
+                        except Exception:
                             usage_data = {}
-                    except:
-                        usage_data = {}
                         
-                    current_count = usage_data.get(today_str, 0)
-                    if current_count >= 50:
-                        logger.warning(f"DeepSeek daily safety budget limit of 50 reached today ({today_str}). Skipping DeepSeek provider.")
+                    raw_day_stats = usage_data.get(today_str, 0)
+                    if isinstance(raw_day_stats, int):
+                        day_stats = {"total": raw_day_stats, "summary": 0}
+                    elif isinstance(raw_day_stats, dict):
+                        day_stats = {"total": raw_day_stats.get("total", 0), "summary": raw_day_stats.get("summary", 0)}
+                    else:
+                        day_stats = {"total": 0, "summary": 0}
+
+                    # Двойная защита (In-Memory Guard): защита от сбоев записи на диск / Read-Only файловой системы
+                    in_mem = getattr(self, "_in_memory_counts", {}).get(today_str, {"total": 0, "summary": 0})
+                    total_count = max(day_stats["total"], in_mem.get("total", 0))
+                    summary_count = max(day_stats["summary"], in_mem.get("summary", 0))
+
+                    # Охват всех возможных типов задач суммаризации
+                    is_summary_task = "summary" in request_type or request_type in ("contact_summary", "company_summary", "client_intelligence_summary")
+
+                    # 3. Общий стоп-лосс на все вызовы DeepSeek (50 в сутки)
+                    if total_count >= 50:
+                        logger.warning(f"DeepSeek total daily safety budget limit of 50 reached today ({today_str}). Skipping DeepSeek provider.")
+                        active_pos += 1
+                        attempt += 1
+                        continue
+
+                    # 4. Отдельный лимит экономии на фоновую суммаризацию почты (макс. 20 в сутки)
+                    if is_summary_task and summary_count >= 20:
+                        logger.warning(f"DeepSeek summary safety budget limit of 20 reached today ({today_str}). Skipping DeepSeek for summary '{request_type}'. Waiting for free Gemini reset.")
                         active_pos += 1
                         attempt += 1
                         continue
@@ -525,13 +549,23 @@ class LLMService:
                         raise e_ds
                     
                     # Increment DeepSeek counter
+                    new_total = total_count + 1
+                    new_summary = summary_count + (1 if is_summary_task else 0)
+                    day_stats["total"] = new_total
+                    day_stats["summary"] = new_summary
+
+                    # Всегда обновляем in-memory счетчик в инстансе класса
+                    if not hasattr(self, "_in_memory_counts"):
+                        self._in_memory_counts = {}
+                    self._in_memory_counts[today_str] = {"total": new_total, "summary": new_summary}
+
                     try:
-                        usage_data[today_str] = current_count + 1
-                        with open(usage_file, "w") as uf:
-                            json.dump(usage_data, uf)
-                        logger.info(f"Incremented DeepSeek daily count to {current_count + 1}/10.")
+                        usage_data[today_str] = day_stats
+                        with open(usage_file, "w", encoding="utf-8") as uf:
+                            json.dump(usage_data, uf, ensure_ascii=False, indent=2)
+                        logger.info(f"Incremented DeepSeek daily count: total={new_total}/50, summary={new_summary}/20.")
                     except Exception as e_save:
-                        logger.warning(f"Failed to save DeepSeek usage counter: {e_save}")
+                        logger.warning(f"Failed to save DeepSeek usage counter to disk (in-memory guard active): {e_save}")
                         
                     self.current_provider_idx = current_idx
                     return response.choices[0].message.content

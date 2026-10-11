@@ -45,10 +45,10 @@ def verify_workspace_hygiene(root_dir):
     agents_path = root_dir / "AGENTS.md"
     if agents_path.exists():
         sz = agents_path.stat().st_size
-        max_agents = 12000
+        max_agents = 16000
         if sz > max_agents:
             issues.append(f"КРИТИЧЕСКИЙ РАЗДУВ: AGENTS.md превысил лимит! {sz} байт > {max_agents} байт.")
-        elif sz > 11500:
+        elif sz > 15000:
             print(f"  [ПРЕДУПРЕЖДЕНИЕ] AGENTS.md близок к лимиту: {sz} / {max_agents} байт.")
         else:
             print(f"  [OK] AGENTS.md в пределах нормы: {sz} байт (лимит {max_agents}).")

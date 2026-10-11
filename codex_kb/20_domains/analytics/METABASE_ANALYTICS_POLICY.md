@@ -121,6 +121,8 @@
    * Диагностика и отсев ключей: `py projects/metabase_analytics/scripts/audit_llm_keys.py`.
    * Модуль логирования: `projects/metabase_analytics/scripts/llm_tracker.py`.
    * Канонический конвейер деплоя: `py projects/metabase_analytics/scripts/manage_metabase_dashboards.py`.
+8. **Реестр критических инцидентов:**
+   * Все аварии бюджета LLM (включая сжигание DeepSeek) протоколируются в [INCIDENTS_LOG.md](file:///C:/Codex/codex_kb/00_control/INCIDENTS_LOG.md).
 
 ---
 

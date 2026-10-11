@@ -90,12 +90,33 @@ class SummaryService:
         contact_history_text = build_history_text(contact_msgs)
         company_history_text = build_history_text(company_msgs) if company_msgs else contact_history_text
         
-        # 4. Call LLM for contact and company summaries
+        # 4. Content-Hash & Redundancy Guard: Проверка актуальности без повторных вызовов LLM
+        intel = self.db.query(ClientIntel).filter(ClientIntel.email == email_address).first()
+        current_msgs_count = len(contact_msgs)
+        
+        if intel and intel.ai_summary and intel.emails_count == current_msgs_count:
+            existing_msg_ids = set()
+            if intel.emails_list and isinstance(intel.emails_list, list):
+                existing_msg_ids = {m.get("message_id") for m in intel.emails_list if isinstance(m, dict) and m.get("message_id")}
+            current_msg_ids = {m.message_id for m in contact_msgs}
+            
+            if current_msg_ids and current_msg_ids.issubset(existing_msg_ids):
+                logger.info(f"Summary for {email_address} is already up to date ({current_msgs_count} msgs). Skipping redundant LLM calls.")
+                unprocessed_matches = self.db.query(EmailMatchResult).filter(
+                    EmailMatchResult.message_id.in_([m.message_id for m in contact_msgs]),
+                    EmailMatchResult.decision == 'matched',
+                    EmailMatchResult.ai_processed == False
+                ).all()
+                for match in unprocessed_matches:
+                    match.ai_processed = True
+                self.db.commit()
+                return {"skipped": True, "reason": "already_up_to_date", "client_type": intel.client_type}
+        
+        # 5. Call LLM for contact and company summaries (только при реальных изменениях!)
         contact_summary_data = llm_service.generate_contact_summary(contact_history_text, is_buyer)
         company_summary_data = llm_service.generate_company_summary(company_history_text, is_buyer) if company_msgs else None
         
-        # 5. Save/Update ClientIntel (contact-level)
-        intel = self.db.query(ClientIntel).filter(ClientIntel.email == email_address).first()
+        # 6. Save/Update ClientIntel (contact-level)
         if not intel:
             intel = ClientIntel(
                 email=email_address,
@@ -189,6 +210,7 @@ class SummaryService:
         for match in unprocessed_matches:
             match.ai_processed = True
             
+        self.db.commit()
         logger.info(f"Generated separate summaries for email {email_address} and company {owner.owner_name if owner else 'None'}")
         return contact_summary_data
 
