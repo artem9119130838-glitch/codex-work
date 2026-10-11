@@ -2,6 +2,7 @@
 - Всегда общайся со мной и выводи результаты (планы задач, размышления, документацию) только на русском языке.
 - Комментарии к коду оставляй на английском или русском.
 - Всегда оформляй ссылки на файлы в кликабельном формате: `[filename](file:///C:/Codex/path/to/file)`.
+- **Corporate Respect Invariant («На ВЫ»):** Во всех проектах, сообщениях, шаблонах задач и комментариях от лица Артема обращение к сотрудникам (Азату, Александре, Михаилу и др.) оформляется СТРОГО на «Вы» / «вы». Панибратское обращение на «ты» категорически запрещено.
 
 # Workspace AI Contract (Root Router & Cascade Guard)
 
@@ -31,7 +32,6 @@
 - **No-Production-Code-Edit:** При рутинной обработке лидов запрещен рефакторинг боевых скриптов «на лету». При ошибке данных — немедленный Clarify-Fast.
 - **Slice Reading Guard:** **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО** читать файлы регламентов и манифестов целиком! Сначала считывать строго строки 1–35 (оглавление TOC), находить нужный раздел и читать только целевой диапазон строк через `view_file` с `StartLine` и `EndLine`.
 - **Subagent Context Purge Guard:** Задачи объемного поиска по 1139 скриптам, аудита истории чатов и чтения тяжелых логов (>15 КБ) выполнять СТРОГО через саб-агента `invoke_subagent`. Саб-агент считывает сырые массивы данных, возвращает в основной чат 3–5 строк чистого итога и сгорает, очищая память.
-- **Cross-Border Bridge Invariant:** При масштабировании офисов КНР ассистент РФ мониторит задачи Б24 (Гр. 14). Простой >48ч триггерит пинг независимо от языка.
 - **Single-Source Task Registry:** Кадровые реестры задач ведутся в Markdown (`tasks_registry_<name>.md`). Таблицы `.xlsx` — строго производные витрины.
 
 ---
@@ -93,3 +93,4 @@
 | VPS, сервер, docker, nginx, порт | **VPS & DevOps** | [INFRA_VPS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md) |
 | Victus, ноутбук, GPU, экран, MPO | **HP Victus 16** | [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md) |
 | Metabase, дашборд, воронка, SQL | **Аналитика BI** | [METABASE_ANALYTICS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md) |
+| Аварии, сбои бюджета, инциденты LLM | **Архитектура & Контроль** | [INCIDENTS_LOG.md](file:///C:/Codex/codex_kb/00_control/INCIDENTS_LOG.md) |
