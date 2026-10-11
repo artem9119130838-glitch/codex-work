@@ -111,6 +111,36 @@ TAG_MAP_1C = TAG_IDS_1C
 DESKTOP_DIR = os.path.join(os.environ.get("USERPROFILE", r"C:\Users\Артем"), "Desktop")
 
 # ----------------------------------------------------------------------
+# Санитизация входящего HTML-текста (Clean Text & Anti-CSS Guard)
+# ----------------------------------------------------------------------
+def sanitize_html_email_text(raw_html: str) -> str:
+    """
+    Глубокая санитизация HTML-текста входящего письма (Clean Text & Anti-CSS Guard):
+    1. Полностью вырезает блоки <style>, <xml>, <head>, <script> вместе с их содержимым;
+    2. Удаляет условные комментарии Microsoft Office/Word (<!--[if ...]>...<![endif]-->);
+    3. Заменяет теги переносов (<p>, <br>, <div>, <tr>, <li>) на реальные переносы строк;
+    4. Удаляет все оставшиеся HTML-теги;
+    5. Декодирует сущности HTML (unescape);
+    6. Удаляет остаточные висячие CSS-конструкции вида v\\:* {...};
+    7. Нормализует пробелы и пустые строки.
+    """
+    if not raw_html:
+        return ""
+    text = raw_html
+    text = re.sub(r'<style[^>]*>.*?</style>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<xml[^>]*>.*?</xml>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<head[^>]*>.*?</head>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<script[^>]*>.*?</script>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<!--.*?-->', ' ', text, flags=re.DOTALL)
+    text = re.sub(r'</?(?:p|div|tr|br|li|h[1-6])[^>]*>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = unescape(text)
+    text = re.sub(r'[a-zA-Z0-9_\-:\\*.]+\s*\{[^}]*\}', ' ', text)
+    lines = [l.strip() for l in text.split('\n')]
+    cleaned_lines = [l for l in lines if l]
+    return "\n".join(cleaned_lines)
+
+# ----------------------------------------------------------------------
 # Битрикс24 REST API Client
 # ----------------------------------------------------------------------
 def call_b24(method: str, payload: dict = None) -> any:
@@ -294,7 +324,29 @@ def find_b24_company(inn: str = None, title: str = None, origin_id: str = None, 
             if len(kw) >= 4 and kw.upper() not in stop_words and kw.lower() not in placeholders:
                 res_title = call_b24("crm.company.list", {"filter": {"%TITLE": kw}})
                 if res_title:
-                    return res_title[0]
+                    pattern = re.compile(r'\b' + re.escape(kw) + r'\b', re.IGNORECASE)
+                    is_ip_query = "ип" in clean_t.lower()
+                    for cand in res_title:
+                        cand_title = cand.get("TITLE") or ""
+                        # Исключаем ложные подстрочные совпадения (например, Михайлов внутри Михайлович)
+                        if not pattern.search(cand_title):
+                            continue
+                        
+                        # Если ищем ИП, проверяем соответствие фамилии и отсутствие чужого ИНН
+                        if is_ip_query:
+                            if "ип" not in cand_title.lower() and not re.search(r'\bип\b', cand_title.lower()):
+                                continue
+                            m_src = re.search(r'ип\s+([A-Za-zА-Яа-я\-]+)', clean_t, re.IGNORECASE)
+                            m_cand = re.search(r'ип\s+([A-Za-zА-Яа-я\-]+)', cand_title, re.IGNORECASE)
+                            if m_src and m_cand and m_src.group(1).lower() != m_cand.group(1).lower():
+                                continue
+                        
+                        # Если у кандидата уже указан ДРУГОЙ ИНН, это точно другая организация
+                        cand_inn = str(cand.get("UF_CRM_699421CD2A684") or "").strip()
+                        if inn and cand_inn and cand_inn != str(inn).strip():
+                            continue
+                            
+                        return cand
 
     if origin_id:
         res_origin = call_b24("crm.company.list", {"filter": {"ORIGIN_ID": origin_id}})
@@ -417,18 +469,29 @@ def is_technical_inquiry_file(filename: str) -> bool:
     чертежи, фото шильдиков/оборудования, описания и спецификации.
     Категорически отсеивать:
     1. Юридические, бухгалтерские и банковские документы РФ;
-    2. Служебную графику подписей почты (логотипы, иконки соцсетей, баннеры).
+    2. Служебную графику подписей почты (логотипы, иконки соцсетей, баннеры, системные картинки почтовиков).
     """
     fn = filename.lower().strip()
     if is_prohibited_china_supply_file(fn):
         return False
 
     base_name = os.path.splitext(fn)[0]
-    signature_artifacts = ["logo", "icon", "banner", "signature", "footer", "header", "facebook", "vk", "telegram", "whatsapp", "mail_ru", "yandex"]
+    ext = os.path.splitext(fn)[1]
+
+    # Черный список служебной графики почтовых клиентов (Mail.ru, Outlook, Yandex, etc.)
+    signature_artifacts = [
+        "logo", "icon", "banner", "signature", "footer", "header",
+        "facebook", "vk", "telegram", "whatsapp", "mail_ru", "yandex",
+        "mailru", "mailrusig", "sigimg", "clip_image", "att000", "att001"
+    ]
     if any(sa in base_name for sa in signature_artifacts):
         return False
 
-    ext = os.path.splitext(fn)[1]
+    # Системные инлайн-картинки почтовых программ вида image001, image001 (60), img_001
+    # которые на 100% являются иконками, смайлами или графикой оформления
+    if re.match(r'^(?:image\d+|img\d+|clip_image\d+)(?:\s*\(\d+\))?$', base_name):
+        return False
+
     allowed_exts = {
         # Чертежи и 3D-модели
         ".dwg", ".dxf", ".stp", ".step", ".igs", ".iges", ".cdw", ".frw", ".spw", ".m3d", ".a3d", ".sldprt", ".sldasm",
@@ -573,7 +636,107 @@ def extract_phone_and_signature_details(text: str) -> dict:
 
     return {"phone": phone, "post": post, "website": website}
 
-def extract_rfq_procurement_details(title: str, email_subject: str = "", email_desc: str = "") -> dict:
+def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand: str = "") -> list:
+    """
+    Универсальный парсер позиций заявки из текста письма или комментариев BitrixGPT
+    (Multi-Item RFQ Parser Guard):
+    Извлекает бренд, модель, количество и наименование для каждой строки.
+    """
+    items = []
+    category_map = {
+        "flow meter": "流量计", "расходомер": "流量计", "выключатель": "断路器",
+        "автоматический выключатель": "断路器", "рубильник": "隔离开关", "модуль": "模块",
+        "клапан": "阀门", "насос": "泵", "датчик": "传感器", "цилиндр": "气缸",
+        "подшипник": "轴承", "муфта": "联轴器", "преобразователь": "变频器",
+        "частотник": "变频器", "реле": "继电器"
+    }
+    clean_lines = [l.strip() for l in text.split('\n') if l.strip()]
+    idx = 1
+    for line in clean_lines:
+        m_qty = re.search(r'[-–—:]?\s*(\d+)\s*(?:шт(?:ук[иа]?)?|pcs|pc|ед|units?|台|个)\b', line, re.IGNORECASE)
+        if not m_qty:
+            continue
+        qty = int(m_qty.group(1))
+        raw_name = re.sub(r'^\s*[-*•\d]+[.)]?\s*', '', line)
+        raw_name = raw_name[:m_qty.start()].strip(' -–—:;,')
+        if len(raw_name) < 3:
+            continue
+        cn_cat = ""
+        for k, v in category_map.items():
+            if k in raw_name.lower():
+                cn_cat = v
+                break
+        brand = default_brand or ""
+        m_b = re.search(r'\b(ABB|Siemens|Schneider|Endress(?:\+Hauser)?|E\+H|Lenze|SMC|Festo|Omron|Danfoss|Yokogawa|WIKA|IFM|Sick|Parker|Rexroth|Eaton)\b', raw_name, re.IGNORECASE)
+        if m_b:
+            brand = m_b.group(1)
+        elif not brand:
+            m_first_w = re.search(r'\b([A-Za-z0-9\-+]{2,})\b', raw_name)
+            brand = m_first_w.group(1) if m_first_w else "OEM"
+        m_model = re.search(r'([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9\-_+./\s]{2,})', raw_name)
+        model = m_model.group(1).strip() if m_model else raw_name
+        for k in category_map.keys():
+            model = re.sub(r'(?i)\b' + re.escape(k) + r'\b', '', model).strip(' -–—:;,')
+        if not model:
+            model = raw_name
+        pname_cn = f"{cn_cat} {model}".strip() if cn_cat else raw_name
+        items.append({
+            "num": idx, "brand": brand, "pname_cn": pname_cn,
+            "model": model, "name_ru": raw_name, "qty": qty
+        })
+        idx += 1
+
+    # Если из строк письма не выделилось >= 2 позиций, проверяем сводку BitrixGPT
+    if len(items) < 2 and lead_comments:
+        # Изолируем только блок BitrixGPT, исключая скоринг СБИС и параметры выручки
+        gpt_only_text = re.sub(r'\[СБИС-СКОРИНГ\].*$', '', lead_comments, flags=re.DOTALL | re.IGNORECASE)
+        gpt_only_text = re.sub(r'[•\*\-]?\s*Выручка:.*?(?:\[p\]BitrixGPT|$)', '', gpt_only_text, flags=re.DOTALL | re.IGNORECASE)
+        # Ищем строго строку заказа / перечня позиций
+        m_order = re.search(r'(?:заказ|перечень позиций|запрос кп[^:]*):\s*([^\n\r]+)', gpt_only_text, flags=re.IGNORECASE)
+        target_text = m_order.group(1).strip() if m_order else ""
+        if target_text:
+            # Шаблон А: "3 шт. 5H3B04-AAINAAAFBRFDBS0BA1+AA, 2 шт. ..."
+            m_a = re.findall(r'(\d+)\s*(?:шт|pcs)\.?\s+([A-Za-z0-9\-_+]{2,}[A-Za-z0-9\-_+./]*)', target_text, re.IGNORECASE)
+            # Шаблон Б: "автоматический выключатель Tmax T6N630 (14 шт.), ..."
+            m_b = re.findall(r'([^,;]+?)\s*\((\d+)\s*шт\.?\)', target_text)
+
+            cand_matches = []
+            if len(m_a) >= 2:
+                for q_str, model_str in m_a:
+                    cand_matches.append((model_str.strip(), int(q_str)))
+            elif len(m_b) >= 2:
+                for raw_n, q_str in m_b:
+                    cand_matches.append((raw_n.strip(' .-\n'), int(q_str)))
+
+            if len(cand_matches) >= 2:
+                items = []
+                idx = 1
+                for raw_n, qty in cand_matches:
+                    cn_cat = ""
+                    for k, v in category_map.items():
+                        if k in raw_n.lower():
+                            cn_cat = v
+                            break
+                    brand = default_brand or ""
+                    m_b_brand = re.search(r'\b(ABB|Siemens|Schneider|Endress(?:\+Hauser)?|E\+H|Lenze|SMC|Festo|Omron|Danfoss|Yokogawa|WIKA|IFM|Sick|Parker|Rexroth|Eaton)\b', raw_n, re.IGNORECASE)
+                    if m_b_brand:
+                        brand = m_b_brand.group(1)
+                    elif not brand:
+                        m_first_w = re.search(r'\b([A-Za-z0-9\-+]{2,})\b', raw_n)
+                        brand = m_first_w.group(1) if m_first_w else "OEM"
+                    m_model = re.search(r'([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9\-_+./\s]{2,})', raw_n)
+                    model = m_model.group(1).strip() if m_model else raw_n
+                    for k in category_map.keys():
+                        model = re.sub(r'(?i)\b' + re.escape(k) + r'\b', '', model).strip(' -–—:;,')
+                    pname_cn = f"{cn_cat} {model}".strip() if cn_cat else raw_n
+                    items.append({
+                        "num": idx, "brand": brand, "pname_cn": pname_cn,
+                        "model": model, "name_ru": raw_n, "qty": qty
+                    })
+                    idx += 1
+    return items
+
+def extract_rfq_procurement_details(title: str, email_subject: str = "", email_desc: str = "", lead_comments: str = "") -> dict:
     """
     Извлекает подробные параметры ТЗ на закупку для Китая:
     - Бренд
@@ -582,36 +745,43 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     - Количество (шт. / units / 台)
     - Допустимость аналогов (True/False)
     - Очищенный оригинальный текст запроса клиента
+    - Список распарсенных позиций (items)
     """
-    clean_text = re.sub(r'<[^>]+>', ' ', email_desc or "")
-    clean_text = unescape(clean_text)
-    clean_text = " ".join(clean_text.split())
+    clean_lines_text = sanitize_html_email_text(email_desc or "")
+    clean_text = " ".join(clean_lines_text.split())
 
     # 1. Извлечение оригинального текста запроса клиента (до подписи)
-    sig_split = re.split(r'(?:--|\bс уважением\b|\bbest regards\b|\bregards\b|\bданное сообщение предназначено\b)', clean_text, flags=re.IGNORECASE)
-    clean_inquiry = sig_split[0].strip() if sig_split else clean_text[:600]
+    sig_split = re.split(r'(?:--|\bс уважением\b|\bbest regards\b|\bregards\b|\bданное сообщение предназначено\b|\bс уважением к вам\b)', clean_lines_text, flags=re.IGNORECASE)
+    clean_inquiry = sig_split[0].strip() if sig_split else clean_lines_text[:600]
     if len(clean_inquiry) < 20:
-        clean_inquiry = clean_text[:600] or email_subject or title
+        clean_inquiry = clean_lines_text[:600] or email_subject or title
 
     # 2. Допустимость аналога
     combined = f"{title} {email_subject} {clean_text}".lower()
     eq_markers = ["аналог", "либо аналог", "или аналог", "замен", "equivalent", "or equivalent", "alternat", "同等替代"]
     equivalents_allowed = any(m in combined for m in eq_markers)
 
-    # 3. Количество
-    qty_matches = re.findall(r'(\d+)\s*(?:шт(?:ук[иа]?)?|ед(?:иниц[ыа]?)?|unit|units|pcs|pc|компл(?:ект[а-я]*)?|set|sets|台|个|件)', combined)
-    if qty_matches:
-        quantity_str = f"{qty_matches[0]} шт. ({qty_matches[0]} unit / {qty_matches[0]}台)"
-    else:
-        quantity_str = "1 шт. / 1台 (1 unit)"
-
-    # 4. Перевод номенклатуры на китайский
+    # 3. Перевод номенклатуры на китайский
     cn_nomenclature = translate_nomenclature_to_chinese(title, email_subject, email_desc)
 
-    # 5. Бренд и модель
+    # 4. Бренд и модель
     parts = cn_nomenclature.split()
     brand = parts[0] if parts else "Не указан"
     model = " ".join(parts[2:]) if len(parts) >= 3 else (" ".join(parts[1:]) if len(parts) >= 2 else "")
+
+    # 5. Парсинг позиций заявки
+    items = parse_rfq_items_from_text(clean_lines_text, lead_comments=lead_comments, default_brand=brand)
+
+    # 6. Количество
+    if len(items) >= 2:
+        tot_qty = sum(it.get('qty', 1) for it in items)
+        quantity_str = f"{tot_qty} шт. ({len(items)} позиции / {len(items)}项)"
+    else:
+        qty_matches = re.findall(r'(\d+)\s*(?:шт(?:ук[иа]?)?|ед(?:иниц[ыа]?)?|unit|units|pcs|pc|компл(?:ект[а-я]*)?|set|sets|台|个|件)', combined)
+        if qty_matches:
+            quantity_str = f"{qty_matches[0]} шт. ({qty_matches[0]} unit / {qty_matches[0]}台)"
+        else:
+            quantity_str = "1 шт. / 1台 (1 unit)"
 
     return {
         "cn_nomenclature": cn_nomenclature,
@@ -619,7 +789,8 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
         "model": model,
         "quantity": quantity_str,
         "equivalents_allowed": equivalents_allowed,
-        "clean_inquiry": clean_inquiry
+        "clean_inquiry": clean_inquiry,
+        "items": items
     }
 
 def is_etp_or_tender_request(text="", source_name=""):
@@ -1132,6 +1303,15 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     # Извлечение активностей лида (дел-писем)
     acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id}}) or []
+    if not acts:
+        # Если лид уже сконвертирован или привязан к Сделке, ищем активности по связанной Сделке или Контакту
+        deal_id_cand = lead.get("DEAL_ID") or lead.get("UF_CRM_DEAL_ID")
+        if deal_id_cand:
+            acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": deal_id_cand}}) or []
+        if not acts:
+            contact_id_cand = lead.get("CONTACT_ID")
+            if contact_id_cand:
+                acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 3, "OWNER_ID": contact_id_cand}}) or []
     email_acts = [a for a in acts if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4"]
     main_email_act = email_acts[0] if email_acts else (acts[0] if acts else {})
 
@@ -1149,10 +1329,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         print(f"  [SIGNATURE-PARSER] Из подписи извлечена должность: {contact_post}")
 
     # Если наименование компании в лиде отсутствует или содержит заглушку, извлекаем из темы или текста
-    # Если наименование компании в лиде отсутствует или содержит заглушку, извлекаем из темы или текста
     placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы', 'ооо', 'ао', 'зао', 'пао', 'ип', 'нпо', 'нпп', 'тпк', 'гк', 'мтк'}
-    clean_desc_text = unescape(re.sub(r'<[^>]+>', ' ', email_desc or ''))
-    clean_comments_text = unescape(lead_comments or '')
+    clean_desc_text = sanitize_html_email_text(email_desc or '')
+    clean_comments_text = sanitize_html_email_text(lead_comments or '')
     full_search_text = f"{lead_title} {clean_desc_text} {clean_comments_text}"
 
     if not raw_company_title or raw_company_title.strip().lower() in placeholders:
@@ -1362,7 +1541,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         rfq_reason = f"Сработал Reseller, Bulk Multi-Item & Ghost RFQ Guard ({', '.join(trigger_reasons)}) -> блокировка снабжения, ручной контроль менеджера"
 
     # Принудительные пользовательские исключения (User Override Guard)
-    USER_APPROVED_RFQ_LEADS = {17838}
+    USER_APPROVED_RFQ_LEADS = {17838, 18188}
     if int(lead_id) in USER_APPROVED_RFQ_LEADS:
         is_rfq = True
         rfq_reason = "Принудительный допуск в Clear RFQ по прямому указанию пользователя (создание Сделки и Задачи снабжению)"
@@ -1470,15 +1649,27 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     from generate_supply_rfq_excel import generate_rfq_excel, KNOWN_SPECIFICATIONS
     clean_co_lower = company_title.lower()
     has_known_spec = any(k in clean_co_lower for k in KNOWN_SPECIFICATIONS)
-    is_multi_item_rfq = has_known_spec or (gpt_items_count >= 2) or (len(re.findall(r'(?:^|\n)\s*[-*•\d]+[.)]?\s*[A-Za-zА-Яа-я]', email_desc)) >= 2)
 
-    # Извлечение параметров ТЗ
-    rfq_details = extract_rfq_procurement_details(lead_title, email_subject, email_desc)
+    # Извлечение параметров ТЗ и позиций
+    rfq_details = extract_rfq_procurement_details(lead_title, email_subject, email_desc, lead_comments=lead_comments)
+    rfq_items = rfq_details.get("items", [])
+
+    is_multi_item_rfq = has_known_spec or (len(rfq_items) >= 2) or (gpt_items_count >= 2) or (len(re.findall(r'(?:^|\n)\s*[-*•\d]+[.)]?\s*[A-Za-zА-Яа-я]', email_desc)) >= 2) or (len(re.findall(r'\b\d+\s*(?:шт|pcs|компл)\b', email_desc, re.I)) >= 2)
+
     if has_known_spec:
         spec_key = next(k for k in KNOWN_SPECIFICATIONS if k in clean_co_lower)
         spec_items = KNOWN_SPECIFICATIONS[spec_key]
+        rfq_items = spec_items
         item_labels = []
         for it in spec_items:
+            b = it.get("brand", "")
+            p_cn = it.get("pname_cn", "")
+            label = f"{b} {p_cn}".strip() if b and b not in p_cn else p_cn.strip()
+            item_labels.append(label)
+        cn_nomenclature = ", ".join(item_labels)
+    elif rfq_items and len(rfq_items) >= 2:
+        item_labels = []
+        for it in rfq_items:
             b = it.get("brand", "")
             p_cn = it.get("pname_cn", "")
             label = f"{b} {p_cn}".strip() if b and b not in p_cn else p_cn.strip()
@@ -1502,7 +1693,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     excel_disk_id = None
     if is_multi_item_rfq and dry_run:
         try:
-            generate_rfq_excel(company_title, item_subject=cn_nomenclature, dry_run=True)
+            generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=rfq_items, dry_run=True)
         except Exception as e:
             print(f"  [WARN] Ошибка dry-run проверки Excel: {e}")
 
@@ -1540,7 +1731,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     # Генерация и загрузка Excel-спецификации по мастер-шаблону (Multi-Item RFQ Excel Specification Guard)
     if is_multi_item_rfq:
         try:
-            excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, dry_run=False)
+            excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=rfq_items, dry_run=False)
             if excel_path and os.path.exists(excel_path):
                 excel_disk_id = upload_file_to_b24_disk(excel_path, FOLDER_CHINA_SUPPLY_DISK)
                 if excel_disk_id:
@@ -1793,7 +1984,7 @@ def repair_previously_processed_lead(lead_id: int, dry_run: bool = False):
     extracted_website = sig_info.get("website", "")
 
     # Извлечение параметров ТЗ
-    rfq = extract_rfq_procurement_details(lead_title, email_subject, email_desc)
+    rfq = extract_rfq_procurement_details(lead_title, email_subject, email_desc, lead_comments=lead_comments)
     cn_nomenclature = rfq.get("cn_nomenclature", "")
     brand = rfq.get("brand", "")
     model = rfq.get("model", "")

@@ -249,8 +249,10 @@ KNOWN_SPECIFICATIONS = {
 
 def build_default_item(item_subject: str, company_name: str) -> dict:
     """Генерирует базовую позицию, если нет детализированной спецификации."""
-    brand_match = re.search(r'\b([A-Za-z0-9\-]+)\b', item_subject)
+    brand_match = re.search(r'\b([A-Za-z0-9\-+]+)\b', item_subject)
     brand = brand_match.group(1) if brand_match else "OEM / Китай"
+    if brand.upper() == "E+H":
+        brand = "Endress+Hauser (E+H)"
     
     clean_subj = item_subject.strip()
     return {

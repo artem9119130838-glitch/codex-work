@@ -18,16 +18,8 @@ from app.services.cooldown_guard import CooldownGuard
 from app.services.email_composer import (
     extract_first_name, resolve_client_name, get_emails_text_for_contact, get_emails_text_for_company,
     load_articles, find_best_article, get_last_incoming_email_details, save_draft_to_imap,
-    get_next_style_for_client, clean_company_name, format_b2b_subject
+    get_next_style_for_client, clean_company_name, format_b2b_subject, get_existing_draft_recipients
 )
-
-EMAIL_STYLES = {
-    "vasin@tbs-semi.ru": "технический",
-    "sakrupenko@s1.rosneft.ru": "деловой",
-    "n.i.khliustina@sozvezdie.su": "дружелюбный",
-    "tahautdinov@aksolit.com": "деловой",
-    "info@almaz-snab.ru": "дружелюбный"
-}
 
 # Funnel steps configuration (Step number -> Cooldown in days before next step)
 FUNNEL_STEPS = {
@@ -228,7 +220,10 @@ def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner
         logger.warning(f"Ошибка проверки Intent Gate для {clean_email}: {e_intent}")
 
     # 3. Проверка открытых сделок, лидов и недавних касаний (активностей) в CRM Битрикс24
-    raw_b24 = getattr(settings, "BITRIX24_WEBHOOK_URL", None) or os.getenv("BITRIX24_WEBHOOK_URL", "")
+    import dotenv
+    dotenv.load_dotenv("/app/.env")
+    dotenv.load_dotenv()
+    raw_b24 = getattr(settings, "BITRIX24_WEBHOOK_URL", None) or os.getenv("BITRIX24_WEBHOOK_URL", "") or os.getenv("B24_WEBHOOK", "") or getattr(settings, "B24_WEBHOOK", "")
     b24_webhook = raw_b24.rstrip("/") + "/" if raw_b24 else ""
     if b24_webhook and b24_webhook != "/":
         try:
@@ -323,7 +318,7 @@ def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner
 
     return True, "OK", intent_info
 
-def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, owner_ref_key, style, client_name, is_buyer, company_name, best_art, force_provider=None):
+def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, owner_ref_key, style, client_name, is_buyer, company_name, best_art, force_provider=None, dry_run=False):
     """
     Helper to generate a draft for a specific step of the funnel and save it.
     """
@@ -459,7 +454,11 @@ def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, own
     clean_subj, quote_text, orig_msg_id = get_last_incoming_email_details(db, contact_1c.contact_ref_key, email)
     skus_text = str(contact_summary_dict.get("skus_and_amounts") or "")
     subject = format_b2b_subject(clean_subj, llm_subj, company_name, client_name, skus_text)
-    
+
+    if dry_run:
+        logger.info(f"[DRY-RUN] Сгенерирован черновик для {email} (Шаг {step_num}): Тема='{subject}', Длина цитаты={len(quote_text) if quote_text else 0} симв., In-Reply-To={orig_msg_id or 'None'}. Сохранение в IMAP и запись в БД пропущены.")
+        return True
+
     # Save draft to IMAP with RFC threading headers
     saved_to_imap = save_draft_to_imap(subject, body_with_signature, email, quote_text=quote_text, in_reply_to=orig_msg_id)
     if saved_to_imap:
@@ -482,7 +481,7 @@ def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, own
         return False
 
 
-def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days: int = 60, inactivity_months: int = 3, cold_limit: int = 3, max_daily_drafts: int = 6):
+def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days: int = 60, inactivity_months: int = 3, cold_limit: int = 3, max_daily_drafts: int = 6, dry_run: bool = False):
     """
     Ежедневный процесс реанимации клиентов:
     1. Ведение активных воронок по шагам 2-6 (с проверкой отправок и ответов, лимит active_limit).
@@ -501,28 +500,35 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
         logger.info(f"Starting daily reactivation pipeline (max_daily_drafts={max_daily_drafts}, active_limit={active_limit}, new_limit={limit}, cold_limit={cold_limit}, cooldown={cooldown_days}d, inactivity={inactivity_months}m)...")
         
         articles = load_articles()
-        
+        existing_draft_emails = get_existing_draft_recipients()
+        logger.info(f"Обнаружено черновиков в папке Drafts на IMAP: {len(existing_draft_emails)}")
+
         # =====================================================================
         # ЧАСТЬ 1: ОБРАБОТКА АКТИВНЫХ ВОРОНОК (ШАГИ 2-6)
         # =====================================================================
         active_funnels = db.query(ReactivationFunnelState).filter(
             ReactivationFunnelState.step_status.in_(["draft_created", "sent"])
         ).all()
-        
+
         logger.info(f"Активных воронок в процессе: {len(active_funnels)}")
-        
+
         for fs in active_funnels:
             if drafts_created_today >= active_limit or drafts_created_today >= max_daily_drafts:
                 logger.info(f"Достигнут лимит черновиков для активных воронок ({active_limit}/{max_daily_drafts}). Переход к новым клиентам 1С.")
                 break
 
             email = fs.client_email
-            
+
+            # SENT GUARD: Если черновик все еще лежит в папке Drafts, менеджер его не отправил
+            if email.lower() in existing_draft_emails:
+                logger.info(f"[SENT GUARD] Черновик для {email} (Шаг {fs.current_step}) все еще находится в папке Drafts. Генерация следующего шага заблокирована.")
+                continue
+
             # Поиск контакта в 1С
             contact_1c = db.query(OnecContact).filter(text(":email = ANY(emails)")).params(email=email).first()
             if not contact_1c:
                 continue
-                
+
             # Проверка HRGuard
             is_hr, hr_reason = HRGuard.is_job_seeker(email=email, contact_name=contact_1c.contact_name)
             if is_hr:
@@ -538,39 +544,44 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
             company_name = owner_1c.owner_name if owner_1c else "Неизвестная компания"
             client_name = extract_first_name(contact_1c.contact_name)
             style = get_next_style_for_client(db, email)
-            
-            # Шаг A: Проверка отправки черновика менеджером
+
+            # Шаг A: Проверка отправки черновика менеджером (если черновика уже нет в Drafts)
             if fs.step_status == "draft_created":
-                out_msg = db.query(EmailMessage).filter(
-                    EmailMessage.from_email == email,
+                cutoff_dt = (fs.updated_at - datetime.timedelta(hours=2)) if fs.updated_at else datetime.datetime.min
+                sent_msg = db.query(EmailMessage).filter(
+                    EmailMessage.raw_payload.op('->>')('to').like(f"%{email}%"),
                     EmailMessage.raw_payload.op('->>')('is_sent') == 'true',
-                    EmailMessage.received_at >= fs.updated_at - datetime.timedelta(minutes=5)
+                    EmailMessage.received_at >= cutoff_dt
                 ).order_by(EmailMessage.received_at.desc()).first()
-                
-                if not out_msg:
+
+                raw_sent_date = None
+                if sent_msg:
+                    raw_sent_date = sent_msg.received_at
+                else:
                     raw_out = db.execute(text("""
                         SELECT MAX(m.received_at)
                         FROM email_messages m
                         JOIN email_match_results r ON m.message_id = r.message_id
                         WHERE (r.contact_ref_key = :ref_key OR r.owner_ref_key = :owner_key)
                           AND m.raw_payload->>'is_sent' = 'true'
-                          AND m.received_at >= :updated_at - INTERVAL '5 minutes'
+                          AND m.received_at >= :cutoff_dt
                     """), {
                         "ref_key": contact_1c.contact_ref_key,
                         "owner_key": owner_ref_key,
-                        "updated_at": fs.updated_at
+                        "cutoff_dt": cutoff_dt
                     }).scalar()
                     if raw_out:
-                        fs.step_status = "sent"
-                        fs.last_action_at = raw_out
-                        db.commit()
-                        logger.info(f"Detected sent email to {email} for Step {fs.current_step}. Transitioning status to 'sent'.")
-                else:
+                        raw_sent_date = raw_out
+
+                if raw_sent_date:
                     fs.step_status = "sent"
-                    fs.last_action_at = out_msg.received_at
+                    fs.last_action_at = raw_sent_date
                     db.commit()
-                    logger.info(f"Detected sent email to {email} for Step {fs.current_step}. Transitioning status to 'sent'.")
-                    
+                    logger.info(f"[SENT GUARD] Подтверждена отправка письма для {email} (Шаг {fs.current_step}) от {raw_sent_date.strftime('%Y-%m-%d %H:%M')}. Перевод в 'sent'.")
+                else:
+                    logger.warning(f"[SENT GUARD] Черновик для {email} не найден в Drafts, но и в Sent отправленного письма нет. Пропуск перехода.")
+                    continue
+
             # Шаг B: Проверка ответа клиента (входящее письмо в IMAP)
             if fs.step_status == "sent":
                 in_msg = db.query(EmailMessage).filter(
@@ -581,20 +592,26 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
                     ),
                     EmailMessage.received_at > fs.last_action_at
                 ).first()
-                
+
                 if in_msg:
                     fs.step_status = "replied"
                     fs.updated_at = datetime.datetime.utcnow()
                     db.commit()
                     logger.info(f"Detected incoming reply from {email}. Funnel stopped with status 'replied'.")
                     continue
-                    
+
                 # Шаг C: Проверка истечения кулдауна до следующего шага
+                if not fs.last_action_at:
+                    logger.warning(f"[COOLDOWN] Отсутствует дата last_action_at для {email}. Пропуск.")
+                    continue
+
                 last_action_naive = fs.last_action_at.replace(tzinfo=None) if fs.last_action_at.tzinfo else fs.last_action_at
                 days_passed = (now - last_action_naive).days
-                cooldown_needed = FUNNEL_STEPS.get(fs.current_step, 2)
-                
-                if days_passed >= cooldown_needed:
+                cooldown_needed = FUNNEL_STEPS.get(fs.current_step, 21)
+
+                if days_passed < cooldown_needed:
+                    logger.info(f"[COOLDOWN] Для {email} прошло {days_passed} дн. из {cooldown_needed} дн. (Шаг {fs.current_step}). Следующий шаг пока заблокирован.")
+                    continue
                     if fs.current_step >= 6:
                         fs.step_status = "completed"
                         fs.updated_at = datetime.datetime.utcnow()
@@ -631,14 +648,16 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
                             db=db, email=email, step_num=next_step, cand=None,
                             contact_1c=contact_1c, owner_ref_key=owner_ref_key,
                             style=style, client_name=client_name, is_buyer=is_buyer,
-                            company_name=company_name, best_art=best_art
+                            company_name=company_name, best_art=best_art,
+                            dry_run=dry_run
                         )
                         if success:
                             drafts_created_today += 1
-                            fs.current_step = next_step
-                            fs.step_status = "draft_created"
-                            fs.updated_at = datetime.datetime.utcnow()
-                            db.commit()
+                            if not dry_run:
+                                fs.current_step = next_step
+                                fs.step_status = "draft_created"
+                                fs.updated_at = datetime.datetime.utcnow()
+                                db.commit()
                             time.sleep(5.0)
 
         # =====================================================================
@@ -828,6 +847,10 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
 
             cand = item["cand"]
             email = cand.email
+            if email.lower() in existing_draft_emails:
+                logger.info(f"[DRAFT GUARD] Для кандидата {email} уже создан черновик в папке Drafts. Пропуск.")
+                continue
+
             contact_1c = item["contact_1c"]
             owner_ref_key = item["owner_ref_key"]
             
@@ -845,30 +868,32 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
                 db=db, email=email, step_num=1, cand=cand,
                 contact_1c=contact_1c, owner_ref_key=owner_ref_key,
                 style=style, client_name=client_name, is_buyer=is_buyer,
-                company_name=company_name, best_art=best_art
+                company_name=company_name, best_art=best_art,
+                dry_run=dry_run
             )
-            
+
             if success:
                 drafts_created_today += 1
-                fs = db.query(ReactivationFunnelState).filter(ReactivationFunnelState.client_email == email).first()
-                if fs:
-                    fs.current_step = 1
-                    fs.step_status = "draft_created"
-                    fs.last_action_at = None
-                    fs.updated_at = datetime.datetime.utcnow()
-                else:
-                    fs = ReactivationFunnelState(
-                        client_email=email,
-                        current_step=1,
-                        step_status="draft_created",
-                        last_action_at=None
-                    )
-                    db.add(fs)
-                db.commit()
+                if not dry_run:
+                    fs = db.query(ReactivationFunnelState).filter(ReactivationFunnelState.client_email == email).first()
+                    if fs:
+                        fs.current_step = 1
+                        fs.step_status = "draft_created"
+                        fs.last_action_at = None
+                        fs.updated_at = datetime.datetime.utcnow()
+                    else:
+                        fs = ReactivationFunnelState(
+                            client_email=email,
+                            current_step=1,
+                            step_status="draft_created",
+                            last_action_at=None
+                        )
+                        db.add(fs)
+                    db.commit()
                 time.sleep(5.0)
 
         logger.info(f"Обработка ежедневной реанимации успешно завершена. Создано черновиков сегодня: {drafts_created_today} (лимит: {max_daily_drafts}).")
-        
+
     except Exception as e:
         logger.error(f"Error running daily reactivation pipeline: {e}")
         db.rollback()
@@ -884,6 +909,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-daily-drafts", type=int, default=6, help="Максимальное суммарное число создаваемых черновиков за день (по умолчанию: 6)")
     parser.add_argument("--cooldown", type=int, default=60, help="Период в днях (кулдаун) после завершения воронки (по умолчанию: 60 дней / 2 мес)")
     parser.add_argument("--inactivity", type=int, default=3, help="Период неактивности клиента в месяцах (по умолчанию: 3 мес / 90 дней)")
+    parser.add_argument("--dry-run", action="store_true", help="Режим симуляции (Dry-Run) без сохранения в IMAP и без изменения БД")
     args = parser.parse_args()
     try:
         os.makedirs("logs", exist_ok=True)
@@ -897,5 +923,6 @@ if __name__ == "__main__":
         cooldown_days=args.cooldown,
         inactivity_months=args.inactivity,
         cold_limit=args.cold_limit,
-        max_daily_drafts=args.max_daily_drafts
+        max_daily_drafts=args.max_daily_drafts,
+        dry_run=args.dry_run
     )

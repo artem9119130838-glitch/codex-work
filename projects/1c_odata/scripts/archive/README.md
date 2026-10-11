@@ -37,6 +37,9 @@
 | `2026-10-08_generate_supply_rfq_excel_v1_1.py` | 08.10.2026 | `generate_supply_rfq_excel.py` | **Снимок v1.1 перед расширением KNOWN_SPECIFICATIONS спецификацией НПО Гидросистемы на 12 позиций**: базовый генератор RFQ Excel с поддержкой мастер-шаблона и fallback-книги. |
 | `2026-10-08_sync_leads_1c_bitrix_v5_before_mxl_sync.py` | 08.10.2026 | `sync_leads_1c_bitrix.py` | **Снимок v5.0 перед интеграцией синхронизации из файлов 1С .mxl**: чистая синхронизация лидов, Tag Integrity Guard, Bounce & Unsubscribe Guard, СБИС/DaData скоринг. |
 | `2026-10-08_sync_leads_1c_bitrix_v6_before_mxl_live_execution.py` | 08.10.2026 | `sync_leads_1c_bitrix.py` | **Снимок v6.0 перед внедрением боевого исполнения синхронизации MXL**: интеграция создания/обогащения компаний, контактов, лидов в Б24, создания лидов 1С и линковки Document_Событие. |
+| `2026-10-10_process_b24_inbound_leads_v11_before_company_lookup_boundary_and_user_override.py` | 10.10.2026 | `process_b24_inbound_leads.py` | **Снимок v11.0 перед исправлением границ слов в каскадном поиске компаний и принудительным допуском Лида #18188**: ложное связывание ИП по подстроке отчества в `%TITLE`, добавление флага/списка принудительного допуска в Сделки. |
+| `2026-10-10_generate_supply_rfq_excel_v1_2_before_brand_plus_regex.py` | 10.10.2026 | `generate_supply_rfq_excel.py` | **Снимок v1.2 перед исправлением regex распознавания брендов со знаками плюс**: обрезка брендов вида `E+H` до `E` в `build_default_item`. |
+| `2026-10-10_process_b24_inbound_leads_v12_before_signature_graphics_and_html_sanitizer.py` | 10.10.2026 | `process_b24_inbound_leads.py` | **Снимок v12.0 перед санитизацией HTML от CSS/VML, блокировкой служебной графики Mail.ru/Outlook и универсальным парсером Multi-Item RFQ**: утечка стилей Word/Outlook в текст ТЗ, ошибочное прикрепление служебных логотипов подписи вместо чертежей, пропуск генерации Excel при сплошном тексте. |
 
 ---
 

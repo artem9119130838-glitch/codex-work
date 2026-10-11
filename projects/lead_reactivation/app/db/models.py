@@ -180,3 +180,22 @@ class ReactivationFunnelState(Base):
     last_action_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.utcnow())
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.utcnow(), onupdate=lambda: datetime.datetime.utcnow())
+
+
+class LLMUsageLog(Base):
+    __tablename__ = 'llm_usage_logs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_name = Column(String(50), nullable=False)
+    provider = Column(String(50), nullable=False)
+    api_key_mask = Column(String(50), nullable=False)
+    model_name = Column(String(100), nullable=False)
+    request_type = Column(String(50), nullable=False)
+    prompt_tokens = Column(Integer)
+    completion_tokens = Column(Integer)
+    total_tokens = Column(Integer)
+    estimated_cost = Column(Numeric(10, 6), default=0)
+    cost_usd = Column(Numeric(10, 6), default=0)
+    status = Column(String(20), nullable=False)
+    error_message = Column(Text)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.utcnow())

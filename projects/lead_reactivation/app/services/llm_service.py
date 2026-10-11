@@ -262,11 +262,10 @@ class LLMService:
             
             db = SessionLocal()
             try:
-                # Estimate cost in USD
+                # Estimate cost in USD (DeepSeek-V3 official pricing: $0.14 / 1M prompt, $0.28 / 1M completion)
                 estimated_cost = 0.0
                 if provider == "deepseek":
-                    # Input: $0.27 / 1M tokens, Output: $1.10 / 1M tokens
-                    estimated_cost = (prompt_tokens * 0.27 / 1000000.0) + (completion_tokens * 1.10 / 1000000.0)
+                    estimated_cost = (prompt_tokens * 0.14 / 1000000.0) + (completion_tokens * 0.28 / 1000000.0)
                 
                 log_entry = LLMUsageLog(
                     project_name=project_name,
@@ -278,6 +277,7 @@ class LLMService:
                     completion_tokens=completion_tokens,
                     total_tokens=total_tokens,
                     estimated_cost=estimated_cost,
+                    cost_usd=estimated_cost,
                     status=status,
                     error_message=error_message
                 )
@@ -447,6 +447,13 @@ class LLMService:
                         except:
                             pass
                             
+                    # PROTECTION 1: Do not spend paid DeepSeek on background batch email summarization
+                    if request_type in ("contact_summary", "company_summary", "junk_classification"):
+                        logger.info(f"Skipping DeepSeek fallback for background task '{request_type}'. Waiting for free Gemini quota reset.")
+                        active_pos += 1
+                        attempt += 1
+                        continue
+
                     try:
                         if os.path.exists(usage_file):
                             with open(usage_file, "r") as uf:
@@ -457,13 +464,13 @@ class LLMService:
                         usage_data = {}
                         
                     current_count = usage_data.get(today_str, 0)
-                    if current_count >= 500:
-                        logger.warning(f"DeepSeek daily draft limit of 500 reached today ({today_str}). Skipping DeepSeek provider.")
+                    if current_count >= 50:
+                        logger.warning(f"DeepSeek daily safety budget limit of 50 reached today ({today_str}). Skipping DeepSeek provider.")
                         active_pos += 1
                         attempt += 1
                         continue
                         
-                    logger.info(f"Calling DeepSeek API (index: {current_idx}, model: deepseek-chat, daily_count: {current_count}/500)...")
+                    logger.info(f"Calling DeepSeek API (index: {current_idx}, model: deepseek-chat, daily_count: {current_count}/50)...")
                     response_format = {"type": "json_object"} if mime_type == "application/json" else None
                     system_prompt = "You are a professional B2B assistant. Respond in JSON format matching the requested schema."
                     if mime_type == "application/json" and schema:

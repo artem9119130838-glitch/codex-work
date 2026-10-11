@@ -55,6 +55,18 @@ PUBLIC_EMAIL_DOMAINS = {
     "gmail.com", "rambler.ru", "internet.ru", "ro.ru"
 }
 
+BOUNCE_MARKERS = [
+    "undelivered mail", "delivery status notification", "failure notice",
+    "mail delivery failed", "mailer-daemon", "returned to sender",
+    "postmaster", "message not delivered", "550 ", "554 ", "адрес не существует",
+    "не доставлено", "не удалось доставить"
+]
+
+AUTOREPLY_MARKERS = [
+    "автоматический ответ", "автоответ", "out of office", "автоматическое уведомление",
+    "в отпуске", "absence notice", "auto-reply", "autoreply", "автоматическое сообщение"
+]
+
 def extract_first_name(full_name: str) -> str:
     if not full_name:
         return ""
@@ -145,18 +157,22 @@ def clean_company_name(raw_name: str) -> str:
     name = str(raw_name).strip()
     if any(p in name.lower() for p in ["неизвестная", "частное лицо", "не указано", "без названия", "физическое лицо"]):
         return ""
-    
+
+    # 1. Отсекаем ФИО физлица, если оно приписано перед названием юрлица в 1С
+    # Пример: 'Замана Николай Владимирович АО "Фармасинтез-Норд"' -> 'АО "Фармасинтез-Норд"'
+    name = re.sub(r'^[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)?\s+(?=(?:ООО|АО|ПАО|ЗАО|ИП|НПО|ПКФ|OOO)\b)', '', name, flags=re.IGNORECASE).strip()
+
     name = re.sub(r'["«»“”]', '', name).strip()
     legal_forms = ["ООО", "АО", "ПАО", "ЗАО", "ИП", "НПО", "ПКФ", "OOO"]
     found_form = None
-    
+
     for form in legal_forms:
         m_end = re.search(rf'[,.\s/\\-]+{form}$', name, re.IGNORECASE)
         if m_end:
             found_form = "ООО" if form.upper() in ["ООО", "OOO"] else form.upper()
             name = name[:m_end.start()].strip()
             break
-            
+
     if not found_form:
         for form in legal_forms:
             m_start = re.search(rf'^{form}[,.\s/\\-]+', name, re.IGNORECASE)
@@ -174,7 +190,7 @@ def clean_company_name(raw_name: str) -> str:
         clean_core = clean_core.title()
     elif clean_core.lower() in known_acronyms:
         clean_core = clean_core.upper()
-        
+
     if found_form:
         if found_form == "ИП":
             return f"ИП {clean_core}"
@@ -189,22 +205,34 @@ def format_b2b_subject(clean_subj: str, llm_subj: str, company_name: str, client
         "поставки промышленного оборудования", "импорт из китая", "сотрудничес",
         "первая неделя", "запрос оборудования", "прибытие груза", "зарплата",
         "коммерческое предложение", "кп по запросу", "новое сообщение", "без темы",
-        "поставки оборудования", "запчасти из кнр"
+        "поставки оборудования", "запчасти из кнр", "undelivered mail", "returned to sender",
+        "delivery status", "автоматический ответ", "out of office", "автоответ"
     ]
-    
+
     selected_subj = ""
     if clean_subj:
-        s_clean = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]):\s*)+', '', clean_subj, flags=re.IGNORECASE).strip()
+        # 1. Снимаем все префиксы Re:, Fwd:, Автоматический ответ и т.д.
+        s_clean = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]|Автоматический ответ|Auto-reply|Out of office):\s*)+', '', clean_subj, flags=re.IGNORECASE).strip()
+        # 2. Вырезаем внутренние повторы Re: / RE:
+        s_clean = re.sub(r'\b(?:Re|RE|Fwd):\s*', '', s_clean, flags=re.IGNORECASE).strip()
+        # 3. Разделяем склеенные буквы (моторныйSACE -> моторный SACE, связьпо -> связь по)
+        s_clean = re.sub(r'([а-яё])([A-Z])', r'\1 \2', s_clean)
+        s_clean = re.sub(r'([a-z])([А-ЯЁ])', r'\1 \2', s_clean)
+        s_clean = re.sub(r'(?i)\bсвязьпо\b', 'связь по', s_clean)
+
         is_boring = any(m in s_clean.lower() for m in boring_markers) or len(s_clean) < 4
         if not is_boring:
             selected_subj = s_clean
 
     if not selected_subj and llm_subj:
-        l_clean = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]):\s*)+', '', llm_subj, flags=re.IGNORECASE).strip()
+        l_clean = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]|Автоматический ответ|Auto-reply|Out of office):\s*)+', '', llm_subj, flags=re.IGNORECASE).strip()
+        l_clean = re.sub(r'\b(?:Re|RE|Fwd):\s*', '', l_clean, flags=re.IGNORECASE).strip()
+        l_clean = re.sub(r'([а-яё])([A-Z])', r'\1 \2', l_clean)
+        l_clean = re.sub(r'([a-z])([А-ЯЁ])', r'\1 \2', l_clean)
         is_llm_boring = any(m in l_clean.lower() for m in boring_markers)
         if not is_llm_boring:
             selected_subj = l_clean
-        
+
     if not selected_subj:
         if skus_text and len(skus_text) > 3 and not any(m in skus_text.lower() for m in boring_markers):
             first_sku = skus_text.split('\n')[0].split(',')[0].strip()[:40]
@@ -214,13 +242,19 @@ def format_b2b_subject(clean_subj: str, llm_subj: str, company_name: str, client
 
     selected_subj = re.sub(r'[,.\s]+(?:ООО|АО|ПАО|ЗАО|ИП|НПО|ПКФ)\s*$', '', selected_subj, flags=re.IGNORECASE)
     selected_subj = re.sub(r'\s+', ' ', selected_subj).strip()
-    
-    if target_suffix and target_suffix.lower() not in selected_subj.lower():
+
+    # 4. Предотвращаем задвоение "для Компании для Компании"
+    company_core = re.sub(r'^(?:ООО|АО|ПАО|ЗАО|ИП|НПО|ПКФ)\s*', '', cleaned_company, flags=re.IGNORECASE).strip(' «»"\'')
+    has_dlya = bool(re.search(r'\bдля\s+', selected_subj, flags=re.IGNORECASE))
+    company_already_in_subj = (company_core.lower() in selected_subj.lower()) if (company_core and len(company_core) >= 3) else False
+
+    if target_suffix and not has_dlya and not company_already_in_subj:
         final_subj = f"Re: {selected_subj} для {target_suffix}"
     else:
         final_subj = f"Re: {selected_subj}"
-        
+
     final_subj = re.sub(r'^(?:Re:\s*)+', 'Re: ', final_subj, flags=re.IGNORECASE)
+    final_subj = re.sub(r'\s+', ' ', final_subj).strip()
     return final_subj
 
 def get_emails_text_for_contact(db: Session, contact_ref_key: str, email: str) -> str:
@@ -347,6 +381,55 @@ def get_next_style_for_client(db: Session, email: str) -> str:
     remaining_styles = [s for s in styles if s != last_style]
     return random.choice(remaining_styles)
 
+def get_existing_draft_recipients() -> set:
+    """
+    Возвращает множество email адресов получателей, для которых в папке Drafts уже созданы черновики.
+    Используется Sent Verification Guard для предотвращения задвоения черновиков.
+    """
+    from imap_tools import MailBox
+    user = os.environ.get("MAIL_ACCOUNT_2_USER") or settings.IMAP_USER or "sales@longwang.ru"
+    password = os.environ.get("MAIL_ACCOUNT_2_PASS") or settings.IMAP_PASSWORD
+    imap_host = os.environ.get("IMAP_SERVER") or settings.IMAP_HOST or "mail.hostland.ru"
+
+    if not password:
+        accounts_json = os.environ.get("MAIL_ACCOUNTS")
+        if accounts_json:
+            try:
+                accs = json.loads(accounts_json.strip("'"))
+                for a in accs:
+                    if a.get("user") == "sales@longwang.ru":
+                        user = a.get("user")
+                        password = a.get("pass")
+                        break
+            except Exception:
+                pass
+
+    if not password or not imap_host:
+        return set()
+
+    recipients = set()
+    try:
+        with MailBox(imap_host).login(user, password) as mailbox:
+            draft_folder = None
+            for f in mailbox.folder.list():
+                fn_lower = f.name.lower()
+                if fn_lower in ["drafts", "inbox.drafts", "черновики", "inbox.черновики"]:
+                    draft_folder = f.name
+                    break
+            if not draft_folder:
+                draft_folder = "Drafts"
+            mailbox.folder.set(draft_folder)
+            msgs = list(mailbox.fetch(reverse=True, mark_seen=False))
+            for m in msgs:
+                for to_addr in (m.to or []):
+                    clean_addr = to_addr.lower().strip()
+                    if clean_addr:
+                        recipients.add(clean_addr)
+    except Exception as e:
+        logger.warning(f"Failed fetching existing draft recipients from IMAP: {e}")
+
+    return recipients
+
 def search_live_imap_incoming(email: str) -> tuple:
     """
     Живой поиск последнего входящего письма от клиента на IMAP-сервере (Level 2 Fallback):
@@ -386,12 +469,24 @@ def search_live_imap_incoming(email: str) -> tuple:
                 if domain and domain not in PUBLIC_EMAIL_DOMAINS:
                     msgs = list(mailbox.fetch(AND(from_=domain), limit=3, reverse=True, mark_seen=False))
 
-            if not msgs:
+            valid_msg = None
+            for cand_m in msgs:
+                m_subj = (cand_m.subject or "").lower()
+                if any(bm in m_subj for bm in BOUNCE_MARKERS):
+                    logger.warning(f"[BOUNCE GUARD] Пропуск отбойника '{cand_m.subject}' на IMAP для {email}")
+                    continue
+                if any(am in m_subj for am in AUTOREPLY_MARKERS):
+                    logger.warning(f"[AUTOREPLY GUARD] Пропуск автоответчика '{cand_m.subject}' на IMAP для {email}")
+                    continue
+                valid_msg = cand_m
+                break
+
+            if not valid_msg:
                 return None, "", None
 
-            msg = msgs[0]
+            msg = valid_msg
             subj = msg.subject or ""
-            clean_subj = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]):\s*)+', '', subj, flags=re.IGNORECASE).strip()
+            clean_subj = re.sub(r'^(?:(?:Re|Fwd|Fw|Исх|Ответ|\[Spam\]|Автоматический ответ|Auto-reply|Out of office):\s*)+', '', subj, flags=re.IGNORECASE).strip()
             if not clean_subj:
                 clean_subj = "Спецификация оборудования"
 
@@ -449,9 +544,17 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
         EmailMessage.is_junk == False,
         EmailMessage.from_email == email
     ).order_by(EmailMessage.received_at.desc()).limit(10).all()
-    
+
     msg = None
     for cand in cand_msgs:
+        subj_lower = (cand.subject or "").lower()
+        if any(bm in subj_lower for bm in BOUNCE_MARKERS):
+            logger.warning(f"[BOUNCE GUARD] Пропуск отбойника '{cand.subject}' в базе для {email}")
+            continue
+        if any(am in subj_lower for am in AUTOREPLY_MARKERS):
+            logger.warning(f"[AUTOREPLY GUARD] Пропуск автоответчика '{cand.subject}' в базе для {email}")
+            continue
+
         payload = cand.raw_payload or {}
         if payload.get("is_sent") in (True, 'true', 'True'):
             continue
@@ -475,6 +578,12 @@ def get_last_incoming_email_details(db: Session, contact_ref_key: str, email: st
                 EmailMessage.from_email.like(f"%@{domain}")
             ).order_by(EmailMessage.received_at.desc()).limit(10).all()
             for cand in candidates:
+                subj_lower = (cand.subject or "").lower()
+                if any(bm in subj_lower for bm in BOUNCE_MARKERS):
+                    continue
+                if any(am in subj_lower for am in AUTOREPLY_MARKERS):
+                    continue
+
                 payload = cand.raw_payload or {}
                 if payload.get("is_sent") in (True, 'true', 'True'):
                     continue

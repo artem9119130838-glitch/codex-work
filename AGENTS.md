@@ -63,6 +63,7 @@
 | **«follow up deals today»** | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run**. Белый список PDF, кулдаун 7 дн, подпись Б24, закрепленное ИИ-резюме. |
 | **«обработай лидов [ящик/лид] [ответственный]»** | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Dry-run**. Задача Азату `[USER=20]` (Гр. 14, дедлайн +4 дн / `--deadline-today`, RU+CN), Шаблон №66, Multi-Item RFQ Excel, скоринг СБИС/DaData, 1С OData. |
 | **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Dry-run**. Чистая сверка 1С и Б24 без создания сделок, поддержка `--mxl`. |
+| **«синхронизируй поставщиков 1С в битрикс»** | `py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py` | **Dry-run**. Перенос и Safe Merge фабрик КНР/поставщиков, теги папок 1С, реквизиты, банк. |
 
 > **Explicit Scope Guard:** Если в командах лидов или сделок не указаны сотрудник, ящик или лимит — не запускать вслепую, а немедленно переспросить пользователя!
 
