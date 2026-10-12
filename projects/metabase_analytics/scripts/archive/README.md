@@ -10,6 +10,7 @@
 * `2026-10-05` — Снимок `manage_metabase_dashboards_v2_2_before_3level_grouping.py` перед реализацией 3-уровневой группировки (Инициатор -> Проект/Пайплайн -> API-Ключ), устранением монолита в круговой диаграмме Card 69 и внедрением автоименования `[ВРЕМЕННЫЙ] unclassified_<task>`.
 * `2026-10-05` — Снимок `audit_llm_keys_v2_0_before_unified_aliases.py` перед обновлением алиасов ключей под канонические названия Metabase (`Gemini-1 (..94Cw)`, `DeepSeek-V3 Main`) и исправлением сквозного экспорта `os.environ` из `.env` файла.
 * `2026-10-05` — Версия `v2.4`: Бэкпорт разовых отладочных скриптов в канонические конвейеры. В `manage_metabase_dashboards.py` добавлены субкоманды аппаратной самопроверки `--action test-queries` (тест всех 7 карточек) и `--action db-stats` (сводка DWH). В `audit_llm_keys.py` добавлена автоочистка устаревших ключей `--cleanup-obsolete`. Скрипт аудита поставлен в `crontab` на VPS (08:00 ежедневно).
+* `2026-10-12` — Снимок `2026-10-12_sync_analytics_dwh_v1.0_before_advance_parsing.py` перед расширением DWH и парсингом условий авансирования сделок (`has_advance`, `advance_percent`, `advance_details`) из поля `UF_CRM_1782280989770`.
 
 
 

@@ -21,12 +21,21 @@ CREATE TABLE IF NOT EXISTS analytics_closed_deals (
     payment_terms VARCHAR(255),
     raw_data JSONB,
     pipeline_name VARCHAR(100),
-    is_won BOOLEAN DEFAULT FALSE
+    is_won BOOLEAN DEFAULT FALSE,
+    has_advance BOOLEAN DEFAULT FALSE,
+    advance_percent NUMERIC DEFAULT 0,
+    advance_details TEXT
 );
+
+-- Migrations for existing analytics_closed_deals table
+ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS has_advance BOOLEAN DEFAULT FALSE;
+ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_percent NUMERIC DEFAULT 0;
+ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_details TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_closed_deals_date_close ON analytics_closed_deals(date_close);
 CREATE INDEX IF NOT EXISTS idx_closed_deals_pipeline ON analytics_closed_deals(pipeline_name);
 CREATE INDEX IF NOT EXISTS idx_closed_deals_reason ON analytics_closed_deals(close_reason);
+CREATE INDEX IF NOT EXISTS idx_closed_deals_has_advance ON analytics_closed_deals(has_advance);
 
 -- 2. История переходов сделок по этапам (Динамика движения)
 CREATE TABLE IF NOT EXISTS analytics_deal_stage_history (

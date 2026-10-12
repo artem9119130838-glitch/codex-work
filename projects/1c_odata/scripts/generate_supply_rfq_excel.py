@@ -243,6 +243,37 @@ KNOWN_SPECIFICATIONS = {
             "name_ru": "Кронштейн Misumi BNFA1520S-40",
             "qty": 1,
         }
+    ],
+    "агрострой": [
+        {"num": 1, "brand": "Caterpillar (CAT)", "pname_cn": "后吊耳减震垫 / 减震胶块", "model": "561599D2", "name_ru": "Демпфер задней серьги (арт. 561599D2)", "qty": 1},
+        {"num": 2, "brand": "Caterpillar (CAT)", "pname_cn": "弹簧", "model": "557001D2 (замена: 557001D1)", "name_ru": "Пружина (арт. 557001D2, замена 557001D1)", "qty": 1},
+        {"num": 3, "brand": "Caterpillar (CAT)", "pname_cn": "圆锥滚子轴承", "model": "556999D1", "name_ru": "Конический подшипник (арт. 556999D1)", "qty": 1},
+        {"num": 4, "brand": "Caterpillar (CAT)", "pname_cn": "平键 / 键", "model": "556997D1", "name_ru": "Шпонка (арт. 556997D1)", "qty": 1},
+        {"num": 5, "brand": "Caterpillar (CAT)", "pname_cn": "外轮毂", "model": "556987D2", "name_ru": "Ступица внешняя (арт. 556987D2)", "qty": 1},
+        {"num": 6, "brand": "Caterpillar (CAT)", "pname_cn": "内轮毂", "model": "556986D1", "name_ru": "Ступица внутренняя (арт. 556986D1)", "qty": 1},
+        {"num": 7, "brand": "Caterpillar (CAT)", "pname_cn": "磁性螺塞 / 磁性放油塞", "model": "505183D1", "name_ru": "Магнитная пробка (арт. 505183D1)", "qty": 1},
+        {"num": 8, "brand": "Caterpillar (CAT)", "pname_cn": "螺塞 / 堵头", "model": "CH9S-8003 (замена: CA9S8003 / 9S-8003)", "name_ru": "Пробка (арт. CH9S-8003, замена CA9S8003)", "qty": 1},
+        {"num": 9, "brand": "Caterpillar (CAT)", "pname_cn": "O型密封圈", "model": "CH1J-9671 (замена: 1J-9671, CA1J9671)", "name_ru": "Уплотнительное кольцо (арт. CH1J-9671, замена 1J-9671, CA1J9671)", "qty": 1},
+        {"num": 10, "brand": "Caterpillar (CAT)", "pname_cn": "大挡圈 / 孔用弹性挡圈", "model": "400098X1", "name_ru": "Кольцо стопорное большое (арт. 400098X1)", "qty": 1},
+        {"num": 11, "brand": "Caterpillar (CAT)", "pname_cn": "垫圈", "model": "400080X1 (замена: CA8T4123 / 8T-4123)", "name_ru": "Шайба (арт. 400080X1, замена CA8T4123)", "qty": 1},
+        {"num": 12, "brand": "Caterpillar (CAT)", "pname_cn": "桥壳小轴承 / 轴套", "model": "1B-6577 (1B6577)", "name_ru": "Подшипник чулка малый (арт. 1B-6577)", "qty": 1},
+        {"num": 13, "brand": "Caterpillar (CAT)", "pname_cn": "桥壳油封", "model": "536448D2", "name_ru": "Сальник чулка (арт. 536448D2)", "qty": 1},
+        {"num": 14, "brand": "Caterpillar (CAT)", "pname_cn": "桥壳大轴承", "model": "193-0362 (1930362)", "name_ru": "Подшипник чулка большой (арт. 193-0362)", "qty": 1},
+        {"num": 15, "brand": "Caterpillar (CAT)", "pname_cn": "大轴承外圈", "model": "193-0363 (1930363)", "name_ru": "Наружн. Кольцо подшипника больш. (арт. 193-0363)", "qty": 1},
+        {"num": 16, "brand": "Caterpillar (CAT)", "pname_cn": "小轴承外圈", "model": "2J-2152 (2J2152)", "name_ru": "Наружн. Кольцо подшипника мал. (арт. 2J-2152)", "qty": 1}
+    ],
+    "муромец_sperre": [
+        {"num": 1, "brand": "SPERRE", "pname_cn": "低压气缸套 / Cylinder LP", "model": "1534", "name_ru": "Цилиндровая втулка низкого давления Cylinder LP (кат. № 1534)", "qty": 2},
+        {"num": 2, "brand": "SPERRE", "pname_cn": "高压气缸套 / Cylinder HP", "model": "1532", "name_ru": "Цилиндровая втулка высокого давления Cylinder HP (кат. № 1532)", "qty": 2},
+        {"num": 3, "brand": "SPERRE", "pname_cn": "低压活塞 / 一级活塞 / Piston LP", "model": "3354", "name_ru": "Поршень первой ступени Piston LP (кат. № 3354)", "qty": 2},
+        {"num": 4, "brand": "SPERRE", "pname_cn": "高压活塞 / 二级活塞 / Piston HP", "model": "3352", "name_ru": "Поршень второй ступени Piston HP (кат. № 3352)", "qty": 2},
+        {"num": 5, "brand": "SPERRE", "pname_cn": "低压梯级气环 / 压缩环 / Compression ring, stepped", "model": "3488", "name_ru": "Поршневые кольца компрессионные первой ступени Compression ring, stepped (кат. № 3488)", "qty": 4},
+        {"num": 6, "brand": "SPERRE", "pname_cn": "高压梯级气环 / 压缩环 / Compression ring, stepped", "model": "3487", "name_ru": "Поршневые кольца второй ступени компрессионные Compression ring, stepped (кат. № 3487)", "qty": 4},
+        {"num": 7, "brand": "SPERRE", "pname_cn": "高压平气环 / 压缩环 / Compression ring, plain", "model": "3501", "name_ru": "Поршневое кольцо второй ступени Compression ring, plain (кат. № 3501)", "qty": 2},
+        {"num": 8, "brand": "SPERRE", "pname_cn": "高压刮油环 / 油环 / Oil ring HP", "model": "3528", "name_ru": "Поршневое кольцо второй ступени маслораспределительное Oil ring HP (кат. № 3528)", "qty": 2},
+        {"num": 9, "brand": "SPERRE", "pname_cn": "低压刮油环 / 油环 / Oil ring LP", "model": "3529", "name_ru": "Поршневое кольцо первой ступени маслораспределительное Oil ring LP (кат. № 3529)", "qty": 4},
+        {"num": 10, "brand": "SPERRE", "pname_cn": "低压气阀组件 / Valve kit LP", "model": "3595", "name_ru": "Клапан первой ступени Valve kit LP (кат. № 3595)", "qty": 2},
+        {"num": 11, "brand": "SPERRE", "pname_cn": "高压气阀组件 / Valve kit HP", "model": "3598", "name_ru": "Клапан второй ступени Valve kit HP (кат. № 3598)", "qty": 2}
     ]
 }
 
@@ -318,9 +349,14 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
         if "волтайр" in company_name.lower():
             output_filename = "Запрос КП пресс для автокамер 85 Волтайр-Пром.xlsx"
         elif "муромец" in company_name.lower():
-            output_filename = "Запрос КП Alfa Laval опреснитель JWP-16-C40 Илья Муромец.xlsx"
+            if "sperre" in item_subject.lower() or "компрессор" in item_subject.lower() or "327" in item_subject.lower():
+                output_filename = "Запрос КП SPERRE компрессор HL2-77A 11 позиций АО Илья Муромец.xlsx"
+            else:
+                output_filename = "Запрос КП Alfa Laval опреснитель JWP-16-C40 Илья Муромец.xlsx"
         elif "гидросистемы" in company_name.lower():
             output_filename = "Запрос КП Гидравлика 12 позиций НПО Гидросистемы.xlsx"
+        elif "агрострой" in company_name.lower():
+            output_filename = "Запрос КП CAT запчасти 16 позиций АгроСтройСервис.xlsx"
 
     output_path = os.path.join(DESKTOP_DIR, output_filename)
 
@@ -328,10 +364,14 @@ def generate_rfq_excel(company_name: str, item_subject: str, items: list = None,
     final_items = items
     if not final_items:
         low_comp = company_name.lower()
-        for key, spec in KNOWN_SPECIFICATIONS.items():
-            if key in low_comp:
-                final_items = spec
-                break
+        low_subj = item_subject.lower()
+        if "муромец" in low_comp and ("sperre" in low_subj or "компрессор" in low_subj or "327" in low_subj):
+            final_items = KNOWN_SPECIFICATIONS.get("муромец_sperre")
+        else:
+            for key, spec in KNOWN_SPECIFICATIONS.items():
+                if key in low_comp:
+                    final_items = spec
+                    break
 
     if not final_items:
         final_items = [build_default_item(item_subject, company_name)]

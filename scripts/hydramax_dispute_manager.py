@@ -672,9 +672,10 @@ def _create_hatch_image(w_box, h_box, step=24):
     d.rectangle([0, 0, w_box - 1, h_box - 1], outline="#1F4E79", width=3)
     return im_box
 
-def render_tube_drawings(cache_dir, lang="ru"):
+def render_tube_drawings(cache_dir, lang="ru", holes_m14=False):
     os.makedirs(cache_dir, exist_ok=True)
     is_cn = (lang == "cn")
+    import math
     
     font_bold_path = "C:/Windows/Fonts/msyh.ttc" if is_cn else "C:/Windows/Fonts/calibrib.ttf"
     font_reg_path = "C:/Windows/Fonts/msyh.ttc" if is_cn else "C:/Windows/Fonts/calibri.ttf"
@@ -683,25 +684,60 @@ def render_tube_drawings(cache_dir, lang="ru"):
     if not os.path.exists(font_reg_path):
         font_reg_path = "C:/Windows/Fonts/arial.ttf"
 
-    p1 = os.path.join(cache_dir, f"drawing_1_cylinder_type1_{lang}.png")
+    suffix = "_m14" if holes_m14 else ""
+    p1 = os.path.join(cache_dir, f"drawing_1_cylinder_type1{suffix}_{lang}.png")
     p2 = os.path.join(cache_dir, f"drawing_2_cylinder_type2_flat_{lang}.png")
     p3 = os.path.join(cache_dir, f"drawing_3_cylinder_type2_bevel_{lang}.png")
 
     # --- DRAWING 1 ---
-    W, H = 2400, 1400
+    W, H = (2600, 1450) if holes_m14 else (2400, 1400)
     img1 = Image.new("RGB", (W, H), "white")
     d1 = ImageDraw.Draw(img1)
     f_title = ImageFont.truetype(font_bold_path, 42)
     f_dim = ImageFont.truetype(font_bold_path, 34)
-    f_dim_sm = ImageFont.truetype(font_bold_path, 30)
+    f_dim_sm = ImageFont.truetype(font_bold_path, 28)
     f_text = ImageFont.truetype(font_reg_path, 28)
     f_bold = ImageFont.truetype(font_bold_path, 28)
 
-    title1 = "液压油缸筒 1 型（Ø500 × Ø420 × L2174，不做坡口）" if is_cn else "ГИЛЬЗА ГИДРОЦИЛИНДРА ТИП 1 (Ø500 × Ø420 × L2174)"
-    d1.text((W // 2, 70), title1, fill="#002060", font=f_title, anchor="mm")
+    if holes_m14:
+        title1 = "液压油缸筒 1 型（Ø500 × Ø420 × L2174，加工 36 个 M14×2 螺纹孔，不做坡口）" if is_cn else "ГИЛЬЗА ГИДРОЦИЛИНДРА ТИП 1 (Ø500 × Ø420 × L2174 мм, 36 ОТВ. M14x2)"
+    else:
+        title1 = "液压油缸筒 1 型（Ø500 × Ø420 × L2174，不做坡口）" if is_cn else "ГИЛЬЗА ГИДРОЦИЛИНДРА ТИП 1 (Ø500 × Ø420 × L2174)"
+    d1.text((W // 2, 65), title1, fill="#002060", font=f_title, anchor="mm")
 
-    x1, y1 = 480, 260
-    x2, y2 = 2050, 680
+    if holes_m14:
+        # Flange view D-D on the left
+        cx, cy = 460, 470
+        r_out = 220
+        r_in = 185
+        r_pcd = 202
+
+        d1.line([cx - 250, cy, cx + 250, cy], fill="#C00000", width=2)
+        d1.line([cx, cy - 250, cx, cy + 250], fill="#C00000", width=2)
+
+        d1.ellipse([cx - r_out, cy - r_out, cx + r_out, cy + r_out], outline="#1F4E79", width=3)
+        d1.ellipse([cx - r_in, cy - r_in, cx + r_in, cy + r_in], outline="#1F4E79", width=3)
+        d1.ellipse([cx - r_pcd, cy - r_pcd, cx + r_pcd, cy + r_pcd], outline="#70AD47", width=1)
+
+        r_hole = 6
+        for i in range(36):
+            angle = math.radians(i * 10)
+            hx = cx + r_pcd * math.sin(angle)
+            hy = cy - r_pcd * math.cos(angle)
+            d1.ellipse([hx - r_hole, hy - r_hole, hx + r_hole, hy + r_hole], outline="#C00000", fill="#FFFFFF", width=2)
+
+        callout_hdr = "D-D 剖面 (端面视图)" if is_cn else "Вид D-D (Торец фланца)"
+        callout_sub = "36 孔 M14×2（孔深 25 mm）分度圆 Ø460（10°等分）" if is_cn else "36 отв. M14x2 (глуб. 25 мм) по дел. Ø460 (шаг 10°)"
+        d1.text((cx, cy - 265), callout_hdr, fill="#1B4F72", font=f_dim, anchor="mb")
+        d1.text((cx, cy + 265), callout_sub, fill="#C00000", font=f_dim_sm, anchor="mt")
+
+        # Longitudinal section on the right
+        x1, y1 = 980, 260
+        x2, y2 = 2460, 680
+    else:
+        x1, y1 = 480, 260
+        x2, y2 = 2050, 680
+
     wall = 85
     w_box = x2 - x1
     img1.paste(_create_hatch_image(w_box, wall), (x1, y1))
@@ -738,6 +774,7 @@ def render_tube_drawings(cache_dir, lang="ru"):
 
     ty = dim_y + 60
     if is_cn:
+        item8_cn = "8. 端面要求：两端平切，无倒角；端面加工 36 个 M14×2 螺纹孔（分度圆 Ø460 mm，等分角度 10°，孔深 25 mm）。" if holes_m14 else "8. 端面要求：两端平口齐切，无倒角（由买方自行进行端面精车平齐及打 36 个法兰螺栓孔）。"
         tech_lines1 = [
             "技术要求（液压油缸筒 1 型）：",
             "1. 供货状态：热处理正火，热轧状态（大冶特钢 Q345B 优质钢材）。",
@@ -747,9 +784,10 @@ def render_tube_drawings(cache_dir, lang="ru"):
             "5. 材料力学性能：屈服强度 σs ≥ 345 MPa，抗拉强度 σb: 470 – 630 MPa。",
             "6. 壁厚不均度（偏心度）：≤ 7–8%。",
             "7. 内孔粗糙度：Ra ≤ 0.4 μm。高精度加工控制表面仅为内孔工作镜面。",
-            "8. 端面要求：两端平口齐切，无倒角（由买方自行进行端面精车平齐及打 36 个法兰螺栓孔）。"
+            item8_cn
         ]
     else:
+        item8_ru = "8. Исполнение торцев: оба торца — прямой перпендикулярный рез, без фасок; на одном торце выполнено 36 глухих резьбовых отверстий М14х2 (делительный Ø460 мм, шаг 10°, глубина отверстий 25 мм)." if holes_m14 else "8. Исполнение торцев: оба торца ровный рез, без фасок (под чистовую торцовку фланца заказчиком)."
         tech_lines1 = [
             "Технические требования (Гильза гидроцилиндра тип 1):",
             "1. Состояние поставки: нормализация, горячий прокат (сталь Q345B, аналог 17Г1С).",
@@ -759,11 +797,12 @@ def render_tube_drawings(cache_dir, lang="ru"):
             "5. Механические свойства: предел текучести ≥ 345 МПа, предел прочности 470 – 630 МПа.",
             "6. Разностенность (эксцентриситет): ≤ 7–8%.",
             "7. Шероховатость внутренней поверхности: Ra ≤ 0.4 мкм. Высокоточная обработка — только внутренняя.",
-            "8. Исполнение торцев: оба торца ровный рез, без фасок (под чистовую торцовку фланца заказчиком)."
+            item8_ru
         ]
+    text_x = 350 if holes_m14 else 450
     for i, line in enumerate(tech_lines1):
         f = f_bold if i == 0 else f_text
-        d1.text((450, ty + i * 36), line, fill="#1B4F72" if i == 0 else "#222222", font=f)
+        d1.text((text_x, ty + i * 36), line, fill="#1B4F72" if i == 0 else "#222222", font=f)
     img1.save(p1, quality=95)
 
     # --- DRAWING 2 ---
@@ -974,18 +1013,18 @@ def _style_bdy(cell, text, is_bold=False, align=WD_ALIGN_PARAGRAPH.LEFT, fill="F
     _set_cell_padding(cell, top=55, bottom=55, left=90, right=90)
 
 
-def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True):
+def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True, holes_m14=False):
     os.makedirs(out_dir, exist_ok=True)
     docx_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_RU.docx")
     pdf_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_RU.pdf")
 
     if dry_run:
-        print(f"[DRY-RUN] Will generate RU Word spec at: {docx_path}")
+        print(f"[DRY-RUN] Will generate RU Word spec at: {docx_path} (holes_m14={holes_m14})")
         print(f"[DRY-RUN] Will convert to PDF at: {pdf_path}")
         return docx_path, pdf_path
 
     drawings_dir = os.path.join(out_dir, "drawings_cache")
-    p1, p2, p3 = render_tube_drawings(drawings_dir, lang="ru")
+    p1, p2, p3 = render_tube_drawings(drawings_dir, lang="ru", holes_m14=holes_m14)
 
     doc = docx.Document()
     for s in doc.sections:
@@ -1051,8 +1090,9 @@ def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
     for i, h in enumerate(["№", "Наименование товара", "Кол-во", "Габаритные размеры (мм)", "Материал", "Срок готовности"]):
         _style_hdr(t1.rows[0].cells[i], h)
 
+    item1_name = "Гильза гидроцилиндра тип 1\n(рабочий цилиндр, с 36 отв. М14×2, без фасок)" if holes_m14 else "Гильза гидроцилиндра тип 1\n(рабочий цилиндр, без фасок)"
     data1 = [
-        ("1", "Гильза гидроцилиндра тип 1\n(рабочий цилиндр, без фасок)", "16 шт.", "Ø500 × Ø420 × 2174 мм\n(допуск: 2174 – 2177 мм)", "Q345B\n(аналог 17Г1С)", "10 рабочих дней\nпосле согласования"),
+        ("1", item1_name, "16 шт.", "Ø500 × Ø420 × 2174 мм\n(допуск: 2174 – 2177 мм)", "Q345B\n(аналог 17Г1С)", "10 рабочих дней\nпосле согласования"),
         ("2", "Труба цилиндровая тип 2\n(наружный кожух, без фасок)", "8 шт.", "Ø500 × Ø420 × 1707 мм\n(допуск: 1707 – 1710 мм)", "Q345B\n(аналог 17Г1С)", "10 рабочих дней\nпосле согласования"),
         ("3", "Труба цилиндровая тип 2\n(с разделкой кромок 36×45°)", "8 шт.", "Ø500 × Ø420 × 1707 мм\n(допуск: 1707 – 1710 мм)", "Q345B\n(аналог 17Г1С)", "Готово к отгрузке\n(упаковано в ящики)"),
     ]
@@ -1077,6 +1117,7 @@ def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
     _style_hdr(t_p1.rows[0].cells[0], "Контролируемый параметр", width=Inches(3.1))
     _style_hdr(t_p1.rows[0].cells[1], "Значение и нормативно-технические требования", width=Inches(3.8))
 
+    item1_end_desc = "Оба торца — прямой перпендикулярный рез, без фасок. На одном торце: 36 глухих резьбовых отверстий М14×2 (делительный Ø460 мм, шаг 10°, глубина отверстий 25 мм)" if holes_m14 else "Оба торца — прямой перпендикулярный рез, без фасок (под чистовую торцовку и сверление фланца заказчиком)"
     p1_specs = [
         ("Состояние поставки", "Нормализация, горячий прокат"),
         ("Наружный диаметр (Øн)", "500 мм (согласованный допуск: 499.5 – 501.0 мм / +1.0 / -0.5 мм, токарная обработка/калибровка)"),
@@ -1088,7 +1129,7 @@ def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
         ("Способ обработки внутренней поверхности", "Хонингование прецизионное"),
         ("Высокоточная обработанная поверхность", "Только внутренняя рабочая поверхность гильзы"),
         ("Обработка наружной поверхности", "Токарная обработка / калибровка"),
-        ("Исполнение торцев", "Оба торца — прямой перпендикулярный рез, без фасок (под чистовую торцовку и сверление фланца заказчиком)")
+        ("Исполнение торцев", item1_end_desc)
     ]
     for r_i, (param, val) in enumerate(p1_specs):
         row = t_p1.add_row()
@@ -1131,7 +1172,8 @@ def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
     p_c1 = doc.add_paragraph()
     p_c1.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_c1.paragraph_format.space_after = Pt(2)
-    r_c1 = p_c1.add_run("Рис. 1. Чертеж гильзы гидроцилиндра тип 1 (Ø500 × Ø420 × L2174 мм, без фасок)")
+    fig1_title = "Рис. 1. Чертеж гильзы гидроцилиндра тип 1 (Ø500 × Ø420 × L2174 мм, 36 отв. М14×2, без фасок)" if holes_m14 else "Рис. 1. Чертеж гильзы гидроцилиндра тип 1 (Ø500 × Ø420 × L2174 мм, без фасок)"
+    r_c1 = p_c1.add_run(fig1_title)
     r_c1.font.size = Pt(8.5)
     r_c1.font.bold = True
     r_c1.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
@@ -1231,18 +1273,18 @@ def build_tube_spec_ru(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
     return docx_path, pdf_path
 
 
-def build_tube_spec_cn(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True):
+def build_tube_spec_cn(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True, holes_m14=False):
     os.makedirs(out_dir, exist_ok=True)
     docx_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_CN.docx")
     pdf_path = os.path.join(out_dir, "Приложение_3_Технические_параметры_и_чертежи_труб_CN.pdf")
 
     if dry_run:
-        print(f"[DRY-RUN] Will generate CN Word spec at: {docx_path}")
+        print(f"[DRY-RUN] Will generate CN Word spec at: {docx_path} (holes_m14={holes_m14})")
         print(f"[DRY-RUN] Will convert to PDF at: {pdf_path}")
         return docx_path, pdf_path
 
     drawings_dir = os.path.join(out_dir, "drawings_cache")
-    p1, p2, p3 = render_tube_drawings(drawings_dir, lang="cn")
+    p1, p2, p3 = render_tube_drawings(drawings_dir, lang="cn", holes_m14=holes_m14)
 
     doc = docx.Document()
     for s in doc.sections:
@@ -1313,8 +1355,9 @@ def build_tube_spec_cn(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
     for i, h in enumerate(["序号", "商品名称", "数量", "规格尺寸 (mm)", "材质", "交货期 / 当前状态"]):
         _style_hdr(t1.rows[0].cells[i], h, font_name="Microsoft YaHei", font_size=8.5)
 
+    item1_cn_name = "液压油缸筒 1 型\n（工作缸筒，加工 36 个 M14×2 螺纹孔）" if holes_m14 else "液压油缸筒 1 型\n（工作缸筒，不做坡口）"
     data1 = [
-        ("1", "液压油缸筒 1 型\n（工作缸筒，不做坡口）", "16 支", "Ø500 × Ø420 × 2174 mm\n(公差: 2174 – 2177 mm)", "Q345B\n(相当于 17Г1С)", "协议确认后\n10 个工作日内完成"),
+        ("1", item1_cn_name, "16 支", "Ø500 × Ø420 × 2174 mm\n(公差: 2174 – 2177 mm)", "Q345B\n(相当于 17Г1С)", "协议确认后\n10 个工作日内完成"),
         ("2", "液压油缸筒 2 型\n（外部套管，不做坡口）", "8 支", "Ø500 × Ø420 × 1707 mm\n(公差: 1707 – 1710 mm)", "Q345B\n(相当于 17Г1С)", "协议确认后\n10 个工作日内完成"),
         ("3", "液压油缸筒 2 型\n（带焊接坡口 36×45°）", "8 支", "Ø500 × Ø420 × 1707 mm\n(公差: 1707 – 1710 mm)", "Q345B\n(相当于 17Г1С)", "已完成 8 支\n（已装箱包装完毕）"),
     ]
@@ -1339,6 +1382,8 @@ def build_tube_spec_cn(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
     _style_hdr(t_p1.rows[0].cells[0], "受控技术参数", width=Inches(3.0), font_name="Microsoft YaHei", font_size=8.5)
     _style_hdr(t_p1.rows[0].cells[1], "技术指标与规范要求", width=Inches(3.9), font_name="Microsoft YaHei", font_size=8.5)
 
+    item1_cn_end_desc = "两端平切，无倒角；单端端面加工 36 个 M14×2 螺纹孔（分度圆 Ø460 mm，等分角度 10°，孔深 25 mm）" if holes_m14 else "两端平切，无倒角（由俄方客户自行进行端面精车及 36 个法兰螺栓孔加工）"
+    item1_cn_param_title = "端面与螺纹孔要求" if holes_m14 else "端面要求"
     p1_specs = [
         ("供货状态", "热处理：正火，热轧状态"),
         ("外径 (Øн)", "500 mm（协议公差：499.5 – 501.0 mm / +1.0 / -0.5 mm，车削/车磨加工）"),
@@ -1350,7 +1395,7 @@ def build_tube_spec_cn(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
         ("内表面加工方式", "高精度珩磨加工"),
         ("高精度加工控制表面", "仅控制内表面工作镜面"),
         ("外表面加工方式", "车削加工 / 车磨校准（公差 499.5 – 501.0 mm）"),
-        ("端面要求", "两端平切，无倒角（由俄方客户自行进行端面精车及 36 个法兰螺栓孔加工）")
+        (item1_cn_param_title, item1_cn_end_desc)
     ]
     for r_i, (param, val) in enumerate(p1_specs):
         row = t_p1.add_row()
@@ -1393,7 +1438,8 @@ def build_tube_spec_cn(out_dir=DEFAULT_OUTPUT_DIR, dry_run=False, make_pdf=True)
     p_c1 = doc.add_paragraph()
     p_c1.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_c1.paragraph_format.space_after = Pt(2)
-    r_c1 = p_c1.add_run("图 1. 液压油缸筒 1 型加工图纸（Ø500 × Ø420 × L2174 mm，无坡口）")
+    fig1_cn_title = "图 1. 液压油缸筒 1 型加工图纸（Ø500 × Ø420 × L2174 mm，加工 36 个 M14×2 螺纹孔）" if holes_m14 else "图 1. 液压油缸筒 1 型加工图纸（Ø500 × Ø420 × L2174 mm，无坡口）"
+    r_c1 = p_c1.add_run(fig1_cn_title)
     r_c1.font.name = 'Microsoft YaHei'
     r_c1.font.size = Pt(8)
     r_c1.font.bold = True
@@ -1507,6 +1553,7 @@ def main():
     parser.add_argument('--out-dir', type=str, default=DEFAULT_OUTPUT_DIR, help='Output directory')
     parser.add_argument('--dry-run', action='store_true', help='Preview translation/actions without saving')
     parser.add_argument('--no-pdf', action='store_true', help='Skip Word COM PDF conversion')
+    parser.add_argument('--holes-m14', action='store_true', help='Include 36 flange threaded holes M14x2 on drawing 1 and in specs')
     args = parser.parse_args()
 
     if args.action == 'brief':
@@ -1531,12 +1578,12 @@ def main():
     elif args.action == 'translate-rods-table':
         translate_rods_table(args.input, args.out_dir, dry_run=args.dry_run)
     elif args.action == 'spec-tubes-ru':
-        build_tube_spec_ru(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
+        build_tube_spec_ru(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf, holes_m14=args.holes_m14)
     elif args.action == 'spec-tubes-cn':
-        build_tube_spec_cn(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
+        build_tube_spec_cn(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf, holes_m14=args.holes_m14)
     elif args.action == 'spec-tubes':
-        build_tube_spec_ru(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
-        build_tube_spec_cn(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf)
+        build_tube_spec_ru(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf, holes_m14=args.holes_m14)
+        build_tube_spec_cn(args.out_dir, dry_run=args.dry_run, make_pdf=not args.no_pdf, holes_m14=args.holes_m14)
 
 
 if __name__ == '__main__':

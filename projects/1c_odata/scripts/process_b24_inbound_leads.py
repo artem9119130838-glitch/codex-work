@@ -143,21 +143,27 @@ def sanitize_html_email_text(raw_html: str) -> str:
 # ----------------------------------------------------------------------
 # Битрикс24 REST API Client
 # ----------------------------------------------------------------------
-def call_b24(method: str, payload: dict = None) -> any:
+def call_b24(method: str, payload: dict = None, retries: int = 3) -> any:
+    import time
     if not B24_WEBHOOK or B24_WEBHOOK == "/":
         print(f"[WARN] B24_WEBHOOK не задан")
         return None
     url = f"{B24_WEBHOOK}{method}"
-    try:
-        if payload is not None:
-            r = requests.post(url, json=payload, timeout=25)
-        else:
-            r = requests.get(url, timeout=25)
-        if r.status_code == 200:
-            return r.json().get('result')
-        print(f"Error B24 call {method}: {r.status_code} - {r.text[:200]}")
-    except Exception as e:
-        print(f"Exception B24 {method}: {e}")
+    for attempt in range(retries):
+        try:
+            if payload is not None:
+                r = requests.post(url, json=payload, timeout=25)
+            else:
+                r = requests.get(url, timeout=25)
+            if r.status_code == 200:
+                return r.json().get('result')
+            print(f"Error B24 call {method}: {r.status_code} - {r.text[:200]}")
+            return None
+        except Exception as e:
+            if attempt == retries - 1:
+                print(f"Exception B24 {method}: {e}")
+                return None
+            time.sleep(1.2)
     return None
 
 def upload_file_to_b24_disk(file_path: str, folder_id: int = FOLDER_CHINA_SUPPLY_DISK) -> int:
@@ -360,9 +366,9 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
     if existing:
         cid = existing['ID']
         fields = {}
-        if inn and not existing.get('UF_CRM_699421CD2A684'):
+        if inn and str(existing.get('UF_CRM_699421CD2A684') or "").strip() != str(inn).strip():
             fields['UF_CRM_699421CD2A684'] = inn
-        if address and not existing.get('ADDRESS'):
+        if address and existing.get('ADDRESS') != address:
             fields['ADDRESS'] = address
         if phone and not existing.get('PHONE'):
             fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": phone}]
@@ -1370,26 +1376,6 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                 if domain_part not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
                     raw_company_title = domain_part
 
-    # Если ИНН еще не определен, находим его по названию организации через DaData API
-    cand_check = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', raw_company_title).strip() if raw_company_title else ""
-    if not inn and cand_check and cand_check.lower() not in placeholders and len(cand_check) >= 2:
-        try:
-            dadata_token = os.getenv("DADATA_TOKEN", "")
-            if dadata_token:
-                h = {"Authorization": f"Token {dadata_token}", "Content-Type": "application/json"}
-                r_sug = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", json={"query": raw_company_title, "count": 1}, headers=h, timeout=5)
-                if r_sug.status_code == 200:
-                    suggs = r_sug.json().get("suggestions", [])
-                    if suggs:
-                        sugg_data = suggs[0].get("data", {})
-                        inn = sugg_data.get("inn") or inn
-                        found_name = suggs[0].get("value")
-                        if found_name and (not raw_company_title or raw_company_title.lower() in placeholders or len(raw_company_title) < len(found_name)):
-                            raw_company_title = found_name
-                        print(f"   [DADATA] Автоматически определен контрагент: '{raw_company_title}', ИНН: {inn}")
-        except Exception:
-            pass
-
     # Извлечение файлов из активностей и проверка объема спецификаций
     lead_file_ids = []
     file_names = []
@@ -1415,6 +1401,69 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                                 print(f"  [BULK-SPECIFICATION] Обнаружена объемная спецификация во вложении '{fname}' ({tot_rows} строк)")
                     except Exception:
                         pass
+
+    # Извлечение ИНН из вложенных карточек предприятий (Requisition Attachment INN Guard)
+    if not inn and lead_file_ids:
+        for fid, fname in lead_file_ids:
+            fn_low = fname.lower()
+            if any(k in fn_low for k in ["реквизит", "карточк", "карточка", "инн"]):
+                try:
+                    df = call_b24("disk.file.get", {"id": fid})
+                    if df and df.get("DOWNLOAD_URL"):
+                        r_f = requests.get(df["DOWNLOAD_URL"], timeout=12)
+                        if r_f.status_code == 200:
+                            content_bytes = r_f.content
+                            for enc in ['utf-16le', 'cp1251', 'utf-8']:
+                                dec = content_bytes.decode(enc, errors='ignore')
+                                found_inns = re.findall(r'(?:\b|\D)(\d{10})(?:\b|\D)', dec)
+                                for fi in found_inns:
+                                    if len(fi) == 10 and not fi.startswith('0000'):
+                                        inn = fi
+                                        print(f"  [INN-ATTACHMENT] Извлечен точный ИНН {inn} из файла '{fname}'")
+                                        break
+                                if inn:
+                                    break
+                except Exception as e:
+                    pass
+            if inn:
+                break
+
+    # Точное определение компании по ИНН через DaData findById
+    if inn:
+        try:
+            dadata_token = os.getenv("DADATA_TOKEN", "")
+            if dadata_token:
+                h = {"Authorization": f"Token {dadata_token}", "Content-Type": "application/json"}
+                r_inn = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party", json={"query": inn, "count": 1}, headers=h, timeout=5)
+                if r_inn.status_code == 200:
+                    suggs = r_inn.json().get("suggestions", [])
+                    if suggs:
+                        found_name = suggs[0].get("value")
+                        if found_name:
+                            raw_company_title = found_name
+                            print(f"   [DADATA] Контрагент по ИНН {inn}: '{raw_company_title}'")
+        except Exception:
+            pass
+
+    # Если ИНН еще не определен, находим его по названию организации через DaData API suggest
+    cand_check = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', raw_company_title).strip() if raw_company_title else ""
+    if not inn and cand_check and cand_check.lower() not in placeholders and len(cand_check) >= 2:
+        try:
+            dadata_token = os.getenv("DADATA_TOKEN", "")
+            if dadata_token:
+                h = {"Authorization": f"Token {dadata_token}", "Content-Type": "application/json"}
+                r_sug = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", json={"query": raw_company_title, "count": 1}, headers=h, timeout=5)
+                if r_sug.status_code == 200:
+                    suggs = r_sug.json().get("suggestions", [])
+                    if suggs:
+                        sugg_data = suggs[0].get("data", {})
+                        inn = sugg_data.get("inn") or inn
+                        found_name = suggs[0].get("value")
+                        if found_name and (not raw_company_title or raw_company_title.lower() in placeholders or len(raw_company_title) < len(found_name)):
+                            raw_company_title = found_name
+                        print(f"   [DADATA] Автоматически определен контрагент: '{raw_company_title}', ИНН: {inn}")
+        except Exception:
+            pass
 
     # 1. Проверка на приглашение на тендер/ЭТП
     if is_etp_or_tender_request(combined_text, lead_title):
@@ -1541,8 +1590,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         rfq_reason = f"Сработал Reseller, Bulk Multi-Item & Ghost RFQ Guard ({', '.join(trigger_reasons)}) -> блокировка снабжения, ручной контроль менеджера"
 
     # Принудительные пользовательские исключения (User Override Guard)
-    USER_APPROVED_RFQ_LEADS = {17838, 18188}
-    if int(lead_id) in USER_APPROVED_RFQ_LEADS:
+    USER_APPROVED_RFQ_LEADS = {17838, 18188, 18108}
+    if force or int(lead_id) in USER_APPROVED_RFQ_LEADS:
         is_rfq = True
         rfq_reason = "Принудительный допуск в Clear RFQ по прямому указанию пользователя (создание Сделки и Задачи снабжению)"
 
@@ -1842,6 +1891,29 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     new_lead_guid = None
     if not is_buyer and not lead_1c:
+        # 1C Brand Folder Match Guard (сопоставление папок брендов в Catalog_Лиды)
+        brand_folder_key = None
+        lower_context = f"{company_title} {lead_title} {email_subject} {cn_nomenclature}".lower()
+        BRAND_FOLDERS_1C = {
+            "caterpillar": "f11aae25-c8cb-11ed-b999-f01898a67170",
+            "cat": "f11aae25-c8cb-11ed-b999-f01898a67170",
+            "smc": "6555d5b3-b86e-11ee-966f-70a8d3ba8753",
+            "autonics": "2f96f3a4-ba86-11ee-9671-70a8d3ba8753",
+            "brevini": "4b381d2f-cbe7-11ee-9677-70a8d3ba8753",
+            "danfoss": "511b6a35-f182-11ee-9684-70a8d3ba8753",
+            "abb": "235c18df-65e7-11ef-969d-70a8d3ba8753",
+            "siemens": "7f686a73-80a8-11ef-96a0-70a8d3ba8753",
+            "festo": "896e53ec-b5fd-11ef-81a9-02006df8aab5",
+            "wilo": "57407686-b6be-11ef-9dec-02006df8aab5",
+            "fronius": "d51b07fc-de0e-11ef-9922-02006df8aab5",
+            "hydac": "2af0066c-5de5-11f1-9151-02006df8aab5",
+            "gemu": "93e23206-5dec-11f1-9151-02006df8aab5",
+        }
+        for b_name, b_key in BRAND_FOLDERS_1C.items():
+            if re.search(r'\b' + re.escape(b_name) + r'\b', lower_context):
+                brand_folder_key = b_key
+                break
+
         lead_payload = {
             "Description": company_title,
             "НаименованиеКомпании": company_title,
@@ -1852,6 +1924,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             "СостояниеЛида_Key": "0c989b06-70c5-11ed-b990-f01898a67170",
             "Комментарий": onec_comment_str
         }
+        if brand_folder_key:
+            lead_payload["Parent_Key"] = brand_folder_key
+            print(f"  [1C] Лид будет размещен в профильную папку бренда (Parent_Key: {brand_folder_key})")
         r_lead = requests.post(f"{ONEC_BASE}/Catalog_Лиды?$format=json", json=lead_payload, auth=ONEC_AUTH_WRITE, timeout=12)
         if r_lead.status_code in (200, 201):
             new_lead_guid = r_lead.json().get("Ref_Key")
