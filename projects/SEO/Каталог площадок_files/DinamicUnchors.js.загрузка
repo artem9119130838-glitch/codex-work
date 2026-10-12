@@ -1,0 +1,524 @@
+function DinamicUnchors () {}
+// [url] - адрес анкора
+// [text] - текст анкора
+// unchors[unchor_id][cnt_work] - количество в работе
+// [cnt_plan] - количество по плану
+// [step_plan] - период плана
+DinamicUnchors.unchors = [];
+
+// campaings[comp_id][unchor_id] - id анкора для массива unchors
+DinamicUnchors.campaings = [];
+
+// comp_if_all[comp_id] = 1 - продолжаем размещение по второму кругу
+DinamicUnchors.comp_if_all = [];
+
+// prev_data[select_id] = unchor_id;
+DinamicUnchors.prev_data = [];
+
+// заполнен ли селект
+// is_fill_select[select_id] = true/false
+DinamicUnchors.is_fill_select = [];
+
+// нужно ли подгружать кампании
+DinamicUnchors.comp_id_need_load = [];
+
+// is_close_company[comp_id] = true/false
+DinamicUnchors.is_close_company = [];
+DinamicUnchors.CLOSE_COMPANY_RND = "Нет анкоров. План выполнен";
+DinamicUnchors.NOCLOSE_COMPANY_RND = "Случайный анкор";
+
+// Отмечен ли cелект: 
+// is_select_checked[select_id]
+DinamicUnchors.is_select_checked = []; // дубляж с функцией is_check_select
+
+DinamicUnchors.get_comp_id = function () {
+	return userCampaigns.getFirstCheckedDataCampaign().id;
+};
+
+DinamicUnchors.get_select_id = function (cb_id) {
+	return "anchor_" + cb_id.substr(2);
+};
+
+DinamicUnchors.is_check_select = function (select$) {
+	if (DinamicUnchors.is_select_checked[select$.attr('id')] === undefined)
+		DinamicUnchors.is_select_checked[select$.attr('id')] = 0;
+
+	return DinamicUnchors.is_select_checked[select$.attr('id')] == 0 ? false : true;
+};
+
+DinamicUnchors.get_unchor_text = function (unchor_id) {
+	return DinamicUnchors.unchors[unchor_id]['text']
+		+ " (" + DinamicUnchors.unchors[unchor_id]['cnt_work']
+		+ "/" + DinamicUnchors.unchors[unchor_id]['cnt_plan'] + ")"
+};
+
+DinamicUnchors.update_option = function (select, optionIndex, unchor_id) {
+	select.gglSelect("updateOption", optionIndex, {
+		text: DinamicUnchors.get_unchor_text(unchor_id)
+	});
+};
+
+DinamicUnchors.remove_option = function (select$, unchor_id) {
+	var indexes = select$.gglSelect("indexOfList", {
+		id: unchor_id
+	});
+
+	for (var i = indexes.length - 1; i >= 0; i--) {
+		select$.gglSelect("removeAt", indexes[i]);
+	}
+};
+
+DinamicUnchors.insert_option = function (select$, unchor_id) {
+	var select_id = select$.attr('id');
+
+	if (DinamicUnchors.is_fill_select[select_id] === undefined)
+		DinamicUnchors.is_fill_select[select_id] = false;
+
+	if (DinamicUnchors.is_fill_select[select_id] == false)
+		return;
+
+	var option$ = select$.gglSelect("indexOfList", { id: unchor_id });
+
+	if (option$.length == 1) {
+		DinamicUnchors.update_option(select$, option$[0], unchor_id);
+
+		return;
+	}
+
+	var text = DinamicUnchors.unchors[unchor_id]['text'];
+	var options = select$.gglSelect("getOptions");
+	var l = 1, r = options.length - 1;
+	while (l < r) {
+		var m = r - parseInt((r - l) / 2, 10);
+		if (options[m].text <= text) l = m;
+		else r = m - 1;
+	}
+
+	if (l >= options.length) {
+		select$.gglSelect("insertOption", {
+			id: unchor_id,
+			text: DinamicUnchors.get_unchor_text(unchor_id),
+			value: unchor_id,
+			title: DinamicUnchors.unchors[unchor_id]["url"]
+		}, 1);
+	} else {
+		select$.gglSelect("insertOption", {
+			id: unchor_id,
+			text: DinamicUnchors.get_unchor_text(unchor_id),
+			value: unchor_id,
+			title: DinamicUnchors.unchors[unchor_id]["url"]
+		}, 2);
+	}
+};
+
+DinamicUnchors.sortSelect = function (selElem) {
+	var options = $(selElem).gglSelect("getOptions");
+	var tmpAry = [];
+	for (var i = 1; i < options.length; i++) {
+		tmpAry[i] = [];
+		tmpAry[i][0] = options[i].text;
+		tmpAry[i][1] = options[i].value;
+		tmpAry[i][2] = options[i].id;
+		tmpAry[i][3] = options[i].title;
+	}
+	tmpAry.sort();
+	$(selElem).gglSelect("removeToEnd", 1);
+
+	for (var i = 1; i < tmpAry.length; i++) {
+		$(selElem).gglSelect("addOption", {
+			id: tmpAry[i - 1][2],
+			text: tmpAry[i - 1][0],
+			value: tmpAry[i - 1][1],
+			title: tmpAry[i - 1][3]
+		});
+	}
+};
+
+DinamicUnchors.fill_select = function (select, select_id, comp_id) {
+	for (var unchor_id in DinamicUnchors.campaings[comp_id]) {
+		$(select).gglSelect("addOption", {
+			id: unchor_id,
+			text: DinamicUnchors.get_unchor_text(unchor_id),
+			value: unchor_id,
+			title:DinamicUnchors.unchors[unchor_id]["url"]
+		});
+	}
+
+	DinamicUnchors.sortSelect(select);
+	$(select).gglSelect("addOption", {
+		id: "unchor_add",
+		text: "<strong>Добавить анкор</strong>",
+		value: "unchor_add",
+		title: "Добавить анкор",
+		comp_id: comp_id,
+		onclick: DinamicUnchors.addNew
+	});
+	DinamicUnchors.is_fill_select[select_id] = true;
+};
+
+DinamicUnchors.editWindow = false;
+DinamicUnchors.editWindowWinInterval = 0;
+DinamicUnchors.checkAfterEdit = function () {
+	if (DinamicUnchors.editWindow.closed) {
+		window.clearInterval(DinamicUnchors.editWindowWinInterval);
+		var selectedUnchor = [];
+
+		var comp_id = 0;
+		for (var k in DinamicUnchors.campaings) {
+			comp_id = k;
+			break;
+		}
+		DinamicUnchors.campaings = [];
+		DinamicUnchors.unchors = [];
+		DinamicUnchors.is_fill_select = [];
+
+		$('.js-search-sites-tbody .ggl-select').each(function(index, select) {
+			var siteId = $(this).data('siteId');
+			var selectValue = $(this).find("input").val();
+			selectedUnchor[siteId] = selectValue;
+			$(this).find(".div-select-list .ggl-option:not([data-value='random'])").remove();
+		});
+		DinamicUnchors.comp_id_need_load.push(comp_id);
+		DinamicUnchors.load_compaing_unchors(selectedUnchor);
+	}
+};
+
+DinamicUnchors.addNew = function() {
+	var comp_id = 0;
+	for (var k in DinamicUnchors.campaings) {
+		comp_id = k;
+		break;
+	}
+
+	DinamicUnchors.editWindow = window.open(
+		window.urlHelper.makeUrl(
+			window.ControllerConsts.CONTROLLER_UNCHORS,
+			window.ControllerConsts.ACTION_INDEX,
+			{
+				"comp_id": comp_id,
+				"token": window.anchorEditToken
+			}
+		),
+		'edit_unchors' + window.anchorEditToken, 'width=960, height=550, left=200, resizable=yes, scrollbars=1, status=yes'
+	);
+
+	if (DinamicUnchors.editWindowWinInterval !== 0) {
+		window.clearInterval(DinamicUnchors.editWindowWinInterval);
+	}
+
+	DinamicUnchors.editWindowWinInterval = window.setInterval(DinamicUnchors.checkAfterEdit, 100);
+};
+
+DinamicUnchors.is_finish_plan = function (comp_id) {
+	if (DinamicUnchors.campaings[comp_id] === undefined) return false;
+
+	for (var unchor_id in DinamicUnchors.campaings[comp_id]) {
+		if (DinamicUnchors.unchors[unchor_id]['cnt_work'] < DinamicUnchors.unchors[unchor_id]['cnt_plan']) return false;
+	}
+
+	return true;
+};
+
+DinamicUnchors.update_plan = function (comp_id) {
+	for (var unchor_id in DinamicUnchors.campaings[comp_id]) {
+		if ((DinamicUnchors.unchors[unchor_id]['cnt_plan'] <= DinamicUnchors.unchors[unchor_id]['cnt_work']) && DinamicUnchors.unchors[unchor_id]['comp_if_all'] == 1) {
+			DinamicUnchors.unchors[unchor_id]['cnt_plan'] += DinamicUnchors.unchors[unchor_id]['step_plan'];
+		}
+	}
+
+	$('.js-search-sites-tbody .ggl-select').each(function(index, select) {
+		var select_id = $(select).attr('id');
+		if (DinamicUnchors.is_fill_select[select_id]){
+			var unchor_id = $(select).gglSelect("selectedValue");
+			DinamicUnchors.remove_option($(select), unchor_id);
+			DinamicUnchors.fill_select(select, select_id, comp_id);
+			var optionIndex = $(select).gglSelect("indexOf", { id: unchor_id });
+			$(select).gglSelect("selectOption", optionIndex);
+		}
+	});
+};
+
+DinamicUnchors.normalize_plan = function (comp_id, add_mul) {
+	for (var unchor_id in DinamicUnchors.campaings[comp_id]) {
+		if (DinamicUnchors.unchors[unchor_id]['cnt_plan'] <= DinamicUnchors.unchors[unchor_id]['cnt_work']) {
+			DinamicUnchors.unchors[unchor_id]['cnt_plan'] += add_mul * DinamicUnchors.unchors[unchor_id]['step_plan'];
+		}
+	}
+};
+
+DinamicUnchors.check_checked = function (select_id) {
+	var id = select_id.substr(7);
+	var check_box_id = "_" + id;
+	var cnt =
+		($("#0_" + check_box_id).is(':checked') ? 1 : 0) +
+		($("#1_" + check_box_id).is(':checked') ? 1 : 0) +
+		($("#2_" + check_box_id).is(':checked') ? 1 : 0);
+
+	DinamicUnchors.is_select_checked[select_id] = (cnt == 0 ? false : true);
+};
+
+DinamicUnchors.uncheck_select = function (select$) {
+	var id = select$.attr('id').substr(7);
+	var check_box_id = "_" + id;
+	$('.js-search-sites-tbody input:checkbox[id$="'+check_box_id+'"]').each(function (index, cb) {
+		$(cb).prop('checked', false).prop('disabled',true);
+		var cb_id = $(cb).attr('id');
+		DinamicUnchors.check_checked(DinamicUnchors.get_select_id(cb_id));
+	});
+};
+
+DinamicUnchors.reuncheck_select = function (select$) {
+	var id = select$.attr('id').substr(7);
+	var check_box_id = "_" + id;
+	$('.js-search-sites-tbody input:checkbox[id$="' + check_box_id + '"]').prop('disabled', false);
+};
+
+DinamicUnchors.close_plan = function (comp_id) {
+	DinamicUnchors.is_close_company[comp_id] = true;
+	$('.js-search-sites-tbody .ggl-select[id^="anchor_"]').each(function (index, select) {
+		var selectedValue = $(select).gglSelect("selectedValue");
+		if (selectedValue == 'random') {
+			var selectedIndex = $(select).gglSelect("selectedIndex");
+			$(select).gglSelect("updateOption", selectedIndex, {
+				text: DinamicUnchors.CLOSE_COMPANY_RND
+			});
+			DinamicUnchors.uncheck_select($(this));
+		}
+	});
+};
+
+DinamicUnchors.reopen_plan = function (comp_id) {
+	$('.js-search-sites-tbody .ggl-select[id^="anchor_"]').each(function (index, select) {
+		var selectedValue = $(select).gglSelect("selectedValue");
+		if (selectedValue == 'random') {
+			var selectedIndex = $(select).gglSelect("selectedIndex");
+			$(select).gglSelect("updateOption", selectedIndex, { text: DinamicUnchors.NOCLOSE_COMPANY_RND });
+			DinamicUnchors.reuncheck_select($(this));
+		}
+	});
+};
+
+DinamicUnchors.getAnchorInSelect = function (select, comp_id) {
+	var select_id = $(select).attr("id");
+
+	if ($(select).gglSelect("getOptions").length == 1){
+		if (DinamicUnchors.is_finish_plan(comp_id)) {
+			if (DinamicUnchors.comp_if_all[comp_id] == 1) {
+				DinamicUnchors.update_plan(comp_id);
+			}
+		}
+	}
+
+	if (DinamicUnchors.is_fill_select[select_id] === undefined) {
+		DinamicUnchors.is_fill_select[select_id] = false;
+	}
+
+	if (DinamicUnchors.is_fill_select[select_id] == false){
+		if (DinamicUnchors.campaings[comp_id] === undefined) {
+			return true;
+		} else {
+			DinamicUnchors.fill_select(select, select_id, comp_id);
+		}
+
+		return true;
+	} else {
+		return true;
+	}
+};
+
+DinamicUnchors.refresh_option_2 = function (comp_id, unchor_id) {
+	var need_insert = DinamicUnchors.unchors[unchor_id]['cnt_work'] != DinamicUnchors.unchors[unchor_id]['cnt_plan'];
+	var need_remove = DinamicUnchors.unchors[unchor_id]['cnt_work'] == DinamicUnchors.unchors[unchor_id]['cnt_plan'];
+
+	$('.js-search-sites-tbody .ggl-select[id^="anchor_"]').each(function(index, select){
+		var selectedValue = $(this).gglSelect("selectedValue");
+		var option$ = $(this).gglSelect("findOptions", { id: unchor_id });
+		var check = DinamicUnchors.is_check_select($(this));
+
+		if (Object.keys(option$).length == 0){
+			if (need_insert) DinamicUnchors.insert_option($(this), unchor_id);
+		} else { // анкор найден
+			var option = false;
+			var optionIndex = false;
+			for (var key in option$) {
+				option = option$[key];
+				optionIndex = key;
+			}
+
+			if (check == true && selectedValue == option.value) DinamicUnchors.update_option($(this), optionIndex, unchor_id);
+			else if (need_remove) DinamicUnchors.remove_option($(this), unchor_id);
+			else DinamicUnchors.update_option($(this), optionIndex, unchor_id);
+		}
+	});
+};
+
+DinamicUnchors.load_compaing_unchors = function (selectedUnchor) {
+	if (typeof selectedUnchor === "undefined") selectedUnchor = [];
+	if (DinamicUnchors.comp_id_need_load.length == 0) return;
+
+	var comp_id = DinamicUnchors.comp_id_need_load.pop();
+	if (DinamicUnchors.campaings[comp_id] === undefined) {
+		$.post(SearchSitesData.anchorsLoadListUrl, {
+			"id" : comp_id
+		}, function (answer) {
+			if (answer.success) {
+				var data = answer.data;
+				DinamicUnchors.campaings[comp_id] = [];
+				var add_mul = 1000000;
+
+				if (Object.keys(data).length >= 8) {
+					$(".search-anchor").removeClass("hidden");
+				} else {
+					$(".search-anchor").addClass("hidden");
+				}
+
+				for (var unchor_id in data) {
+					if (data[unchor_id]['cnt_plan'] != 0)
+						add_mul = Math.min(add_mul, parseInt(data[unchor_id]['cnt_work'] / data[unchor_id]['cnt_plan'], 10));
+
+					DinamicUnchors.unchors[unchor_id] = data[unchor_id];
+					DinamicUnchors.campaings[comp_id][unchor_id] = 1;
+				}
+
+				if (add_mul == 1000000) add_mul = 0;
+				DinamicUnchors.normalize_plan(comp_id, add_mul);
+				$('.js-search-sites-tbody img[id^="load_"]').css('display','none');
+				setTimeout(function () {
+					DinamicUnchors.load_compaing_unchors(selectedUnchor);
+				}, 10);
+				DinamicUnchors.update_plan(comp_id);
+
+				$('.js-search-sites-tbody .ggl-select').each(function (index, select) {
+					var select_id = $(select).attr('id');
+					var siteId = $(select).data('siteId');
+					DinamicUnchors.fill_select(select, select_id, comp_id);
+
+					var selectValue = selectedUnchor[siteId];
+					var selectIndex = 0;
+					$(this).find(".div-select-list .ggl-option").each(function (itemIndex) {
+						if ($(this).attr("data-value") == selectValue && $(this).attr("data-value") != "unchor_add") {
+							selectIndex = itemIndex;
+						}
+					});
+
+					$(this).gglSelect("selectOption", selectIndex);
+				});
+			}
+		}, 'json');
+	} else {
+		setTimeout(function() {
+			DinamicUnchors.load_compaing_unchors(selectedUnchor);
+		}, 10);
+	}
+};
+
+DinamicUnchors.need_unchor_refresh = function (comp_id, unchor_id) {
+	if (unchor_id === undefined || unchor_id == 'random') return false;
+
+	var real_cnt = 0;
+	$('.js-search-sites-tbody .ggl-select[id^="anchor_"]').each(function (index, select) {
+		var selectedValue = $(select).gglSelect("selectedValue");
+		if (selectedValue == unchor_id && DinamicUnchors.is_check_select($(select))) real_cnt++;
+	});
+
+	return DinamicUnchors.unchors[unchor_id]['cnt_work'] != DinamicUnchors.unchors[unchor_id]['cnt_work_beg'] + real_cnt;
+};
+
+DinamicUnchors.select_click = function () {
+	var select_id = $(this).attr("id");
+	var unchor_id = $(this).gglSelect("selectedValue");
+	DinamicUnchors.prev_data[select_id] = unchor_id;
+};
+
+function SearchSites() {}
+
+SearchSites.getAnchorInSelect = function () {
+	let dataCampaign = userCampaigns.getFirstCheckedDataCampaign();
+	let idCampaign = dataCampaign !== false ? dataCampaign.id : false;
+
+	if (idCampaign === false) return false;
+
+	return DinamicUnchors.getAnchorInSelect(this, idCampaign);
+}
+
+SearchSites.dynamic_unchor_checkbox_change = function () {
+	var select_id = DinamicUnchors.get_select_id($(this).attr("id"));
+
+	if (DinamicUnchors.is_select_checked[select_id] == -1) {
+		return;
+	}
+
+	var check = DinamicUnchors.is_select_checked[select_id] == 0 ? false : true;
+	var comp_id = DinamicUnchors.get_comp_id(select_id);
+	var select$ = $("#" + select_id);
+
+	if (select$.length == 1){
+		var unchor_id = select$.gglSelect("selectedValue");
+
+		if (unchor_id != 'random') {
+			DinamicUnchors.unchors[unchor_id]['cnt_work'] += (check ? 1 : -1);
+
+			DinamicUnchors.refresh_option_2(comp_id, unchor_id);
+
+			if (DinamicUnchors.unchors[unchor_id]['cnt_work'] == DinamicUnchors.unchors[unchor_id]['cnt_plan']){
+				if (DinamicUnchors.is_finish_plan(comp_id)) {
+					if (DinamicUnchors.comp_if_all[comp_id] == 0) {
+						DinamicUnchors.close_plan(comp_id);
+					}
+				}
+			}
+			if (DinamicUnchors.is_close_company[comp_id] && DinamicUnchors.unchors[unchor_id]['cnt_work'] < DinamicUnchors.unchors[unchor_id]['cnt_plan']) {
+				DinamicUnchors.is_close_company[comp_id] = false;
+				DinamicUnchors.reopen_plan(comp_id);
+			}
+		}
+	}
+};
+
+SearchSites.dynamic_unchor_select_change = function () {
+	var select_id = $(this).attr("id");
+	var comp_id = DinamicUnchors.get_comp_id(select_id);
+
+	var check = DinamicUnchors.is_check_select($(this));
+	var cur_unchor_id = $(this).gglSelect("selectedValue");
+	var prv_unchor_id = DinamicUnchors.prev_data[select_id];
+
+	if (check) {
+		// новый анкор
+		if (cur_unchor_id != 'random') {
+			DinamicUnchors.unchors[cur_unchor_id]['cnt_work']++;
+			DinamicUnchors.refresh_option_2(comp_id, cur_unchor_id);
+		}
+
+		// старый анкор
+		if (DinamicUnchors.need_unchor_refresh(comp_id, DinamicUnchors.prev_data[select_id])){
+			DinamicUnchors.unchors[prv_unchor_id]['cnt_work']--;
+			DinamicUnchors.refresh_option_2(comp_id, prv_unchor_id);
+
+			var unchor_id = prv_unchor_id;
+			if (DinamicUnchors.is_close_company[comp_id] && DinamicUnchors.unchors[unchor_id]['cnt_work'] < DinamicUnchors.unchors[unchor_id]['cnt_plan']) {
+				DinamicUnchors.is_close_company[comp_id] = false;
+				DinamicUnchors.reopen_plan(comp_id);
+			}
+		}
+		DinamicUnchors.prev_data[select_id] = cur_unchor_id;
+	}
+	var unchor_id = cur_unchor_id;
+	if (typeof DinamicUnchors.unchors[unchor_id] !== 'undefined') {
+		if (unchor_id != 'random' && DinamicUnchors.unchors[unchor_id]['cnt_work'] == DinamicUnchors.unchors[unchor_id]['cnt_plan']) {
+			if (DinamicUnchors.is_finish_plan(comp_id)) {
+				if (DinamicUnchors.comp_if_all[comp_id] == 0) {
+					DinamicUnchors.close_plan(comp_id);
+				}
+			}
+		}
+	}
+};
+
+$(function() {
+	$('body')
+		.on('change', '.js-checkbox-price-link, .js-checkbox-price-post, .js-checkbox-price-paper, .js-checkbox-price-img', SearchSites.dynamic_unchor_checkbox_change)
+		.on('click', '[id^="anchor_"]', SearchSites.getAnchorInSelect)
+		.on('click', '[id^="anchor_"]', DinamicUnchors.select_click)
+		.on('change', '[id^="anchor_"]', SearchSites.dynamic_unchor_select_change);
+});

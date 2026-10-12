@@ -1,0 +1,911 @@
+(
+	function ($)
+	{
+		var isOldSelect = false;
+		
+		// try {
+		// 	document.createEvent("TouchEvent");
+		// 	isOldSelect = true;
+		// } catch (e) {
+		// }
+
+		var mouseX = false;
+		var mouseY = false;
+		
+		$(document).mousemove(function (event) {
+			mouseX = event.pageX;
+			mouseY = event.pageY;
+		});
+		
+		var titleTimer = false;
+		var titlePanel = false;
+		
+		var instances = {};
+		var iIndex = 0;
+		
+		var isTouchControl = function (control) {
+			return control.is("select");
+		};
+		
+		var bodyClickFunc = function (exclude) {
+			for (var key in instances) {
+				var current = instances[key];
+				if (current === exclude) {
+					continue;
+				}
+				
+				var settings = current.data("selectSettings");
+				if (settings !== undefined && !settings.isMouseOnControl) {
+					if (isOpened(current)) {
+						clickHandler(current, false);
+					}
+					getFocusFrameElement(current).removeClass("active");
+				}
+			}
+		};
+		
+		var bodyClickHandler = function () {
+			bodyClickFunc();
+		};
+		
+		var bodyKeyDownHandler = function (e) {
+			
+			for (var key in instances) {
+				var current = instances[key];
+				if (e.keyCode === 27) {
+					if (isOpened(current)) {
+						clickHandler(current, false);
+					}
+				} else if (e.keyCode === 13) {
+					if (isFocused(current)) {
+						clickHandler(current, true);
+					}
+				} else if (e.keyCode === 37 || e.keyCode === 38 || e.keyCode === 39 || e.keyCode === 40) {
+					if (isFocused(current)) {
+						if (e.keyCode === 37 || e.keyCode === 38) {
+							selectPrevious(current);
+						} else {
+							selectNext(current);
+						}
+						e.preventDefault();
+					}
+				}
+			}
+		};
+		
+		var getValueElement = function (control) {
+			return control.children("input:hidden");
+		};
+		
+		var getSelectListElement = function (control, isTouch) {
+			if (isTouch === undefined) {
+				isTouch = isTouchControl(control);
+			}
+			if (isTouch) {
+				return control;
+			}
+			return control.children(".div-select-list");
+		};
+		
+		var getFocusFrameElement = function (control) {
+			return control.children(".focus-frame");
+		};
+		
+		var getOptionsElements = function (control, isTouch) {
+			if (isTouch === undefined) {
+				isTouch = isTouchControl(control);
+			}
+			if (isTouch) {
+				return getSelectListElement(control).children("option");
+			}
+			return getSelectListElement(control).children(".ggl-option");
+		};
+		
+		var getOptions = function (control, isTouch) {
+			if (isTouch === undefined) {
+				isTouch = isTouchControl(control);
+			}
+			var options = getOptionsElements(control, isTouch);
+			var result = [];
+			options.each(function () {
+				var option = {
+					id: $(this).attr("id"),
+					text: $(this).text()
+				};
+				
+				if (isTouch) {
+					option.value = $(this).val();
+					option.title = $(this).attr("title");
+				} else {
+					option.value = $(this).attr("data-value");
+					option.title = $(this).attr("data-title");
+				}
+				
+				result.push(option);
+			});
+			return result;
+		};
+		
+		var isOpened = function (control, isTouch) {
+			if (isTouch === undefined) {
+				isTouch = isTouchControl(control);
+			}
+			if (isTouch) {
+				return false; // todo
+			}
+			return getSelectListElement(control).filter(".hidden").length === 0;
+		};
+		
+		var isFocused = function (control, isTouch) {
+			if (isTouch === undefined) {
+				isTouch = isTouchControl(control);
+			}
+			if (isTouch) {
+				return false; // todo
+			}
+			return getFocusFrameElement(control).filter(".active").length > 0;
+		};
+		
+		var clickHandler = function (control, isNeedSelect) {
+			
+			bodyClickFunc(control);
+			
+			if (isOpened(control)) {
+				var controlInput = control.get(0).getElementsByClassName("search-anchor-input");
+				if (controlInput.length > 0) {
+					if (controlInput[0].isEqualNode(document.activeElement)) {
+						return false;
+					}
+				}
+
+				if (isNeedSelect) {
+					setSelected(control, false, true);
+				} else {
+					var settings = control.data("selectSettings");
+					setSelected(control, settings.selectedBeforeOpen, false);
+				}
+			} else {
+				var settings = control.data("selectSettings");
+				settings.selectedBeforeOpen = getSelected(control);
+				control.data("selectSettings", settings);
+			}
+
+			getSelectListElement(control).toggleClass("hidden");
+
+			control.children("div.search-anchor").toggleClass("hidden");
+
+			getFocusFrameElement(control).addClass("active");
+
+			if (isOpened(control)) {
+				control
+					.find(".search-anchor-input")
+					.focus()
+					.trigger("input");
+			}
+		};
+		
+		var createOptionElement = function (option, isTouch) {
+			var defaults = {
+				id : false,
+				name: false,
+				class: false,
+				value: false,
+				title: false,
+				text: ""
+			};
+			$.extend(defaults, option);
+
+			var optionElementText = "<div";
+			if (isTouch) {
+				optionElementText = "<option";
+			}
+			
+			if (option.id) {
+				optionElementText += ' id="' + option.id + '"';
+			}
+
+			if (option.name) {
+				optionElementText += ' name="' + option.name + '"';
+			}
+			
+			if (option.class) {
+				if (isTouch) {
+					optionElementText += ' class="' + option.class + '"';
+				} else {
+					optionElementText += ' class="ggl-option ' + option.class + '"';
+				}
+			} else if (!isTouch) {
+				optionElementText += ' class="ggl-option"';
+			}
+			
+			if (option.value) {
+				if (isTouch) {
+					optionElementText += ' value="' + option.value + '"';
+				} else {
+					optionElementText += ' data-value="' + option.value + '"';
+				}
+			}
+
+			if (option.title) {
+				if (isTouch) {
+					optionElementText += ' title="' + option.title + '"';
+				} else {
+					optionElementText += ' data-title="' + option.title + '"';
+				}
+			}
+
+			if (!isTouch) {
+				optionElementText += ' data-content="' + option.text + '"';
+			}
+
+			optionElementText += '>' + option.text;
+			
+			if (isTouch) {
+				optionElementText += '</option>';
+			} else {
+				optionElementText += '</div>';
+			}
+
+			var optionElement = $(optionElementText);
+			if (typeof option.onclick !== 'undefined') {
+				 optionElement.on('click', option.onclick);
+			}
+
+			return optionElement;
+		};
+		
+		var initOption = function (control, option) {
+						
+			option.hover(
+				function () {
+				
+					var currentOption = $(this);
+
+					getOptionsElements(control).removeClass("selected");
+					currentOption.addClass("selected");
+
+					if (titleTimer !== false) {
+						clearTimeout(titleTimer);
+					}
+
+					var title = currentOption.attr("data-title");
+
+					if (title !== undefined) {
+						var settings = control.data("selectSettings");
+						titleTimer = setTimeout(
+							function () {
+								titleTimer = false;
+								
+								var scroll = $(window).scrollTop();
+								titlePanel.css("left", mouseX.toString() + "px");
+								titlePanel.css("top", (mouseY - scroll + 22).toString() + "px");
+								titlePanel.text(title);
+								titlePanel.removeClass("hidden");
+							},
+							settings.titleInterval
+						);
+					}
+
+				},
+				function () {
+
+					if (titleTimer !== false) {
+						clearTimeout(titleTimer);
+					}
+
+					titlePanel.addClass("hidden");
+				}
+			);
+		};
+		
+		var getSelected = function (control, isTouch) {
+			
+			if (isTouch === undefined) {
+				isTouch = isTouchControl(control);
+			}
+			
+			if (isTouch) {
+				return getOptionsElements(control, isTouch).filter(":selected").eq(0);
+			}
+			return getOptionsElements(control, isTouch).filter(".selected").eq(0);
+		};
+		
+		var getSelectedIndex = function (control, isTouch) {
+			
+			if (isTouch === undefined) {
+				isTouch = isTouchControl(control);
+			}
+			
+			var result = false;
+			
+			var options = getOptionsElements(control, isTouch);
+			options.each(function (index, option) {
+				if (isTouch) {
+					if ($(option).is(":selected")) {
+						result = index;
+					}
+				} else {
+					if ($(option).hasClass("selected")) {
+						result = index;
+					}
+				}
+			});
+			
+			return result;
+		};
+		
+		var setSelectedText = function (control, text) {
+			control.children(".selected-text").text(text);
+		};
+		
+		var setSelected = function (control, option, triggerChange) {
+
+			var selected = getSelected(control);
+			
+			var oldValue = selected.length > 0 ? selected.attr("data-value") : false;
+			var newValue = option === false ? false : option.attr("data-value");
+
+			if (oldValue === newValue) {
+				return false;
+			}
+
+			var valueElement = getValueElement(control);
+			if (option !== false) {
+				selected.removeClass("selected");
+				option.addClass("selected");
+				setSelectedText(control, option.text());
+				valueElement.val(option.attr("data-value"));
+			} else {
+				setSelectedText(control, selected.text());
+				valueElement.val(selected.attr("data-value"));
+			}
+
+			if (triggerChange === true) {
+				control.trigger("change");
+			}
+			return true;
+		};
+		
+		var selectPrevious = function (control) {
+
+			return control.each(function() {
+
+				var current = $(this);
+
+				var selected = getSelected(current);
+				var newSelected = selected.prevAll(".ggl-option").not(".hidden").first();
+				if (newSelected.length < 1) {
+					return false;
+				}
+
+				setSelected(current, newSelected, false);
+				return true;
+			});
+		};
+		
+		var selectNext = function (control) {
+
+			return control.each(function() {
+
+				var current = $(this);
+
+				var selected = getSelected(current);
+				var newSelected = selected.nextAll(".ggl-option").not(".hidden").first();
+				if (newSelected.length < 1) {
+					return false;
+				}
+
+				setSelected(current, newSelected, false);
+				return true;
+			});
+		};
+		
+		var findOptions = function (control, filter) {
+				
+			var defaults = {
+				id : false,
+				text: false,
+				value: false,
+				title: false
+			};
+			$.extend(defaults, filter);
+
+			var options = getOptions(control);
+
+			var result = { };
+
+			for (var key in options) {
+				if (defaults.id !== false) {
+					if (options[key].id !== defaults.id) {
+						continue;
+					}
+				}
+				if (defaults.text !== false) {
+					if (options[key].text !== defaults.text) {
+						continue;
+					}
+				}
+				if (defaults.value !== false) {
+					if (options[key].value !== defaults.value) {
+						continue;
+					}
+				}
+				if (defaults.title !== false) {
+					if (options[key].title !== defaults.title) {
+						continue;
+					}
+				}
+
+				result[key] = options[key];
+			}
+
+			return result;
+		};
+		
+		var init = function (collection, options) {
+			
+			var defaults = {
+				titleInterval : 500,
+				listHeight: false,
+				wrapperClass: false
+			};
+			var tmpSettings = $.extend(options, defaults);
+
+			titlePanel = $("body div.ggl-select-title-panel");
+			if (titlePanel.length === 0) {
+				titlePanel = $('<div class="ggl-select-title-panel hidden"></div>');
+				$("body").append(titlePanel);
+			}
+
+
+			return collection.each(function() {
+
+				var current = $(this);
+				var settings = $.extend({ }, tmpSettings);
+
+				var options = current.children();
+				var optionsClone = options.clone();
+				options.remove();
+				initOption(current, optionsClone);
+
+				current.addClass("no-frame");
+
+				var valueElementText = '<input type="hidden"';
+				if (current.attr("name")) {
+					valueElementText += ' name="' + current.attr("name") + '"';
+				}
+				valueElementText += ' value="">';
+				var valueElement = $(valueElementText);
+				current.append(valueElement);
+				
+				var frameElement = $('<div class="ggl-select-frame"></div>');
+				current.append(frameElement);
+				var focusFrameElement = $('<div class="focus-frame"></div>');
+				current.append(focusFrameElement);
+				var triangleElement = $('<div class="triangle"></div>');
+				current.append(triangleElement);
+				var selectedBoxElement = $('<div class="selected-text select-none"></div>');
+				current.append(selectedBoxElement);
+
+				var id = Math.random().toString(36).substr(2, 16);
+
+				var searchElement = $('<div class="search-anchor">\n' +
+					'    <input id="' + id + '" class="search-anchor-input" placeholder="Поиск">\n' +
+					'    <span class="clear-button hidden">\n' +
+					'        <svg class="clear-icon" focusable="false" height="24px" viewBox="0 0 24 24" width="24px"\n' +
+					'             xmlns="http://www.w3.org/2000/svg">\n' +
+					'            <path fill="#808080" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>\n' +
+					'            <path d="M0 0h24v24H0z" fill="none"></path>\n' +
+					'        </svg>\n' +
+					'    </span>\n' +
+					'    <span class="search-button">\n' +
+					'        <svg class="search-icon" focusable="false" height="24px" viewBox="0 0 24 24" width="24px"\n' +
+					'             xmlns="http://www.w3.org/2000/svg">\n' +
+					'            <path d="M20.49,19l-5.73-5.73C15.53,12.2,16,10.91,16,9.5C16,5.91,13.09,3,9.5,3S3,5.91,3,9.5C3,13.09,5.91,16,9.5,16 c1.41,0,2.7-0.47,3.77-1.24L19,20.49L20.49,19z M5,9.5C5,7.01,7.01,5,9.5,5S14,7.01,14,9.5S11.99,14,9.5,14S5,11.99,5,9.5z"></path>\n' +
+					'            <path d="M0,0h24v24H0V0z" fill="none"></path>\n' +
+					'        </svg>\n' +
+					'    </span>\n' +
+					'</div>');
+				searchElement
+					.find(".clear-button")
+					.on('click', function () {
+						var input = $(this).siblings(".search-anchor-input");
+
+						if (input) {
+							input.val("");
+							searchTextChanged.call(input);
+							input.focus();
+						}
+
+						return false;
+					});
+
+				var listDiv = $('<div class="div-select-list hidden"></div>');
+				listDiv.append(searchElement);
+				listDiv.append(optionsClone);
+
+				if (settings.listHeight !== false) {
+					listDiv.css("max-height", settings.listHeight.toString() + "px");
+				}
+
+				current.append(listDiv);
+
+				current.click(function () {
+					clickHandler(current, true);
+				});
+
+				current.hover(
+					function () {
+						var settings = current.data("selectSettings");
+						settings.isMouseOnControl = true;
+						current.data("selectSettings", settings);
+					},
+					function () {
+						var settings = current.data("selectSettings");
+						settings.isMouseOnControl = false;
+						current.data("selectSettings", settings);
+
+						titlePanel.addClass("hidden");
+					}
+				);
+
+				var input = document.getElementById(id);
+				if (input) {
+					input.addEventListener("input", searchTextChanged);
+				}
+
+				var selectedOption = optionsClone.eq(0);
+				if (selectedOption.length > 0) {
+					setSelected(current, selectedOption, true);
+				}
+
+				if (iIndex === 0) {
+					$("body").click(bodyClickHandler);
+					$("body").keydown(bodyKeyDownHandler);
+				}
+
+				var instanceIndex = iIndex++;
+
+				settings.instanceIndex = instanceIndex;
+				current.data('selectSettings', settings);
+
+				instances[instanceIndex] = current;
+			});
+		};
+
+		var searchTextChanged = function () {
+			var tdHide = $(this).get(0).closest("td");
+			if (tdHide) {
+				$(tdHide)
+					.find("div.ggl-option")
+					.not("[data-value='unchor_add']")
+					.addClass("hidden");
+
+			}
+
+			var tdShow = $(this).get(0).closest("td");
+			if (tdShow) {
+				$(tdShow)
+					.find("div.ggl-option:icontains('" + $(this).val() + "')")
+					.not("[data-value='unchor_add']")
+					.not("[data-value='random']")
+					.removeClass("hidden");
+			}
+
+			if (!$(this).val()) {
+				var tdRandom = $(this).get(0).closest("td");
+				if (tdRandom) {
+					$(tdRandom)
+						.find("[data-value='random']")
+						.removeClass("hidden");
+				}
+			}
+
+			var clearButton = $(this).parent(".search-anchor").children(".clear-button");
+			if ($(this).val()) {
+				clearButton.removeClass("hidden");
+			} else {
+				clearButton.addClass("hidden");
+			}
+		}
+		
+		var initForTouchDevice = function (collection, options) {
+			
+			var defaults = {
+				titleInterval : 500,
+				listHeight: false,
+				wrapperClass: false
+			};
+			var tmpSettings = $.extend(options, defaults);
+
+			return collection.each(function() {
+
+				var current = $(this);
+				var settings = $.extend({ }, tmpSettings);
+				
+				var options = current.children();
+				
+				var selectElementText = '<select';
+				
+				var duplicateFields = { id: "id", name: "name", class: "class", onclick: "onClick", onmousedown: "onMouseDown" };
+				for (var key in duplicateFields) {
+					if (current.attr(key)) {
+						selectElementText += ' ' + key + '="' + current.attr(duplicateFields[key]) + '"';
+					}
+				}
+				
+				selectElementText += '></select>';
+				
+				current.wrap(selectElementText);
+				var selectElement = current.parent();
+				
+				options.each(function () {
+					var option = $(this);
+					
+					var optionElementText = '<option';
+					
+					if (option.attr("id")) {
+						optionElementText += ' id="' + option.attr("id") + '"';
+					}
+					
+					if (option.attr("name")) {
+						optionElementText += ' name="' + option.attr("name") + '"';
+					}
+					
+					if (option.attr("class")) {
+						optionElementText += ' class="' + option.attr("class") + '"';
+					}
+					
+					if (option.attr("data-value")) {
+						optionElementText += ' value="' + option.attr("data-value") + '"';
+					}
+					
+					if (option.attr("data-title")) {
+						optionElementText += ' title="' + option.attr("data-title") + '"';
+					}
+					
+					optionElementText += '>' + option.text() + '</option>';
+					selectElement.append(optionElementText);
+				});
+				
+				current.remove();
+				current = selectElement;
+				
+				current.data('selectSettings', settings);
+			});
+		};
+		
+		var methods = {
+			init: function (options) {
+				if (isOldSelect) {
+					return initForTouchDevice(this, options);
+				}
+				
+				return init(this, options);
+			},
+			destroy: function () {
+				return this.each(function() {
+					var current = $(this);
+					if (isTouchControl(current)) {
+						return;
+					}
+					var settings = current.data("selectSettings");
+
+					if (settings && settings.instanceIndex) delete instances[settings.instanceIndex];
+				});
+			},
+			isOpened: function () {
+				var current = $(this);
+				return isOpened(current);
+			},
+			isFocused: function () {
+				var current = $(this);
+				return isFocused(current);
+			},
+			selectOption: function (index) {
+				return this.each(function() {
+					var current = $(this);
+					var options = getOptionsElements(current);
+					
+					if (index in options) {
+						var newSelected = $(options[index]);
+						setSelected(current, newSelected, true);
+						return true;
+					}
+					
+					return false;
+				});
+			},
+			selectedIndex: function () {
+				var current = this.eq(0);
+				return getSelectedIndex(current);
+			},
+			selectedValue: function () {
+				
+				var current = $(this);
+				var isTouch = isTouchControl(current);
+				
+				var selected = getSelected(current, isTouch);
+				if (selected.length === 0) {
+					return undefined;
+				}
+				
+				if (isTouch) {
+					return selected.val();
+				}
+				return selected.attr("data-value");
+			},
+			selectedText: function () {
+				
+				var current = $(this);
+				var selected = getSelected(current);
+				if (selected.length === 0) {
+					return undefined;
+				}
+				
+				return selected.text();
+			},
+			addOption: function (option) {
+				return this.each(function() {
+					var current = $(this);
+					
+					var isTouch = isTouchControl(current);
+					var optionElement = createOptionElement(option, isTouch);
+					
+					if (!isTouch) {
+						initOption(current, optionElement);
+					}
+					
+					getSelectListElement(current, isTouch).append(optionElement);
+				});
+			},
+			insertOption: function (option, index) {
+				return this.each(function() {
+					
+					var current = $(this);
+					
+					var isTouch = isTouchControl(current);
+					var optionElement = createOptionElement(option, isTouch);
+					
+					if (!isTouch) {
+						initOption(current, optionElement);
+					}
+					
+					var listElement = getSelectListElement(current, isTouch);
+					var optionElements = getOptionsElements(current, isTouch);
+					
+					if (index === 0) {
+						listElement.prepend(optionElement);
+					} else if (index >= optionElements.length) {
+						listElement.append(optionElement);
+					} else {
+						optionElements.eq(index).before(optionElement);
+					}
+				});
+			},
+			getOptions: function () {
+				
+				var current = this.eq(0);
+				return getOptions(current);
+			},
+			removeAt: function (index) {
+				
+				return this.each(function() {
+					
+					var current = $(this);
+					var options = getOptionsElements(current);
+					if (index in options) {
+						$(options[index]).remove();
+					}
+				});
+			},
+			removeToEnd: function (fromIndex) {
+				
+				return this.each(function() {
+					
+					var current = $(this);
+					var options = getOptionsElements(current);
+					for (var i = options.length - 1; i >= fromIndex; i--) {
+						$(options[i]).remove();
+					}
+				});
+			},
+			findOptions: function (filter) {
+				
+				var current = this.eq(0);
+				return findOptions(current, filter);
+			},
+			indexOf: function (filter) {
+				
+				var current = this.eq(0);
+				var options = findOptions(current, filter);
+				
+				for (var key in options) {
+					return key;
+				}
+				
+				return false;
+			},
+			indexOfList: function (filter) {
+				
+				var current = this.eq(0);
+				var options = findOptions(current, filter);
+				
+				var result = [];
+				
+				for (var key in options) {
+					result.push(key);
+				}
+				
+				return result;
+			},
+			updateOption: function (index, newOption) {
+				var defaults = {
+					id : false,
+					name: false,
+					class: false,
+					value: false,
+					title: false,
+					text: false
+				};
+				$.extend(defaults, newOption);
+				
+				return this.each(function() {
+				
+					var current = $(this);
+					var isTouch = isTouchControl(current);
+					
+					var options = getOptionsElements(current, isTouch);
+					
+					if (index in options) {
+						var option = $(options[index]);
+						
+						if (defaults.id) {
+							option.attr("id", defaults.id);
+						}
+						if (defaults.name) {
+							option.attr("name", defaults.name);
+						}
+						if (defaults.class) {
+							option.attr("class", defaults.class);
+						}
+						if (defaults.value) {
+							if (isTouch) {
+								option.val(defaults.value);
+							} else {
+								option.attr("data-value", defaults.value);
+							}
+						}
+						if (defaults.title) {
+							if (isTouch) {
+								option.attr("title", defaults.title);
+							} else {
+								option.attr("data-title", defaults.title);
+							}
+						}
+						if (defaults.text) {
+							option.text(defaults.text);
+						}
+					}
+				});
+			}
+		};
+		
+		$.fn.gglSelect = function (method) {
+			if (methods[method]) {
+				return methods[method].apply(this, Array.prototype.slice.call(arguments, 1));
+			} else if (typeof method === "object" || !method) {
+				return methods.init.apply(this, arguments);
+			} else {
+				$.error("There no method called as " +  method);
+			}
+		};
+
+		jQuery.expr[':'].icontains = function(a, i, m) {
+			return jQuery(a).text().toUpperCase()
+				.indexOf(m[3].toUpperCase()) >= 0;
+		};
+
+	}
+
+)(jQuery);

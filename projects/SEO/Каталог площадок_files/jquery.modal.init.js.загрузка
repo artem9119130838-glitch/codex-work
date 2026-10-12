@@ -1,0 +1,258 @@
+$.modal.defaults = {
+	blockerClass: "jquery-modal",
+	clickClose: false,
+	closeClass: "",
+	closeExisting: true,
+	closeText: "<span class='icon-close'></span>",
+	escapeClose: true,
+	fadeDuration: 250,
+	fadeDelay: 0.25,
+	modalClass: "modal",
+	showClose: true,
+	showSpinner: true,
+	spinnerHtml: '<div class="rect1"></div><div class="rect2"></div><div class="rect3"></div><div class="rect4"></div>',
+};
+
+var Modal = function () {
+	/**
+	 * Шаблон модального окна
+	 * @param {object} params title, content, accept, cancel
+	 * @param {number} maxWidth
+	 * @param {function} successCallback
+	 * @param {boolean} useCallbackBeforeClosing
+	 * @returns {string}
+	 * @private
+	 */
+	var _tpl = function (params, maxWidth, successCallback, useCallbackBeforeClosing) {
+		if (!params && !params.content) return '';
+		window.confirmModalCallbackBefore = function () {};
+		window.confirmModalCallbackAfter = function () {};
+
+		window.confirmModalCallbackBeforeClose = function () {};
+		if (params.beforeClose) window.confirmModalCallbackBeforeClose = params.beforeClose;
+
+		window.confirmModalCallbackAfterClose = function () {};
+		if (params.afterClose) window.confirmModalCallbackAfterClose = params.afterClose;
+
+		var title = params.title ? '<h5 class="modal-header">' + params.title + '</h5>' : '';
+		maxWidth = maxWidth ? maxWidth : 320;
+		maxWidth = parseInt(maxWidth) + 'px';
+
+		var btnAcceptClass = 'btn_success';
+		if (params.acceptDanger && params.acceptDanger === true) {
+			btnAcceptClass = 'btn_danger';
+		}
+
+		var buttonConfirm = '';
+		var modalTypeClass = 'modal-alert';
+
+		if (successCallback) {
+			if (useCallbackBeforeClosing) window.confirmModalCallbackBefore = successCallback;
+			else window.confirmModalCallbackAfter = successCallback;
+
+			modalTypeClass = 'modal-confirm';
+			buttonConfirm = '<button class="btn ' + btnAcceptClass + '" onclick="confirmModalCallbackBefore(); $.modal.close(); confirmModalCallbackAfter();">' + params.accept + '</button>'
+		}
+
+		return ''
+			+ '<div class="' + modalTypeClass + '">'
+				+ '<div class="modal-wrapper" data-max-width="' + maxWidth + '">'
+					+ title
+					+ '<div class="modal-content">'
+						+ params.content
+					+ '</div>'
+					+ '<div class="modal-footer">'
+						+ buttonConfirm
+						+ '<button class="btn" onclick="confirmModalCallbackBeforeClose(); $.modal.close(); confirmModalCallbackAfterClose();">' + params.cancel + '</button>'
+					+ '</div>'
+				+ '</div>'
+			+ '</div>';
+	};
+
+	/**
+	 * Алерт в виде модального окна
+	 * @param {object} params title, content, cancel
+	 * @param {number|null} maxWidth
+	 * @param {function} closeCallback
+	 * @public
+	 */
+	var alert = function (params, maxWidth, closeCallback) {
+		if (!params && !params.content) return false;
+
+		var data = Object.assign({
+			content: '',
+			title: 'Внимание',
+			cancel: 'Закрыть',
+			modalProps: {}
+		}, params);
+
+		var $modal = $(_tpl(data, maxWidth)).appendTo('body').modal(data.modalProps);
+
+		if (closeCallback) {
+			$modal.on($.modal.AFTER_CLOSE, function (event, modal) {
+				closeCallback();
+			});
+		}
+	};
+
+	/**
+	 * Алерт с подтверждением действия
+	 * @param {object} params {title, content, accept, cancel}
+	 * @param {number} maxWidth
+	 * @param {function} successCallback
+	 * @param {boolean} useCallbackBeforeClosing
+	 * @public
+	 */
+	var confirm = function (params, maxWidth, successCallback, useCallbackBeforeClosing) {
+		if (!params && !params.content) return false;
+
+		var data = Object.assign({
+			content: '',
+			title: 'Подтвердите действие',
+			accept: 'Принять',
+			cancel: 'Закрыть',
+			acceptDanger: false,
+			beforeClose: null,
+			afterClose: null,
+			modalProps: {}
+		}, params);
+
+		useCallbackBeforeClosing = !!useCallbackBeforeClosing;
+		successCallback = successCallback ? successCallback : null;
+
+		$(_tpl(data, maxWidth, successCallback, useCallbackBeforeClosing)).appendTo('body').modal(data.modalProps);
+	};
+
+	/**
+	 * Формирование модального окна по ajax запросу
+	 * @param {string} url
+	 * @param {object} data
+	 * @param {object} modalProps
+	 * @public
+	 */
+	var ajax = function (url, data, modalProps) {
+		if (!url) return;
+		if (!data) data = {};
+		if (!modalProps) modalProps = {};
+
+		ajaxLoader(true);
+		$.post(url, data, function (response) {
+			ajaxLoader(false);
+			if (response) {
+				$('<div class="modal-ajax">' + response + '</div>')
+					.appendTo('body')
+					.modal(modalProps)
+						.on($.modal.OPEN, function () {
+							if (modalProps.open) modalProps.open();
+						})
+						.on($.modal.BEFORE_CLOSE, function () {
+							if (modalProps.beforeClose) modalProps.beforeClose();
+						});
+			}
+		});
+	};
+
+	/**
+	 * Формирование модального окна для картинки
+	 * @param {string} urlImg
+	 * @param {object} options
+	 * @public
+	 */
+	var images = function (urlImg, options) {
+		if (!urlImg) return false;
+
+		var width = options.width || '';
+
+		var tpl = ''
+			+ '<div class="modal-images">'
+				+ '<div class="modal-wrapper" data-max-width="' + width + '">'
+					+ '<div class="modal-content">'
+						+ '<img src="' + urlImg + '">'
+					+ '</div>'
+				+ '</div>'
+			+ '</div>';
+
+		$(tpl).appendTo('body').modal(options);
+	};
+
+	/**
+	 * Загрузчик для модального окна
+	 * @private
+	 */
+	var ajaxLoader = function (isLoad) {
+		if (isLoad === '') isLoad = true;
+
+		var hasModalSpinner = $('.modal-spinner').length;
+		if (isLoad && hasModalSpinner) return false;
+
+		if (isLoad) $('body').append('<div class="modal-spinner" style="display: block;">' + $.modal.defaults.spinnerHtml + '</div>');
+		else $('body').find('.modal-spinner').remove();
+	};
+
+	return {
+		alert,
+		confirm,
+		ajax,
+		images,
+	};
+};
+
+window.modal = Modal();
+
+/**
+ * Компенсация отступа при отключении скрола
+ * @param disable Отключить компенсацию
+ * @returns {boolean}
+ */
+var indentCompensation = function (disable) {
+	var _scrollWidth = (helper !== undefined) ? helper.getWidthScroll() : 0;
+
+	if (_scrollWidth === 0) return false;
+	if (disable !== undefined) {
+		_scrollWidth = '';
+	}
+
+	$('body').css({
+		'paddingRight': _scrollWidth
+	});
+	$('.header-authorized_fixed .header-authorized__nav').css({
+		'right': _scrollWidth
+	});
+};
+
+$(function () {
+	$('body')
+		.on($.modal.BEFORE_BLOCK, function (event, modal) {
+			indentCompensation();
+		})
+		.on($.modal.BEFORE_OPEN, function (event, modal) {
+			var _maxWidthContent = $(modal.$elm).find('.modal-wrapper').attr('data-max-width');
+			var _modalPadding = 40;
+
+			if (!_maxWidthContent) return;
+
+			$(modal.$elm).css({
+				maxWidth: (parseInt(_maxWidthContent) + _modalPadding) + 'px'
+			});
+		})
+		.on($.modal.OPEN, function (event, modal) {
+			// tinyMCE
+			if ($(modal.$elm.find('.modal-wrapper')).is('.modal-tinymce')) {
+				tinymce.execCommand('mceAddEditor', true, 'tinymce');
+			}
+		})
+		.on($.modal.CLOSE, function (event, modal) {
+			// tinyMCE
+			if ($(modal.$elm.find('.modal-wrapper')).is('.modal-tinymce')) {
+				tinymce.execCommand('mceRemoveEditor', true, 'tinymce');
+			}
+		})
+		.on($.modal.AFTER_CLOSE, function (event, modal) {
+			if ($(modal.$elm).is('.modal-ajax, .modal-alert, .modal-confirm, .modal-images')) {
+				$(modal.$elm).remove();
+			}
+			if ($.modal.isActive() !== true) {
+				indentCompensation(true);
+			}
+		});
+});

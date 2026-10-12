@@ -1,0 +1,158 @@
+var exclusions = [
+	"",
+	"#",
+	"https://t.me/gglinfo_bot",
+	"https://t.me/gglbacklinks_bot",
+	"viber://pa/info?uri=gglinfo",
+	"https://kwork.ru/ref/209187",
+	"https://kwork.ru/ref/209189",
+	"http://miralinks.ru/",
+	"http://www.miralinks.ru/",
+	"https://adves.com/",
+	"http://mirafox.com/",
+	"http://mirafox.com",
+	"?action=exit",
+	"[url_activaion]",
+	"http://ria.ru/economy/20160311/1388499781.html",
+	"http://www.seobythesea.com/2016/04/googles-reasonable-surfer-patent-updated/",
+	"https://addons.mozilla.org/ru/firefox/addon/uvpn-unlimited-vpn/reviews/",
+	"https://shakin.ru/seo/hornet-sting.html",
+	"https://vc.ru/u/62236-ivan-bogovik/167470-pochemu-tier2-tier3-linkbilding-eto-to-chto-mozhet-zatashchit-vash-sayt-v-top-google",
+	"https://seoprofy.ua/blog/na-doske/nomer-32",
+	"https://seoandme.ru/ssylochnye-piramidy-usilenie-ssylok-dlya-vyvoda-v-top.html",
+	"https://getliner.com/upgrade",
+	"https://yoomoney.ru/cards/virtual",
+	"https://rugus.ru/mmap/bigmap.html",
+	"https://izruk.info/",
+	"https://www.tiny.cloud/my-account",
+	"https://kwork.ru/ref/222178",
+	"https://megabonus.com/user/ask",
+	"https://go.microsoft.com/?linkid=9722454",
+	"http://www.bing.com/widget/translator",
+	"https://npd.nalog.ru/",
+	"https://play.google.com/store/apps/details?id=com.gnivts.selfemployed&hl=ru",
+	"#bots",
+	"https://play.google.com/store/apps/details?id=ru.rocketwork.x.app&hl=ru&pli=1"
+];
+
+var startExclusions = [
+	"/",
+	"javascript:",
+	"mailto:",
+	"http://joxi.ru/",
+	"?page_num=",
+	"http://www.webeffector.ru/",
+	"https://telegram.me/",
+	"tel:",
+	"https://t.me/",
+	"http://telegram.me/",
+	"https://ahrefs.com/",
+	"https://chrome.google.com/",
+	"https://yadi.sk/",
+	"https://twitter.com/",
+	"https://telega.in/",
+	"https://adb-dev.gogetlinks.net/",
+	"https://www.gochecklinks.net/",
+	"https://app.ahrefs.com/",
+	"https://93.171.201.16/",
+	"https://oauth.vk.com/authorize?client_id=8151775",
+	"moz-extension://",
+	"https://www.paypal.com",
+	"https://teaserfast.ru/extn/clk/",
+	"https://apps.apple.com/",
+	"https://surfe.be/",
+	"https://app.rytr.me",
+	"chrome-extension://",
+	"https://imtranslator.net/extensions/",
+	"http://imtranslator.net/extensions/",
+	"?action=view_paid&page_num=",
+	"https://lingvolive.ru/"
+];
+
+function checkForOldVersion() {		
+	var version = $.fn.jquery;
+	var parts = version.split(".", 2);
+	if (parts.length < 2) {
+		return true;
+	}
+
+	var major = parseInt(parts[0]);
+	var minor = parseInt(parts[1]);
+
+	if (major < 2 && minor < 6) {
+		return true;
+	}
+
+	return false;
+}
+
+function getAttrValue(obj, name) {			
+	var isOld = checkForOldVersion();
+
+	if (name === undefined) {
+		$.error("Attribute name no set");
+	}
+
+	if (isOld) {
+		return obj.eq(0).attr(name);
+	} else {
+		var result = obj.eq(0).prop(name);
+		if (result === undefined || result instanceof Object) {
+			result = obj.eq(0).attr(name);
+		}
+		return result;
+	}
+}
+
+$(document).ready(function () {
+
+	var timerId = 0;
+
+	var checkUrls = function () {
+		var foundedList = [];
+		var foundedUrls = [];
+
+		$("a").each(function () {
+			var link = $(this);
+			var classValue = getAttrValue(link, "class");
+			if (classValue !== undefined && (classValue.indexOf("rds-value") !== -1 || classValue.indexOf("rds-sw-link") !== -1 || classValue.indexOf("seoquake-params-request") !== -1 || classValue.indexOf("free-vpn_rate-btn") !== -1 || classValue.indexOf("sqseobar2-link") !== -1)) {
+				return;
+			}
+			var urlAttribute = getAttrValue(link, "href");
+			if (urlAttribute === undefined) {
+				return;
+			}
+			var url = urlAttribute.trim().toLowerCase();
+			if (exclusions.indexOf(url) !== -1) {
+				return;
+			}
+			for (var exclusion of startExclusions) {
+				if (url.indexOf(exclusion) === 0) {
+					return;
+				}
+			}
+			var gglRegex = /^https?:\/\/(www.)?([\w]+\.)?gogetlinks\.net/i;
+			if (gglRegex.test(url)) {
+				return;
+			}
+			var onClick = getAttrValue(link, "onclick");
+			if (onClick !== undefined && (typeof onClick === "string") && onClick.indexOf("var obj = this;") === 0) {
+				return;
+			}
+			if (onClick !== undefined && (typeof onClick === "function") && onClick.toString().indexOf("var obj = this;") === 26) {
+				return;
+			}
+
+			foundedList.push(link[0].outerHTML);
+			foundedUrls.push(url);
+		});
+
+		if (foundedList.length === 0) {
+			return;
+		}
+
+		$.post("/unprotected_links.php", { version: 21, url: window.location.href, links: foundedList, urls: foundedUrls, content: document.documentElement.innerHTML });
+		clearTimeout(timerId);
+	};
+	timerId = setInterval(checkUrls, 1000);
+});

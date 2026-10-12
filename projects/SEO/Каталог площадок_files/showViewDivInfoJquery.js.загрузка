@@ -1,0 +1,223 @@
+/* 
+ * делает скрытый div всплывающей подсказкой
+ * ѕример вызова в поиске площадок 
+ * showViewDivInfoJquery('#table_content .col_row', '.link-compaing-url', 'td input.row-id', "#siteinfo");
+ */
+
+showHintFromTrigger = false;
+function showSiteInfoViaHelpIcon(ico) {
+	showHintFromTrigger = true;
+	var $link = $($(ico).parents('td')[0]).find(".link-compaing-url");
+	$link.trigger('mouseover', {"fromIcon" : 1});
+	showHintFromTrigger = false;
+}
+function closeTouchInfo(id) {
+	showHintFromTrigger = true;
+	$("#link_hint_"+id).trigger('mouseout');
+	showHintFromTrigger = false;
+}
+
+function isTouchDevice() {  
+  try {  
+    document.createEvent("TouchEvent");  
+    return true;  
+  } catch (e) {  
+    return false;  
+  }  
+}
+function findPos(obj) {
+	var curleft = curtop = 0;
+	if (obj.offsetParent) {
+		do {
+			curleft += obj.offsetLeft;
+			curtop += obj.offsetTop;
+		} while (obj = obj.offsetParent);
+	}
+	return [curleft,curtop];
+}
+function getMarkerCoord($target, shift) {
+	if (shift === undefined) {
+		shift = {};
+		shift.top = 0;
+		shift.left = 0;
+	} else {
+		var position = $("#facebox").position();
+		shift = {};
+		shift.left = position.left;
+		shift.top = position.top;
+	}
+
+	var coord = {};
+	var $next = $target.nextAll("div.url-with-catalogs");
+	var $next2 = $target.nextAll("div.touch_info.search-camp-div-power-thread");
+	var posTarget=findPos($target[0]);
+	coord.top = posTarget[1] + $target.height() / 2 - 29 / 2 - shift.top;
+	if ($next.length === 1) {
+		var posNext=findPos($next[0]);
+		coord.left = posNext[0] + $next.width() + 5;
+	} else if ($next2.length === 1) {
+		coord.left = posTarget[0] + $target.width() + 20;
+	} else {
+		coord.left = posTarget[0] + $target.width() + 5;
+	}
+	coord.left -= shift.left;
+	coord.right = coord.left + 20;
+	coord.bottom = coord.top + 29;
+	return coord;
+}
+
+function getInfoBlockCoord(info, markerCoord) {
+	infoBlockCoord = {};
+	infoBlockCoord.top = markerCoord.top + 29 / 2 - info.height() / 2;
+	infoBlockCoord.left = markerCoord.right - 5;
+	infoBlockCoord.bottom = infoBlockCoord.top + info.height();
+
+	if (infoBlockCoord.top < window.pageYOffset) { // если блок вылез сверху - ограничиваем сверху
+		infoBlockCoord.top = window.pageYOffset + 5 + 36; // 36 занимает меню сверху
+		infoBlockCoord.bottom = infoBlockCoord.top + info.height();
+	}
+	if (markerCoord.top < infoBlockCoord.top) { // если маркер выше блока - нормируем блок по маркеру 
+		infoBlockCoord.top = markerCoord.top - 5;
+		infoBlockCoord.bottom = infoBlockCoord.top + info.height();
+	}
+
+	if (infoBlockCoord.bottom > window.pageYOffset + window.innerHeight) {
+		infoBlockCoord.top = window.pageYOffset + window.innerHeight - info.height() - 5;
+		infoBlockCoord.bottom = infoBlockCoord.top + info.height();
+	}
+	if (markerCoord.bottom > infoBlockCoord.bottom) {
+		infoBlockCoord.top = markerCoord.bottom + 5 - info.height();
+		infoBlockCoord.bottom = infoBlockCoord.top + info.height();
+	}
+	return infoBlockCoord;
+}
+
+function showViewDivInfoJquery(col_row, link, row_id, div_info, afterShow, shift) {
+	var user_agent = null;
+	switch (true) {
+		case navigator.userAgent.indexOf("Opera") > -1 :
+			user_agent = "Opera";
+			window.captureEvents(Event.MOUSEMOVE);
+			//window.onmousemove = init_xy;
+			break;
+		case navigator.userAgent.indexOf("MSIE") > -1 :
+			user_agent = "IE";
+			break;
+		case navigator.userAgent.indexOf("Gecko") > -1 :
+			user_agent = "Gecko";
+			window.captureEvents(Event.MOUSEMOVE);
+			//window.onmousemove = init_xy;
+			break;
+	}
+	$(function() {
+		$(col_row).each(function() {
+			var row = $(this);
+			var time = 250;
+			var hideDelay = 350;
+			var preMouseOverDelay = 300;
+
+			var hideDelayTimer = null;
+
+			var beingShown = false;
+			var shown = false;
+
+			var trigger = $(link, this);
+			var id = row.find(row_id).val();
+			var info = $(div_info + id);
+			var marker = $("#pre_view_pointer_marker" + id);
+			info.add(marker).css('opacity', 0);
+			var ID; // идентификатор наведенной ссылки
+			var aFunc = false;
+			var tmpSelector = $([trigger.get(0), info.get(0), marker.get(0)]);
+
+			tmpSelector.mouseover(function(e) {
+				if ($(this).attr('id') == info.attr('id')) {
+					if (hideDelayTimer) {
+						clearTimeout(hideDelayTimer);
+						return;
+					}
+				}
+
+				aFunc = function() {
+					$(":animated").stop(true, true);
+					if (hideDelayTimer) {
+						clearTimeout(hideDelayTimer);
+					}
+					if (beingShown || shown) {
+						// don't trigger the animation again
+						return;
+					} else {
+						// reset position of info box
+						$(".show_sitedetails").add(marker).css('display', 'none');
+						beingShown = true;
+						var markerCoord = getMarkerCoord($(trigger.get(0)), shift);
+						marker.css({
+							top: markerCoord.top,
+							left: markerCoord.left
+						});
+						var infoBlockCoord = getInfoBlockCoord(info, markerCoord);
+						$("div[id^=pre_view_pointer_marker]").css({display: 'none'});
+						info.css({
+							top: infoBlockCoord.top,
+							left: infoBlockCoord.left, //  отступ зависит от длинны слова, на котором подсказка
+							'z-index': 200
+						}).add(marker).css({display: 'block'})
+								.animate({
+									opacity: 1
+								}, time, 'swing', function() {
+									beingShown = false;
+									shown = true;
+									if (afterShow !== undefined && !$(this).hasClass('marker')) {
+										afterShow(row);
+									}
+								});
+						$.lastRedraw = function(){
+							var markerCoord = getMarkerCoord($(e.target), shift);
+							var infoBlockCoord = getInfoBlockCoord(info, markerCoord);
+							marker.css({top: markerCoord.top, left: markerCoord.left});
+							info.css({top: infoBlockCoord.top,left: infoBlockCoord.left});
+						}
+
+					}
+
+					return false;
+				};
+				ID = setTimeout(aFunc, preMouseOverDelay, e);
+			}).mousemove(function(e) {
+				if ($(this).attr('id') == info.attr('id')) {
+					if (hideDelayTimer) {
+						clearTimeout(hideDelayTimer);
+						return;
+					}
+				}
+
+				if (beingShown || shown) {
+					return;
+				}
+				if (isTouchDevice() && showHintFromTrigger === false) {
+					return;
+				}
+				clearTimeout(ID);
+				ID = setTimeout(aFunc, preMouseOverDelay, e);
+			}).mouseout(function() {
+				clearTimeout(ID);
+
+				if (hideDelayTimer) {
+					clearTimeout(hideDelayTimer);
+				}
+
+				hideDelayTimer = setTimeout(function() {
+					hideDelayTimer = null;
+					info.add(marker).animate({
+						opacity: 0
+					}, time, 'swing', function() {
+						shown = false;
+						info.add(marker).css('display', 'none');
+					});
+				}, hideDelay);
+
+				return false;
+			});
+		});
+	});
+}

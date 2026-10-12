@@ -1,0 +1,209 @@
+.ggl-select-title-panel {
+	background: #fff;
+	box-shadow: 0 0 25px -2px rgba(30, 30, 30, .33);
+	border-radius: 6px;
+
+	position: fixed;
+	display: inline-block;
+
+	padding: 5px 10px;
+	z-index: 10;
+}
+
+.ggl-select {
+	background: #fff;
+
+	height: 30px;
+	width: 150px;
+
+	display: inline-block;
+	position: relative;
+	border-radius: 4px;
+
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.ggl-select-title-panel.hidden {
+	display: none;
+}
+
+.ggl-select.no-frame {
+	border: none;
+}
+
+.ggl-select.no-frame .ggl-select-frame {
+	border: 1px solid rgba(220, 220, 225, 1) !important;
+	border-radius: 6px;
+	box-shadow: 0 1px 2px rgba(230, 230, 230, .8) inset;
+
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 0;
+}
+
+.ggl-select.no-frame .triangle {
+	position: absolute;
+	display: inline-block;
+	height: 0;
+	width: 0;
+	right: 10px;
+	top: 12px;
+	border: 4px solid transparent;
+	border-top: 5px solid black;
+	z-index: 1;
+}
+
+.ggl-select.no-frame .selected-text {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	top: 1px;
+	left: 10px;
+	right: 25px;
+	bottom: 1px;
+	cursor: default;
+	z-index: 2;
+	text-align: left;
+	overflow: hidden;
+	white-space: nowrap;
+	font-size: 12px;
+}
+
+.ggl-select.no-frame .focus-frame {
+	display: none;
+	position: absolute;
+	left: -1px;
+	right: -1px;
+	top: -1px;
+	bottom: -1px;
+	z-index: 1;
+}
+
+.ggl-select.no-frame .focus-frame.active {
+	display: inline-block;
+	border: solid 2px rgba(183, 211, 232, .5);
+	border-radius: 6px;
+}
+
+div.ggl-select > .ggl-option {
+	display: none;
+}
+
+.ggl-select.no-frame .div-select-list {
+	position: absolute;
+	max-height: 250px;
+	border: solid 1px #dcdce1;
+	top: 29px;
+	right: 0;
+	z-index: 3;
+	text-align: left;
+	overflow-y: auto;
+	background-color: white;
+	min-width: 250px;
+	border-radius: 4px;
+
+	box-shadow: 0 4px 14px 0 rgba(0, 0, 0, .2);
+	font-weight: normal;
+
+	overflow-x: hidden;
+	max-width: 550px;
+}
+
+@media (max-width: 768.1px) {
+	.ggl-select.no-frame .div-select-list {
+		left: initial;
+		right: 0;
+		max-width: 350px;
+	}
+}
+
+.ggl-select.no-frame .div-select-list.hidden {
+	display: none;
+}
+
+.ggl-select.no-frame .div-select-list .ggl-option {
+	border-top: 1px solid hsla(0,0%,73.3%,.4);
+	padding: 6px 10px;
+	cursor: pointer;
+	background: #fff;
+	line-height: 1.2;
+
+	overflow-wrap: break-word;
+	white-space: normal
+}
+
+.ggl-select.no-frame .div-select-list .ggl-option:before {
+	content: attr(data-content);
+	display: block;
+	visibility: hidden;
+	height: 0;
+	white-space: nowrap;
+}
+
+.ggl-select.no-frame .div-select-list .ggl-option.selected {
+	color: #fff;
+	background-color: #1f85ab;
+}
+
+.search-anchor {
+	position: relative;
+	margin: 2px;
+}
+
+.search-anchor > input {
+	border: 1px solid #bbb;
+	border-radius: 3px;
+	height: 26px;
+	line-height: 26px;
+	padding: 0 6px;
+
+	margin: auto;
+	width: 100%;
+}
+
+.no-select {
+	-webkit-touch-callout: none; /* iOS Safari */
+	-webkit-user-select: none; /* Safari */
+	-khtml-user-select: none; /* Konqueror HTML */
+	-moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* Internet Explorer/Edge */
+	user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
+
+.search-icon {
+	width: 18px;
+	height: 18px;
+}
+
+.clear-icon {
+	width: 18px;
+	height: 18px;
+}
+
+.ggl-select .clear-button,
+.ggl-select .search-button {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	bottom: 0;
+	width: 30px;
+}
+
+.ggl-select .clear-button:not(.hidden),
+.ggl-select .search-button:not(.hidden) {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.ggl-select .clear-button {
+	right: 20px;
+}
+
+.ggl-select .search-button {
+	right: 0;
+}
