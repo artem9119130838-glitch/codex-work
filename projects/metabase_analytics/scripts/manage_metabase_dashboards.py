@@ -29,6 +29,29 @@ import urllib.error
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+# Auto-load .env if variables are not yet populated
+def load_env_candidates():
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "..", ".env"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "1c_odata", ".env"),
+        "/Storage/scripts/metabase_analytics/.env"
+    ]
+    for env_path in candidates:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip()
+                            if k not in os.environ and v:
+                                os.environ[k] = v
+            except Exception:
+                pass
+
+load_env_candidates()
+
 DEFAULT_METABASE_URL = os.environ.get("METABASE_URL", "http://109.248.170.181:3000").rstrip("/")
 DEFAULT_ADMIN_EMAIL = os.environ.get("METABASE_ADMIN_EMAIL", "admin@tender-rag.local")
 DEFAULT_ADMIN_PASSWORD = os.environ.get("METABASE_ADMIN_PASSWORD", "")
@@ -219,7 +242,129 @@ ORDER BY date_close DESC;"""
     }
     print("Updating Card 49: Выигранные тендеры - Детали...")
     api_call(base_url, session_id, "PUT", "/card/49", card49_payload, dry_run)
-    print("[SUCCESS] All sales analytics cards processed.")
+
+    # 3. Deploy/Update Card: Тендеры с авансом: взято в обработку
+    sql_advance_kpi = """SELECT 
+    COUNT(*) AS "Всего тендеров взято",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "С авансом (шт)",
+    ROUND((COUNT(*) FILTER (WHERE has_advance = TRUE)::NUMERIC / NULLIF(COUNT(*), 0)) * 100, 1) AS "Доля с авансом (%)",
+    COALESCE(SUM(tender_amount), 0) AS "Общая НМЦК (руб)",
+    COALESCE(SUM(tender_amount) FILTER (WHERE has_advance = TRUE), 0) AS "НМЦК с авансом (руб)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  AND date_create >= '2026-01-01'
+  [[AND {{date_range}}]];"""
+
+    card_adv_kpi_payload = {
+        "name": "Тендеры с авансом: взято в обработку",
+        "dataset_query": {
+            "type": "native",
+            "native": {
+                "query": sql_advance_kpi,
+                "template-tags": {
+                    "date_range": {
+                        "id": "date_range_tag",
+                        "name": "date_range",
+                        "display-name": "Период дат",
+                        "type": "dimension",
+                        "dimension": ["field", date_create_id, None],
+                        "widget-type": "date/all-options"
+                    }
+                }
+            },
+            "database": db_id
+        },
+        "display": "table",
+        "collection_id": 4,
+        "archived": False,
+        "visualization_settings": {}
+    }
+
+    # 4. Deploy/Update Card: Причины отказов по сделкам с авансом
+    sql_advance_losses = """SELECT 
+    COALESCE(close_reason, 'Не указано') AS "Причина отказа / Результат",
+    COUNT(*) AS "Всего отказов",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "Отказов с авансом",
+    ROUND((COUNT(*) FILTER (WHERE has_advance = TRUE)::NUMERIC / NULLIF(COUNT(*), 0)) * 100, 1) AS "Доля с авансом (%)",
+    ROUND(AVG(advance_percent) FILTER (WHERE has_advance = TRUE), 1) AS "Средний % аванса",
+    COALESCE(SUM(tender_amount) FILTER (WHERE has_advance = TRUE), 0) AS "Потерянная НМЦК с авансом (руб)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  AND is_won = FALSE
+  AND close_reason != 'В работе'
+  AND date_create >= '2026-01-01'
+  [[AND {{date_range}}]]
+GROUP BY "Причина отказа / Результат"
+ORDER BY "Отказов с авансом" DESC, "Всего отказов" DESC;"""
+
+    card_adv_losses_payload = {
+        "name": "Причины отказов по сделкам с авансом",
+        "dataset_query": {
+            "type": "native",
+            "native": {
+                "query": sql_advance_losses,
+                "template-tags": {
+                    "date_range": {
+                        "id": "date_range_tag",
+                        "name": "date_range",
+                        "display-name": "Период дат",
+                        "type": "dimension",
+                        "dimension": ["field", date_create_id, None],
+                        "widget-type": "date/all-options"
+                    }
+                }
+            },
+            "database": db_id
+        },
+        "display": "table",
+        "collection_id": 4,
+        "archived": False,
+        "visualization_settings": {}
+    }
+
+    # Helper function to find or create card
+    def sync_card(name, payload, collection_id=4):
+        cards = api_call(base_url, session_id, "GET", "/card", dry_run=False) or []
+        target = next((c for c in cards if c.get("name") == name and not c.get("archived")), None)
+        if target:
+            cid = target["id"]
+            print(f"Updating existing Card {cid}: '{name}'...")
+            api_call(base_url, session_id, "PUT", f"/card/{cid}", payload, dry_run)
+            return cid
+        else:
+            print(f"Creating new Card: '{name}'...")
+            res = api_call(base_url, session_id, "POST", "/card", payload, dry_run)
+            return res.get("id") if res else None
+
+    cid_kpi = sync_card("Тендеры с авансом: взято в обработку", card_adv_kpi_payload)
+    cid_losses = sync_card("Причины отказов по сделкам с авансом", card_adv_losses_payload)
+
+    # Attach to Dashboard 4
+    if cid_kpi and cid_losses and not dry_run:
+        dash4 = api_call(base_url, session_id, "GET", "/dashboard/4", dry_run=False)
+        if dash4:
+            dashcards = dash4.get("dashcards", []) or dash4.get("ordered_cards", [])
+            attached_ids = {dc.get("card_id") for dc in dashcards if dc.get("card_id")}
+            max_row = max([dc.get("row", 0) + dc.get("size_y", 6) for dc in dashcards] or [0])
+            
+            new_cards = []
+            for idx, cid in enumerate([cid_kpi, cid_losses]):
+                if cid not in attached_ids:
+                    new_cards.append({
+                        "id": -(idx + 50),
+                        "card_id": cid,
+                        "row": max_row + (idx * 8),
+                        "col": 0,
+                        "size_x": 24,
+                        "size_y": 8,
+                        "visualization_settings": {}
+                    })
+            if new_cards:
+                print(f"Attaching {len(new_cards)} advance analytics cards to Dashboard 4...")
+                all_dashcards = dashcards + new_cards
+                api_call(base_url, session_id, "PUT", "/dashboard/4/cards", {"cards": all_dashcards}, dry_run)
+
+    print("[SUCCESS] All sales and advance analytics cards processed.")
 
 def deploy_token_analytics(base_url, session_id, dry_run=False):
     """Deploys or updates the LLM Token Economics & Key Health Dashboard and Cards."""
@@ -428,6 +573,13 @@ def test_queries(base_url, session_id, dry_run=False):
         (54, "Сквозная воронка (Продажи)"),
         (49, "Выигранные тендеры - Детали")
     ]
+    # Dynamically find advance cards
+    cards = api_call(base_url, session_id, "GET", "/card", dry_run=False) or []
+    for c in cards:
+        if "аванс" in c.get("name", "").lower() and not c.get("archived"):
+            if c["id"] not in [x[0] for x in cards_to_test]:
+                cards_to_test.append((c["id"], c["name"]))
+
     for cid, name in cards_to_test:
         res = api_call(base_url, session_id, "POST", f"/card/{cid}/query", {}, dry_run)
         if res:

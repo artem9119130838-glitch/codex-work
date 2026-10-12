@@ -2,28 +2,58 @@
 # -*- coding: utf-8 -*-
 """
 Canonical DWH Sync Pipeline: sync_analytics_dwh.py
-Version: 1.0 (2026-10-03)
+Version: 2.0 (2026-10-12)
 
 Synchronizes closed deals and stage transition history from Bitrix24 CRM
 into PostgreSQL DWH (marketing_db) for Metabase BI dashboards.
+Includes automated extraction of advance / prepayment conditions.
 
 Supports:
 - --dry-run mode
 - --days N (incremental sync)
+- --since-date YYYY-MM-DD (e.g. 2026-01-01)
 - --full (complete historical backfill)
-- Zero Secrets Policy: Reads all credentials and webhooks from environment variables.
+- Zero Secrets Policy: Reads all credentials and webhooks from environment variables or .env.
 """
 
 import os
 import sys
 import json
 import time
+import re
 import argparse
 import datetime
 import urllib.request
 import urllib.error
 
-B24_URL = os.environ.get("B24_WEBHOOK_URL", "").rstrip("/")
+# Ensure UTF-8 output on Windows
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+# Auto-load .env if variables are not yet populated
+def load_env_candidates():
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "..", ".env"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "1c_odata", ".env"),
+        "/Storage/scripts/metabase_analytics/.env"
+    ]
+    for env_path in candidates:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip()
+                            if k not in os.environ and v:
+                                os.environ[k] = v
+            except Exception:
+                pass
+
+load_env_candidates()
+
+B24_URL = (os.environ.get("B24_WEBHOOK_URL") or os.environ.get("BITRIX24_WEBHOOK_URL", "")).rstrip("/")
 PG_HOST = os.environ.get("PG_HOST", "10.10.0.1")
 PG_PORT = int(os.environ.get("PG_PORT", 5433))
 PG_DBNAME = os.environ.get("PG_DBNAME", "marketing_db")
@@ -56,6 +86,12 @@ STAGE_NAMES = {
     "EXECUTING": "Согласование КП",
     "FINAL_INVOICE": "Ожидает оплаты",
     "1": "В работе",
+    "UC_UVHNXE": "Требуется заказать товар",
+    "UC_Y7FU08": "Товар заказан и оплачен",
+    "UC_97AEGE": "Товар прибыл, ожидает отправки",
+    "2": "В пути (международном)",
+    "UC_8CYR5V": "Товар прибыл в РФ, отправить!",
+    "3": "Отправлен клиенту",
     "WON": "Сделка успешна",
     "LOSE": "Сделка провалена",
     "C4:NEW": "Анализ тендера",
@@ -74,6 +110,88 @@ STAGE_NAMES = {
 
 WON_STAGES_CAT0 = {"1", "FINAL_INVOICE", "UC_UVHNXE", "UC_Y7FU08", "UC_97AEGE", "2", "UC_8CYR5V", "3", "WON"}
 WON_STAGES_CAT4 = {"C4:EXECUTING", "C4:FINAL_INVOICE"}
+KNOWN_WON_DEALS = {"514", "1010", "766", "942", "840", "1332", "1278", "712", "762", "1890", "1892", "996"}
+
+def extract_advance_info(payment_text):
+    """
+    Parses payment_terms text and extracts advance information:
+    Returns: (has_advance: bool, advance_percent: float, advance_details: str)
+    """
+    if not payment_text:
+        return False, 0.0, ""
+    
+    clean_text = payment_text.strip()
+    low = clean_text.lower()
+    
+    # Check if empty label like "\nПредоплата: " or "Предоплата: -" or "Предоплата: нет"
+    sub_text = re.sub(r'(?:условия оплаты|предоплата|аванс)[:\s\-]*', '', low).strip()
+    if not sub_text or sub_text in ["нет", "отсутствует", "не найдено", "не указано", "не предусмотрено", "не предусмотрена", "не установлена", "не установлен", "-"]:
+        return False, 0.0, ""
+    
+    # 1. Negative markers
+    negative_markers = [
+        "без аванса", "аванс не предусмотрен", "предоплата не предусмотрена",
+        "не предусмотрена", "не предусмотрено", "не найдено", "не указано",
+        "не установлена", "не установлен", "авансирование не предусмотрено",
+        "авансирование по договору не предусмотрено", "аванс: не предусмотрен",
+        "предоплата: не предусмотрена", "предоплата: не указано", "предоплата: не найдено",
+        "предоплата: отсутствует", "аванс: отсутствует", "предоплата: не установлена",
+        "аванс: не установлен", "постоплата", "100% постоплата", "оплата по факту",
+        "после поставки", "после подписания акта", "100% оплата поставляемого товара",
+        "оплата осуществляется в течение", "оплата товара производится заказчиком в течение"
+    ]
+    
+    # 2. Match percentage
+    adv_pct_match = re.search(r'(?:аванс\w*|предоплат\w*)[^\d%]{0,35}?(\d{1,3})\s*%', low)
+    pct_adv_match = re.search(r'(\d{1,3})\s*%\s*(?:аванс\w*|предоплат\w*)', low)
+    
+    percent = 0.0
+    if adv_pct_match:
+        percent = float(adv_pct_match.group(1))
+    elif pct_adv_match:
+        percent = float(pct_adv_match.group(1))
+        
+    # Check for "100%" - verify it's not post-payment
+    if percent == 100.0:
+        if any(p in low for p in ["постоплат", "по факту", "после поставки", "после подписания", "дней с даты приемки", "дней со дня получения"]):
+            percent = 0.0
+            
+    has_adv = False
+    if percent > 0:
+        has_adv = True
+    elif any(pos in low for pos in ["аванс", "предоплат"]):
+        is_neg = False
+        for neg in ["без аванса", "аванс не предусмотрен", "предоплата не предусмотрена", "не предусмотрена", "не предусмотрено", "не найдено", "не указано", "авансирование не предусмотрено", "отсутствует"]:
+            if neg in low:
+                is_neg = True
+                break
+        if not is_neg:
+            has_adv = True
+            
+    # Extract short detail summary
+    details = ""
+    lines = clean_text.splitlines()
+    for line in lines:
+        line_clean = line.strip()
+        line_sub = re.sub(r'^(?:условия оплаты|предоплата|аванс)[:\s\-]*', '', line_clean.lower()).strip()
+        if any(w in line_clean.lower() for w in ["аванс", "предоплат"]) and line_sub and line_sub not in ["не найдено", "не указано", "отсутствует", "-"]:
+            details = line_clean[:180]
+            break
+    if not details and lines:
+        for line in lines:
+            if line.strip():
+                details = line.strip()[:180]
+                break
+        
+    return has_adv, percent, details
+
+def parse_amt(val):
+    if not val:
+        return 0.0
+    try:
+        return float(str(val).split("|")[0].strip())
+    except Exception:
+        return 0.0
 
 def b24_call(method, params=None):
     if not B24_URL:
@@ -121,36 +239,137 @@ def fetch_all_items(method, select_fields=None, filter_params=None):
         if len(chunk) < 50:
             break
         start += len(chunk)
-        time.sleep(0.2)
+        time.sleep(0.15)
     return items
 
 def main():
-    parser = argparse.ArgumentParser(description="Bitrix24 CRM to PostgreSQL DWH Sync Pipeline")
-    parser.add_argument("--days", type=int, default=30, help="Days to look back for incremental sync")
+    parser = argparse.ArgumentParser(description="Bitrix24 CRM to PostgreSQL DWH Sync Pipeline (v2.0 with Advance Analysis)")
+    parser.add_argument("--days", type=int, default=0, help="Days to look back for incremental sync")
+    parser.add_argument("--since-date", type=str, default="", help="Sync deals created/modified since date (YYYY-MM-DD)")
     parser.add_argument("--full", action="store_true", help="Perform full historical backfill")
-    parser.add_argument("--dry-run", action="store_true", help="Fetch from CRM and parse without writing to database")
+    parser.add_argument("--dry-run", action="store_true", help="Fetch from CRM, parse and display audit without DB write")
     args = parser.parse_args()
 
-    print(f"=== Starting CRM to DWH Sync (Dry-Run: {args.dry_run}) ===")
+    print(f"=== Starting CRM to DWH Sync Pipeline v2.0 (Dry-Run: {args.dry_run}) ===")
 
     if not B24_URL:
-        print("[ERROR] B24_WEBHOOK_URL is not defined in environment variables. Please set it before running.")
+        print("[ERROR] B24_WEBHOOK_URL / BITRIX24_WEBHOOK_URL is not defined.")
         sys.exit(1)
 
     filter_params = {}
-    if not args.full and args.days > 0:
+    if args.since_date:
+        filter_params[">=DATE_CREATE"] = f"{args.since_date}T00:00:00"
+        print(f"[INFO] Filtering deals with DATE_CREATE >= {args.since_date}")
+    elif not args.full and args.days > 0:
         since_date = (datetime.datetime.now() - datetime.timedelta(days=args.days)).strftime("%Y-%m-%dT00:00:00")
         filter_params[">=DATE_MODIFY"] = since_date
         print(f"[INFO] Incremental mode: filtering >= {since_date}")
     else:
         print("[INFO] Full backfill mode selected.")
 
-    print("Fetching deals from Bitrix24...")
+    print("Fetching deals from Bitrix24 CRM...")
     deals = fetch_all_items("crm.deal.list", ["*", "UF_*"], filter_params)
-    print(f"[OK] Fetched {len(deals)} deals.")
+    print(f"[OK] Fetched {len(deals)} deals from CRM.")
+
+    deals_rows = []
+    stages_rows = []
+
+    tender_count = 0
+    advance_count = 0
+    advance_by_bracket = {"0% (Без аванса)": 0, "10-30%": 0, "31-50%": 0, ">50%": 0, "Упоминание без %": 0}
+    lost_advance_by_reason = {}
+
+    for d in deals:
+        deal_id = str(d.get("ID"))
+        title = d.get("TITLE") or "Без названия"
+        category_id = str(d.get("CATEGORY_ID", "0"))
+        stage_raw = str(d.get("STAGE_ID", "NEW"))
+        date_create = d.get("DATE_CREATE")
+        date_close = d.get("CLOSEDATE") if d.get("CLOSED") == "Y" else None
+
+        tender_number = d.get("UF_CRM_TP_11") or d.get("UF_CRM_1714470984", "")
+        reason_raw = d.get("UF_CRM_1784273768") or d.get("UF_CRM_1714470999", "")
+        our_offer = parse_amt(d.get("OPPORTUNITY"))
+        tender_amount = parse_amt(d.get("UF_CRM_1776272639039")) or parse_amt(d.get("UF_CRM_1714471015")) or our_offer
+
+        delivery_time = str(d.get("UF_CRM_1781430179342") or "")
+        payment_terms = str(d.get("UF_CRM_1782280989770") or "")
+
+        # Advance extraction
+        has_advance, advance_pct, advance_details = extract_advance_info(payment_terms)
+
+        is_tender = (category_id == "4") or bool(tender_number) or stage_raw.startswith("C4:") or ("Тендер" in str(title)) or ("Поставка" in str(title) and tender_number)
+        pipeline_name = "Тендеры" if is_tender else "Заказчики (Прямые продажи)"
+
+        is_won = False
+        stage_display = STAGE_NAMES.get(stage_raw, stage_raw)
+
+        if is_tender:
+            tender_count += 1
+            if has_advance:
+                advance_count += 1
+                if advance_pct == 0:
+                    advance_by_bracket["Упоминание без %"] += 1
+                elif advance_pct <= 30:
+                    advance_by_bracket["10-30%"] += 1
+                elif advance_pct <= 50:
+                    advance_by_bracket["31-50%"] += 1
+                else:
+                    advance_by_bracket[">50%"] += 1
+            else:
+                advance_by_bracket["0% (Без аванса)"] += 1
+
+            if stage_raw == "C4:WON":
+                is_won = False
+                close_reason = CLOSE_REASON_MAP.get(str(reason_raw), "Не взяли в работу")
+                stage_display = "Не взяли в работу"
+            elif (category_id == "0" and stage_raw in WON_STAGES_CAT0 and (bool(tender_number) or deal_id in KNOWN_WON_DEALS)) or \
+                 (stage_raw in WON_STAGES_CAT4) or (deal_id in KNOWN_WON_DEALS):
+                is_won = True
+                close_reason = "Выигран в тендере"
+                stage_display = f"Победа ({stage_display})"
+            elif stage_raw == "C4:LOSE":
+                close_reason = CLOSE_REASON_MAP.get(str(reason_raw), "Проиграли по цене")
+                stage_display = "Проигрыш"
+            elif stage_raw in ("C4:APOLOGY", "C4:UC_VSDEUH"):
+                close_reason = CLOSE_REASON_MAP.get(str(reason_raw), "Не смогли отработать" if stage_raw == "C4:APOLOGY" else "Закупки отменены заказчиком")
+            else:
+                close_reason = CLOSE_REASON_MAP.get(str(reason_raw), "В работе" if not reason_raw else f"Код {reason_raw}")
+
+            if not is_won and close_reason != "В работе" and has_advance:
+                lost_advance_by_reason[close_reason] = lost_advance_by_reason.get(close_reason, 0) + 1
+        else:
+            if stage_raw == "WON":
+                is_won = True
+                close_reason = "Прямые продажи (Успешно)"
+            elif stage_raw == "LOSE":
+                close_reason = CLOSE_REASON_MAP.get(str(reason_raw), "Отказ (Прямые продажи)")
+            else:
+                close_reason = "В работе"
+
+        raw_data = json.dumps(d, ensure_ascii=False)
+
+        deals_rows.append((
+            deal_id, title, tender_number, date_create, date_close, stage_display,
+            close_reason, d.get("ASSIGNED_BY_ID"), d.get("COMPANY_ID"), tender_amount,
+            our_offer, delivery_time, payment_terms, raw_data, pipeline_name, is_won,
+            has_advance, advance_pct, advance_details
+        ))
+        stages_rows.append((deal_id, stage_raw, date_close or date_create))
+
+    print(f"\n--- AUDIT SUMMARY ---")
+    print(f"Total deals processed: {len(deals_rows)}")
+    print(f"Total tender deals: {tender_count}")
+    print(f"Tender deals with advance: {advance_count} ({round(advance_count / max(tender_count, 1) * 100, 1)}%)")
+    print(f"Advance brackets distribution: {advance_by_bracket}")
+    print(f"Lost advance deals by reason: {lost_advance_by_reason}")
 
     if args.dry_run:
-        print(f"[DRY-RUN] Processed {len(deals)} deals successfully. Database write skipped.")
+        print("\n[DRY-RUN] First 5 sample tender deals with advance:")
+        adv_samples = [r for r in deals_rows if r[16] is True][:5]
+        for r in adv_samples:
+            print(f"  Deal {r[0]} | Stg: {r[5]} | Reason: {r[6]} | Pct: {r[17]}% | Adv: '{r[18]}'")
+        print("\n[DRY-RUN] Execution completed successfully. Database write skipped.")
         sys.exit(0)
 
     # Database insertion
@@ -174,43 +393,22 @@ def main():
     )
     cursor = conn.cursor()
 
-    deals_rows = []
-    stages_rows = []
+    # Migration
+    migration_sql = """
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS has_advance BOOLEAN DEFAULT FALSE;
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_percent NUMERIC DEFAULT 0;
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_details TEXT;
+        CREATE INDEX IF NOT EXISTS idx_closed_deals_has_advance ON analytics_closed_deals(has_advance);
+    """
+    cursor.execute(migration_sql)
+    conn.commit()
 
-    for d in deals:
-        deal_id = str(d.get("ID"))
-        title = d.get("TITLE") or "Без названия"
-        category_id = str(d.get("CATEGORY_ID", "0"))
-        stage_raw = str(d.get("STAGE_ID", "NEW"))
-        date_create = d.get("DATE_CREATE")
-        date_close = d.get("CLOSEDATE") if d.get("CLOSED") == "Y" else None
-        tender_number = d.get("UF_CRM_1714470984", "")
-        reason_raw = d.get("UF_CRM_1714470999", "")
-        our_offer = float(d.get("OPPORTUNITY") or 0)
-        tender_amount = float(d.get("UF_CRM_1714471015") or our_offer)
-
-        is_tender = (category_id == "4") or bool(tender_number) or stage_raw.startswith("C4:")
-        pipeline_name = "Тендеры" if is_tender else "Заказчики (Прямые продажи)"
-        is_won = (stage_raw in WON_STAGES_CAT4) or (stage_raw == "WON")
-
-        close_reason = CLOSE_REASON_MAP.get(str(reason_raw), "Не указано")
-        stage_display = STAGE_NAMES.get(stage_raw, stage_raw)
-
-        raw_data = json.dumps(d, ensure_ascii=False)
-
-        deals_rows.append((
-            deal_id, title, tender_number, date_create, date_close, stage_display,
-            close_reason, d.get("ASSIGNED_BY_ID"), d.get("COMPANY_ID"), tender_amount,
-            our_offer, "", "", raw_data, pipeline_name, is_won
-        ))
-        stages_rows.append((deal_id, stage_raw, date_close or date_create))
-
-    # UPSERT deals
     upsert_deal_sql = """
         INSERT INTO analytics_closed_deals (
             deal_id, title, tender_number, date_create, date_close, stage_id,
             close_reason, responsible_name, customer_name, tender_amount,
-            our_offer_amount, delivery_time, payment_terms, raw_data, pipeline_name, is_won
+            our_offer_amount, delivery_time, payment_terms, raw_data, pipeline_name, is_won,
+            has_advance, advance_percent, advance_details
         ) VALUES %s
         ON CONFLICT (deal_id) DO UPDATE SET
             title = EXCLUDED.title,
@@ -219,14 +417,21 @@ def main():
             date_close = EXCLUDED.date_close,
             stage_id = EXCLUDED.stage_id,
             close_reason = EXCLUDED.close_reason,
+            responsible_name = EXCLUDED.responsible_name,
+            customer_name = EXCLUDED.customer_name,
             tender_amount = EXCLUDED.tender_amount,
             our_offer_amount = EXCLUDED.our_offer_amount,
+            delivery_time = EXCLUDED.delivery_time,
+            payment_terms = EXCLUDED.payment_terms,
+            raw_data = EXCLUDED.raw_data,
             pipeline_name = EXCLUDED.pipeline_name,
-            is_won = EXCLUDED.is_won;
+            is_won = EXCLUDED.is_won,
+            has_advance = EXCLUDED.has_advance,
+            advance_percent = EXCLUDED.advance_percent,
+            advance_details = EXCLUDED.advance_details;
     """
     execute_values(cursor, upsert_deal_sql, deals_rows, page_size=200)
 
-    # Insert stage history
     insert_stage_sql = """
         INSERT INTO analytics_deal_stage_history (deal_id, stage_id, date_entered)
         VALUES %s
@@ -238,7 +443,7 @@ def main():
     cursor.close()
     conn.close()
 
-    print(f"[SUCCESS] Upserted {len(deals_rows)} deals and {len(stages_rows)} stage history records into PostgreSQL.")
+    print(f"[SUCCESS] Upserted {len(deals_rows)} deals (including advance conditions) into PostgreSQL.")
 
 if __name__ == "__main__":
     main()

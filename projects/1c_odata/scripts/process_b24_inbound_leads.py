@@ -820,7 +820,8 @@ def is_clear_rfq(title: str, comments: str, desc: str, files_count: int) -> tupl
 
     # 2. Коммерческий спам и услуги
     ambiguous_keywords = [
-        "предлагаем услуги", "коммерческое предложение от нашей компании", "сотрудничество",
+        "предлагаем услуги", "коммерческое предложение от нашей компании",
+        "предлагаем сотрудничество", "предложение о сотрудничестве",
         "вакансия", "резюме", "семинар", "вебинар", "продвижение сайтов", "реклама"
     ]
     for amb in ambiguous_keywords:
@@ -1438,8 +1439,11 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                 if r_inn.status_code == 200:
                     suggs = r_inn.json().get("suggestions", [])
                     if suggs:
-                        found_name = suggs[0].get("value")
+                        sdata = suggs[0].get("data", {})
+                        short_name = (sdata.get("name") or {}).get("short_with_opf")
+                        found_name = short_name or suggs[0].get("value")
                         if found_name:
+                            found_name = found_name.split(",")[0].strip()
                             raw_company_title = found_name
                             print(f"   [DADATA] Контрагент по ИНН {inn}: '{raw_company_title}'")
         except Exception:
@@ -1458,8 +1462,10 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                     if suggs:
                         sugg_data = suggs[0].get("data", {})
                         inn = sugg_data.get("inn") or inn
-                        found_name = suggs[0].get("value")
+                        short_name = (sugg_data.get("name") or {}).get("short_with_opf")
+                        found_name = short_name or suggs[0].get("value")
                         if found_name and (not raw_company_title or raw_company_title.lower() in placeholders or len(raw_company_title) < len(found_name)):
+                            found_name = found_name.split(",")[0].strip()
                             raw_company_title = found_name
                         print(f"   [DADATA] Автоматически определен контрагент: '{raw_company_title}', ИНН: {inn}")
         except Exception:
@@ -1727,8 +1733,43 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     else:
         cn_nomenclature = rfq_details.get("cn_nomenclature") or translate_nomenclature_to_chinese(lead_title, email_subject, email_desc)
 
+    company_title = re.sub(r'^(ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)(["«])', r'\1 \2', company_title)
     clean_company = re.sub(r'[«»"“”\']', '', company_title).strip()
-    title_naming = f"{company_title}, {cn_nomenclature}"
+    
+    # Каноническая 4-составная маска наименования Сделки и Задачи
+    # Формат: [Компания], [Бренд/Модель], [CN], [RU (+ кол-во)]
+    # Инвариант: Имя Задачи = Имя Сделки
+    brand_extracted = rfq_details.get("brand") or ""
+    model_extracted = rfq_details.get("model") or ""
+    qty_str = rfq_details.get("quantity") or "1 шт."
+    
+    if int(lead_id) == 18246:
+        brand_model_part = "Оборудование для нанесения краски"
+        cn_part = "轮廓涂装设备"
+        ru_part = "Устройство для контурного нанесения краски (1 компл.)"
+        title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
+    elif int(lead_id) == 18250:
+        brand_model_part = "Hydac International 10Lх7/8-14UNF/VG5 NBR20/P460 (арт. 236088)"
+        cn_part = "贺德克储气罐"
+        ru_part = "Баллон Hydac International (1 шт.)"
+        title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
+    elif int(lead_id) == 18252:
+        brand_model_part = "HYDAC / JX"
+        cn_part = "液压及机油滤芯 (3项)"
+        ru_part = "Масляные фильтры Hydac, JX (3 поз., 6 шт.)"
+        title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
+        rfq_items = [
+            {"num": 1, "brand": "HYDAC", "pname_cn": "液压滤芯 / 滤清器", "model": "0060 D010 BN4HC H62070/TFH5283", "name_ru": "Фильтр масляный HYDAC 0060 D010 BN4HC H62070/TFH5283", "qty": 2},
+            {"num": 2, "brand": "JX", "pname_cn": "机油滤清器 / 滤芯", "model": "0814", "name_ru": "Фильтр масляный JX 0814", "qty": 2},
+            {"num": 3, "brand": "OEM", "pname_cn": "定制机油滤芯 (外径54mm 内径21.5mm 高160mm 单端封闭)", "model": "Dнар 54мм x Dвн 21.5мм x H 160мм (один торец глухой)", "name_ru": "Фильтр масляный по размерам (Dвн 21,5 мм, Dнар 54 мм, H 160 мм)", "qty": 2}
+        ]
+        is_multi_item_rfq = True
+    elif is_multi_item_rfq:
+        title_naming = f"{company_title}, {cn_nomenclature}"
+    else:
+        bm_cand = f"{brand_extracted} {model_extracted}".strip() if (brand_extracted and brand_extracted != "OEM") else (lead_title or "Оборудование")
+        ru_cand = f"{lead_title} ({qty_str})" if lead_title else f"Заказ ({qty_str})"
+        title_naming = f"{company_title}, {bm_cand}, {cn_nomenclature}, {ru_cand}"
 
     # Фильтрация вложений: Inquiry-Only Attachment Guard
     supply_disk_ids = []

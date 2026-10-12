@@ -125,6 +125,60 @@ def parse_amt(val):
     except Exception:
         return None
 
+def extract_advance_info(payment_text):
+    if not payment_text:
+        return False, 0.0, ""
+    
+    clean_text = payment_text.strip()
+    low = clean_text.lower()
+    
+    import re
+    # Check if empty label like "\nПредоплата: " or "Предоплата: -" or "Предоплата: нет"
+    sub_text = re.sub(r'(?:условия оплаты|предоплата|аванс)[:\s\-]*', '', low).strip()
+    if not sub_text or sub_text in ["нет", "отсутствует", "не найдено", "не указано", "не предусмотрено", "не предусмотрена", "не установлена", "не установлен", "-"]:
+        return False, 0.0, ""
+    
+    adv_pct_match = re.search(r'(?:аванс\w*|предоплат\w*)[^\d%]{0,35}?(\d{1,3})\s*%', low)
+    pct_adv_match = re.search(r'(\d{1,3})\s*%\s*(?:аванс\w*|предоплат\w*)', low)
+    
+    percent = 0.0
+    if adv_pct_match:
+        percent = float(adv_pct_match.group(1))
+    elif pct_adv_match:
+        percent = float(pct_adv_match.group(1))
+        
+    if percent == 100.0:
+        if any(p in low for p in ["постоплат", "по факту", "после поставки", "после подписания", "дней с даты приемки", "дней со дня получения"]):
+            percent = 0.0
+            
+    has_adv = False
+    if percent > 0:
+        has_adv = True
+    elif any(pos in low for pos in ["аванс", "предоплат"]):
+        is_neg = False
+        for neg in ["без аванса", "аванс не предусмотрен", "предоплата не предусмотрена", "не предусмотрена", "не предусмотрено", "не найдено", "не указано", "не установлена", "не установлен", "авансирование не предусмотрено", "отсутствует"]:
+            if neg in low:
+                is_neg = True
+                break
+        if not is_neg:
+            has_adv = True
+            
+    details = ""
+    lines = clean_text.splitlines()
+    for line in lines:
+        line_clean = line.strip()
+        line_sub = re.sub(r'^(?:условия оплаты|предоплата|аванс)[:\s\-]*', '', line_clean.lower()).strip()
+        if any(w in line_clean.lower() for w in ["аванс", "предоплат"]) and line_sub and line_sub not in ["не найдено", "не указано", "отсутствует", "-"]:
+            details = line_clean[:180]
+            break
+    if not details and lines:
+        for line in lines:
+            if line.strip():
+                details = line.strip()[:180]
+                break
+        
+    return has_adv, percent, details
+
 def run_sync():
     start_time = datetime.datetime.now()
     print(f"[{start_time.isoformat()}] STARTING B24 DAILY ANALYTICS SYNC...")
@@ -197,6 +251,9 @@ def run_sync():
         payment_terms = str(d.get("UF_CRM_1782280989770") or "")
         reason_raw = d.get("UF_CRM_1784273768")
         
+        # Advance condition extraction
+        has_advance, advance_percent, advance_details = extract_advance_info(payment_terms)
+
         # Determine if tender
         is_tender = (category_id == "4") or bool(tender_number) or stage_raw.startswith("C4:") or ("Тендер" in str(title)) or ("Поставка" in str(title) and tender_number)
         pipeline_name = "Тендеры" if is_tender else "Заказчики (Прямые продажи)"
@@ -245,17 +302,29 @@ def run_sync():
         deals_rows.append((
             deal_id, title, tender_number, date_create, date_close, stage_display,
             close_reason, responsible_name, customer_name, tender_amount,
-            our_offer, delivery_time, payment_terms, raw_data, pipeline_name, is_won
+            our_offer, delivery_time, payment_terms, raw_data, pipeline_name, is_won,
+            has_advance, advance_percent, advance_details
         ))
         
         stages_rows.append((deal_id, stage_raw, date_close or date_create))
+
+    # Migration
+    migration_sql = """
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS has_advance BOOLEAN DEFAULT FALSE;
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_percent NUMERIC DEFAULT 0;
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_details TEXT;
+        CREATE INDEX IF NOT EXISTS idx_closed_deals_has_advance ON analytics_closed_deals(has_advance);
+    """
+    cursor.execute(migration_sql)
+    conn.commit()
 
     # UPSERT into analytics_closed_deals
     upsert_deal_sql = """
         INSERT INTO analytics_closed_deals (
             deal_id, title, tender_number, date_create, date_close, stage_id,
             close_reason, responsible_name, customer_name, tender_amount,
-            our_offer_amount, delivery_time, payment_terms, raw_data, pipeline_name, is_won
+            our_offer_amount, delivery_time, payment_terms, raw_data, pipeline_name, is_won,
+            has_advance, advance_percent, advance_details
         ) VALUES %s
         ON CONFLICT (deal_id) DO UPDATE SET
             title = EXCLUDED.title,
@@ -272,7 +341,10 @@ def run_sync():
             payment_terms = EXCLUDED.payment_terms,
             raw_data = EXCLUDED.raw_data,
             pipeline_name = EXCLUDED.pipeline_name,
-            is_won = EXCLUDED.is_won;
+            is_won = EXCLUDED.is_won,
+            has_advance = EXCLUDED.has_advance,
+            advance_percent = EXCLUDED.advance_percent,
+            advance_details = EXCLUDED.advance_details;
     """
     execute_values(cursor, upsert_deal_sql, deals_rows, page_size=200)
     
