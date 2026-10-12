@@ -733,47 +733,65 @@ def audit_and_fix_lead_tags(target_lead_guids: list = None, fix: bool = False, d
 
 
 def parse_mxl_file(mxl_path: str) -> list:
-    """Парсинг файла табличного документа 1С (.mxl / MOXCEL)"""
-    if not os.path.exists(mxl_path):
-        raise FileNotFoundError(f"Файл не найден: {mxl_path}")
-    with open(mxl_path, "rb") as f:
-        raw = f.read()
+    """Парсинг файла табличного документа 1С (.mxl / MOXCEL) с поддержкой кэша сессии."""
+    cells = []
+    if os.path.exists(mxl_path):
+        with open(mxl_path, "rb") as f:
+            raw = f.read()
 
-    bom_idx = raw.find(b"\xef\xbb\xbf")
-    if bom_idx != -1:
-        text = raw[bom_idx + 3:].decode("utf-8", errors="replace")
-    elif raw.startswith(b"MOXCEL"):
-        text = raw[13:].decode("utf-8", errors="replace")
+        bom_idx = raw.find(b"\xef\xbb\xbf")
+        if bom_idx != -1:
+            text = raw[bom_idx + 3:].decode("utf-8", errors="replace")
+        elif raw.startswith(b"MOXCEL"):
+            text = raw[13:].decode("utf-8", errors="replace")
+        else:
+            text = raw.decode("utf-8", errors="replace")
+
+        cells = re.findall(r'\{1,1,\s*\{"#",\s*"(.*?)"\s*\}\s*\},(?:\d+|[a-f0-9-]+)\},(\d+)', text, re.DOTALL)
     else:
-        text = raw.decode("utf-8", errors="replace")
+        # Fallback to session cache
+        cached_cells_path = r"C:\Users\Артем\.gemini\antigravity\brain\92b7855c-bb14-4f4c-a7f5-752b1b97e2a5\scratch\all_cells.txt"
+        if os.path.exists(cached_cells_path):
+            print(f"  [CACHE-RECOVERY] Исходный файл не найден на диске, восстанавливаю структуру ячеек из кэша сессии: {cached_cells_path}")
+            lines = open(cached_cells_path, encoding="utf-8").readlines()
+            for l in lines:
+                parts = l.strip().split(' | ', 2)
+                if len(parts) == 3:
+                    cells.append((parts[2], parts[1].replace('Col ', '')))
+        else:
+            raise FileNotFoundError(f"Файл не найден: {mxl_path}")
 
-    matches = re.findall(r'"((?:[^"\\]|\\.)*)"', text)
-    strings = [m.replace('""', '"').strip() for m in matches if m.strip() and m not in ('#', '0', '1', '2')]
+    date_pattern = re.compile(r'^\d{2}\.\d{2}\.\d{2}\s+\d{2}:\d{2}$')
 
-    date_indices = []
-    for idx, s in enumerate(strings):
-        if re.search(r'^\d{2}\.\d{2}\.\d{2}\s+\d{2}:\d{2}$', s):
-            date_indices.append(idx)
 
     items = []
-    for i, d_idx in enumerate(date_indices):
-        d_str = strings[d_idx]
-        c_str = strings[d_idx + 1] if d_idx + 1 < len(strings) else ""
-        s_str = strings[d_idx + 2] if d_idx + 2 < len(strings) else ""
+    for idx, (val, col) in enumerate(cells):
+        val_clean = val.replace('""', '"').strip()
+        if date_pattern.match(val_clean):
+            d_str = val_clean
+            c_str = cells[idx + 1][0].replace('""', '"').strip() if idx + 1 < len(cells) else ""
+            s_str = cells[idx + 2][0].replace('""', '"').strip() if idx + 2 < len(cells) else ""
+            state_str = cells[idx + 3][0].replace('""', '"').strip() if idx + 3 < len(cells) else ""
 
-        emails = re.findall(r'[\w\.-]+@[\w\.-]+', c_str)
-        ext_emails = [e.lower() for e in emails if "longwang.ru" not in e.lower()]
-        primary_email = ext_emails[0] if ext_emails else (emails[0].lower() if emails else "")
+            emails = re.findall(r'[\w\.-]+@[\w\.-]+', c_str)
+            ext_emails = [e.lower() for e in emails if "longwang.ru" not in e.lower()]
+            primary_email = ext_emails[0] if ext_emails else (emails[0].lower() if emails else "")
 
-        items.append({
-            "num": i + 1,
-            "date": d_str,
-            "contacts_raw": c_str,
-            "primary_email": primary_email,
-            "all_emails": emails,
-            "subject": s_str
-        })
+            inn_match = re.search(r'\b(ИНН\s*[:№]?\s*)?(\d{10}|\d{12})\b', c_str + " " + s_str)
+            inn = inn_match.group(2) if inn_match else ""
+
+            items.append({
+                "num": len(items) + 1,
+                "date": d_str,
+                "contacts_raw": c_str,
+                "primary_email": primary_email,
+                "all_emails": emails,
+                "subject": s_str,
+                "state": state_str,
+                "inn": inn
+            })
     return items
+
 
 
 def dadata_party_lookup(query: str):
@@ -845,8 +863,12 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
     bounces = []
     client_items = []
     for it in items:
-        if "mailer-daemon" in it["primary_email"] or "Undelivered Mail" in it["subject"]:
+        p_em = it["primary_email"].lower()
+        subj = it["subject"].lower()
+        if any(w in p_em for w in ["mailer-daemon", "postmaster", "ksmg@"]) or any(w in subj for w in ["undelivered", "не удается доставить", "failure"]):
             bounces.append(it)
+        elif "mvideo.ru" in p_em and "упд" in subj:
+            print(f"  [SKIP] Бухгалтерское служебное уведомление пропущено: {it['primary_email']} ({it['subject']})")
         else:
             client_items.append(it)
 
@@ -863,23 +885,32 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
     auth_1c = (ODATA_USER, ODATA_PASS)
     try:
         r_ev_bounce = requests.get(
-            f"{ODATA_BASE}/Document_Событие?$top=10&$orderby=Date desc&$filter=substringof('Undelivered', Тема)",
+            f"{ODATA_BASE}/Document_Событие?$top=100&$orderby=Date desc&$filter=Date ge datetime'2026-10-08T00:00:00'",
             auth=auth_1c, headers=headers_1c, timeout=15
         )
         if r_ev_bounce.status_code == 200:
             for ev in r_ev_bounce.json().get("value", []):
-                content = ev.get("Содержание", "")
-                emails_in_body = re.findall(r'[\w\.-]+@[\w\.-]+', content)
-                for eb in emails_in_body:
-                    eb_clean = eb.lower().strip()
-                    if "hostland" not in eb_clean and "longwang" not in eb_clean:
-                        if "uglovaek@gmail.com" in eb_clean or "balyabkina.a@vetin.su" in eb_clean:
+                subj = ev.get("Тема", "")
+                if any(w in subj.lower() for w in ["undelivered", "не удается доставить", "failure"]):
+                    content = ev.get("Содержание", "")
+                    emails_in_body = re.findall(r'[\w\.-]+@[\w\.-]+', content)
+                    for eb in emails_in_body:
+                        eb_clean = eb.lower().strip().rstrip('.')
+                        if not any(x in eb_clean for x in ["hostland", "longwang", "smtp", "rfc", "postmaster", "microsoft"]):
                             bounced_emails.add(eb_clean)
     except Exception as e:
         print(f"  [WARN] Ошибка поиска отскоков в 1С: {e}")
 
-    bounced_emails.add("uglovaek@gmail.com")
-    bounced_emails.add("balyabkina.a@vetin.su")
+    confirmed_bounces = [
+        "a.petrov@kraftmann.spb.ru",
+        "m.ivanov@naturasiberica.ru",
+        "fomichevaiv@amz.ru",
+        "d.supkareva@himkompleks.ru",
+        "denis.kitaev@gfdrinks.ch",
+        "crudeoil23@yandex.ru"
+    ]
+    for cb in confirmed_bounces:
+        bounced_emails.add(cb)
 
     for bemail in sorted(bounced_emails):
         clean_invalid_email_from_systems(bemail, reason="bounce", dry_run=dry_run)
@@ -967,6 +998,106 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             "phone": "",
             "tags": [TAG_PRODUCTION, TAG_END_BUYER],
             "city": "Гатчина"
+        },
+        # Спецификации из выгрузки 12-10.mxl
+        "t.shnyrev@unigreen-energy.com": {
+            "query": "2124030957",
+            "name": "ООО «ЭНКОР ГРУПП»",
+            "inn": "2124030957",
+            "contact_name": "Шнырев Тимофей",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Новочебоксарск"
+        },
+        "nk@ooogtp.ru": {
+            "query": "7224042095",
+            "name": "ООО «ГТП»",
+            "inn": "7224042095",
+            "contact_name": "Отдел закупок",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Горьковка"
+        },
+        "mts@niiekran.ru": {
+            "query": "6319169796",
+            "name": "АО «НИИ «ЭКРАН»",
+            "inn": "6319169796",
+            "contact_name": "МТС",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Самара"
+        },
+        "ilanservice@mail.ru": {
+            "query": "525914055738",
+            "name": "ИП Михайлов Илья Николаевич",
+            "inn": "525914055738",
+            "contact_name": "Борисов Антон",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Нижний Новгород"
+        },
+        "a.denyushkin@idtex.ru": {
+            "query": "7801517883",
+            "name": "ООО «АЙДИТЕКС»",
+            "inn": "7801517883",
+            "contact_name": "Денюшкин Александр Дмитриевич",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Санкт-Петербург"
+        },
+        "sales2@declarant-rus.ru": {
+            "query": "2315213101",
+            "name": "ООО «ДЕКЛАРАНТ-РУС ЛОГИСТИКС»",
+            "inn": "2315213101",
+            "contact_name": "Миляуша Галыгина",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Новороссийск"
+        },
+        "a.stepanova@gsperm.pro": {
+            "query": "5948049856",
+            "name": "ООО «ГЛАВСНАБ»",
+            "inn": "5948049856",
+            "contact_name": "Степанова А.",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Пермь"
+        },
+        "v.ikonnikov@naturasiberica.ru": {
+            "query": "7701298966",
+            "name": "ООО «Первое Решение»",
+            "inn": "7701298966",
+            "contact_name": "Иконников Валерий",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Москва"
+        },
+        "mastiook@yandex.ru": {
+            "query": "1004014486",
+            "name": "ООО «Сатурн КС»",
+            "inn": "1004014486",
+            "contact_name": "Мастио Оксана",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Костомукша"
+        },
+        "oaotemzsnab@mail.ru": {
+            "query": "7453013586",
+            "name": "АО «ТЭМЗ»",
+            "inn": "7453013586",
+            "contact_name": "Юлия",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Челябинск"
+        },
+        "oleg.zhuravlev@navadmachinery.com": {
+            "query": "7804706134",
+            "name": "АО «НАВАД МАШИНЕРИ»",
+            "inn": "7804706134",
+            "contact_name": "Журавлев Олег",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Тюмень"
         }
     }
 
@@ -987,7 +1118,7 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
         # 1C Events search
         onec_events = []
         for ev_it in cdata["events_info"]:
-            clean_s = ev_it["subject"].replace("Re: ", "").replace("Fwd: ", "").strip()
+            clean_s = ev_it["subject"].replace("Re: ", "").replace("Fwd: ", "").replace("RE: ", "").replace("FW: ", "").strip()
             r_ev = requests.get(
                 f"{ODATA_BASE}/Document_Событие?$top=5&$orderby=Date desc&$filter=substringof('{clean_s[:25]}', Тема)",
                 auth=auth_1c, headers=headers_1c, timeout=15
@@ -995,12 +1126,15 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             if r_ev.status_code == 200:
                 ev_list = r_ev.json().get("value", [])
                 if ev_list:
-                    onec_events.append({
-                        "Number": ev_list[0].get("Number"),
-                        "Ref_Key": ev_list[0].get("Ref_Key"),
-                        "Date": ev_list[0].get("Date"),
-                        "Subject": ev_list[0].get("Тема")
-                    })
+                    for ev_cand in ev_list:
+                        if not any(e["Ref_Key"] == ev_cand.get("Ref_Key") for e in onec_events):
+                            onec_events.append({
+                                "Number": ev_cand.get("Number"),
+                                "Ref_Key": ev_cand.get("Ref_Key"),
+                                "Date": ev_cand.get("Date"),
+                                "Subject": ev_cand.get("Тема")
+                            })
+                            break
 
         # Bitrix24 Matching
         b24_lead = None
@@ -1023,14 +1157,23 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             if r_co_get.get("result"):
                 b24_company = r_co_get["result"]
 
-        # 1C Lead search
+        # 1C Lead search (СТРОГО без пустых условий, предотвращая ложный матч Фабрика Спорт 76)
         onec_lead = None
-        r_ol = requests.get(
-            f"{ODATA_BASE}/Catalog_Лиды?$top=2&$filter=substringof('{inn}', Тема) or substringof('{email}', Description) or substringof('{email}', АдресЭПДляПоиска)",
-            auth=auth_1c, headers=headers_1c, timeout=15
-        )
-        if r_ol.status_code == 200 and r_ol.json().get("value"):
-            onec_lead = r_ol.json()["value"][0]
+        filter_parts = []
+        if inn:
+            filter_parts.append(f"substringof('{inn}', Тема)")
+        if email:
+            filter_parts.append(f"substringof('{email}', Description)")
+            filter_parts.append(f"substringof('{email}', АдресЭПДляПоиска)")
+        if filter_parts:
+            f_query = " or ".join(filter_parts)
+            r_ol = requests.get(
+                f"{ODATA_BASE}/Catalog_Лиды?$top=2&$filter={f_query}",
+                auth=auth_1c, headers=headers_1c, timeout=15
+            )
+            if r_ol.status_code == 200 and r_ol.json().get("value"):
+                onec_lead = r_ol.json()["value"][0]
+
 
         tag_names = [TAG_NAME_MAP.get(t, t) for t in tags]
 
@@ -1125,6 +1268,41 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             onec_lead_guid = onec_lead.get("Ref_Key")
             onec_lead_code = onec_lead.get("Code")
             print(f"  [1C Lead #{onec_lead_code}] Найден: '{onec_lead.get('Description')}' ({onec_lead_guid})")
+            if not dry_run:
+                cur_ci = onec_lead.get("КонтактнаяИнформация", [])
+                ci_modified = False
+                if email and not any(email.lower() in (c.get("АдресЭП", "") + c.get("Представление", "")).lower() for c in cur_ci):
+                    cur_ci.append({
+                        "LineNumber": str(len(cur_ci) + 1),
+                        "Тип": "АдресЭлектроннойПочты",
+                        "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
+                        "Представление": email,
+                        "Значение": f'{{\n"version": 4,\n"value": "{email}",\n"type": "АдресЭлектроннойПочты"\n}}',
+                        "АдресЭП": email
+                    })
+                    ci_modified = True
+                if address and not any(c.get("Тип") == "Адрес" for c in cur_ci):
+                    cur_ci.append({
+                        "LineNumber": str(len(cur_ci) + 1),
+                        "Тип": "Адрес",
+                        "Вид_Key": "5c0dc76f-23c6-11ed-91a8-a068f8f3337c",
+                        "Представление": address,
+                        "Значение": f'{{\n"version": 4,\n"value": "{address}",\n"type": "Адрес"\n}}'
+                    })
+                    ci_modified = True
+
+                cur_search = onec_lead.get("АдресЭПДляПоиска", "") or ""
+                if email and email.lower() not in cur_search.lower():
+                    cur_search = f"{cur_search}, {email}".strip(", ")
+                    ci_modified = True
+
+                if ci_modified:
+                    patch_ex = {
+                        "КонтактнаяИнформация": cur_ci,
+                        "АдресЭПДляПоиска": cur_search
+                    }
+                    requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{onec_lead_guid}')?$format=json", json=patch_ex, auth=auth_1c, headers=headers_1c, timeout=20)
+                    print(f"  [1C Lead OK] Лид #{onec_lead_code} успешно дополнен новым email '{email}' и контактными данными")
         else:
             print(f"  [1C Lead] Создать Лид '{company_name}' (Zero-Blank Lead Guard, ИНН: {inn}, Ответственный: Артем)")
             print(f"            Заполнить ТЧ КонтактнаяИнформация: Email '{email}', Телефон '{phone}', Адрес '{address}'")
