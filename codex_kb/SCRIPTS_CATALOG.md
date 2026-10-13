@@ -68,6 +68,7 @@
 | **Базовый** | `inspect_table.py` | `ARCHIVE/china_dispute_scratch/inspect_table.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `merge_script.py` | `ARCHIVE/china_dispute_scratch/merge_script.py` | Delegate to generate_david_letters logic | 0 |
 | **Базовый** | `parse_new_candidates.py` | `projects/HR/Китайский снабженец/parse_new_candidates.py` | nsure utf-8 output | 0 |
+| **Боевой / HR КНР** | `generate_china_onboarding_docs.py` | `projects/HR/Китайский снабженец/scripts/generate_china_onboarding_docs.py` | Генерация и синхронизация вводных документов офиса в КНР (Инструкция Битрикс24, брифы Цянь Ин, Ли Юйнань, Лиень) в форматах .docx и .md с выкладкой на Рабочий стол (`--all`, `--doc`, `--dry-run`). | 0 |
 | **Базовый** | `translations.py` | `ARCHIVE/china_dispute_scratch/translations.py` | Sheet names | 0 |
 | **Расширенный** | `2026-10-02_generate_supply_rfq_excel_v1_legacy.py` | `projects/1c_odata/scripts/archive/2026-10-02_generate_supply_rfq_excel_v1_legacy.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `2026-10-08_generate_supply_rfq_excel_v1_1.py` | `projects/1c_odata/scripts/archive/2026-10-08_generate_supply_rfq_excel_v1_1.py` | Автоматизация рабочего процесса. | 0 |
