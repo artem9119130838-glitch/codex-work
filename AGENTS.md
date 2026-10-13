@@ -36,17 +36,13 @@
 - **Slice Reading Guard:** **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО** читать файлы регламентов и манифестов целиком! Сначала считывать строго строки 1–35 (оглавление TOC), находить нужный раздел и читать только целевой диапазон строк через `view_file` с `StartLine` и `EndLine`.
 - **Subagent Context Purge Guard:** Задачи объемного поиска по 1139 скриптам, аудита истории чатов и чтения тяжелых логов (>15 КБ) выполнять СТРОГО через саб-агента `invoke_subagent`. Саб-агент считывает сырые массивы данных, возвращает в основной чат 3–5 строк чистого итога и сгорает, очищая память.
 - **Single-Source Task Registry:** Кадровые реестры задач ведутся в Markdown (`tasks_registry_<name>.md`). Таблицы `.xlsx` — строго производные витрины.
-- **Top-Level Anti-Pollution Guard:** Запрещено засорять `AGENTS.md` объемными прикладными деталями проектов (договоры, черновики, длинные списки полей). Корневой файл — ультра-легкий маршрутизатор (< 23 КБ). Детальные регламенты процессов фиксируются строго в локальных манифестах (`projects/...`, `codex_kb/20_domains/...`).
+- **Top-Level Anti-Pollution Guard:** Запрещено засорять `AGENTS.md` прикладными деталями проектов (договоры, частные шаблоны, списки полей, специфика отдельных воронок). Корневой файл — ультра-легкий маршрутизатор (< 23 КБ). Все детальные правила и отраслевые регламенты ведутся строго в локальных манифестах (`projects/...`, `codex_kb/20_domains/...`).
 
 ---
 
 ## 4. Pre-Flight Narrowing Gatekeeper & Clarify-Fast (Шлюз сужения запросов)
 - **Zero-Blind-Search Guard (Запрет слепого поиска):** При получении абстрактного, надиктованного или многосоставного запроса ИИ **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО** немедленно начинать глубокий поиск по истории чатов, коммитов или базам данных!
-- **Автоматический шлюз сужения (Без необходимости ручного `/grill-me`):**
-  ИИ обязан первым же ответом:
-  1. Выдать **сужающую вилку из 2–3 вариантов**: «Вы имеете в виду: [Вариант А — скрипт X], [Вариант Б — регламент Y], или [Вариант В — инцидент Z]?»
-  2. **Предупредить о цене (Cost Warning):** «Для полного поиска по всей истории потребуется перебрать ~120 МБ логов (~40k токенов). Быстрый запуск готового скрипта X займет 2 секунды (0 токенов). Какой путь выбираем?»
-  3. Переходить к тяжелым действиям ТОЛЬКО после явного подтверждения ветки пользователем.
+- **Автоматический шлюз сужения (Без необходимости ручного `/grill-me`):** Первым ответом выдать: (1) сужающую вилку из 2–3 вариантов; (2) предупреждение о стоимости в токенах (Cost Warning). Выполнять тяжелые действия только после явного выбора ветки пользователем.
 - **30-Second Hang Guard & Active Kill:** При отсутствии ответа фонового процесса (SSH, OData, LLM, IMAP) более 30 сек — запрещено пассивно ожидать! Ассистент обязан немедленно принудительно прервать фоновую задачу через `manage_task(Action='kill')`, вывести диагностику и запросить корректировку.
 - **Session Close Clarification & Grill-Me Gatekeeper:** Даже при молчаливом закрытии сессии (`/compress`, «конец чата») агент обязан провести ретроспективный анализ сессии, сформировать список предложений (логи ошибок, политики, скрипты — по принципу «лучше больше, чем меньше») и предложить пользователю план завершения сессии на утверждение до коммита.
 
@@ -68,19 +64,19 @@
 
 ## 7. Быстрые фразы-триггеры пользователя
 
-| Триггер / Команда | Боевой канонический скрипт | Ключевые правила и регламент |
+| Триггер / Команда | Боевой канонический скрипт | Регламент / Манифест (Читать TOC 1–35) |
 |---|---|---|
 | **«конец чата»** (`/compress`, `!конец`) | `py scripts/session_compress.py` | Zero-Prose. Синхронизация правил, `.ai/SESSION_SUMMARY.md`, git push. |
-| **«почисти и проверь мой ПК»** | `py scripts/check_and_clean_pc.py` | Диагностика GPU Код 43, MPO, фантомов SIMULATED, BCD F8, диска. |
+| **«почисти и проверь мой ПК»** | `py scripts/check_and_clean_pc.py` | Диагностика GPU, MPO, диска. См. [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md). |
 | **«полная ревизия и форматирование гравити»** | `py scripts/full_gravity_audit.py` | Сканирование контуров, отсев vendor, пересборка `SCRIPTS_CATALOG.md`. |
-| **«follow up deals today»** | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run**. Белый список PDF, кулдаун 7 дн, подпись Б24, закрепленное ИИ-резюме. |
-| **«обработай лидов [ящик/лид] [ответственный]»** | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Dry-run**. 4-составная маска `[Компания], [Бренд/Модель], [CN], [RU]`, Имя Задачи = Имя Сделки. Сделка `PREPARATION` («Расчет КП»), Задача Азату `[USER=20]` (Гр. 14, дедлайн +4 дн / `--deadline-today`, RU+CN), Вложения: СТРОГО RFQ Excel (карточки РФ запрещены), 1С: папка бренда (Caterpillar и др.), Шаблон №66, скоринг СБИС/DaData. |
-| **«обработай обращение контакта [ID]»** | `py projects/1c_odata/scripts/process_b24_contact_inquiries.py` | **Dry-run**. Сделка `PREPARATION`, 4-составная маска `[Компания], [Бренд/Модель], [CN], [RU]`, имя Задачи = Сделка, перепривязка дел, Задача Азату `[USER=20]` (Гр. 14, `--deadline-today`, RU+CN), RFQ Excel, отсечение карточек РФ, обновление Лида 1С. |
-| **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Dry-run**. Чистая сверка 1С и Б24 без создания сделок, поддержка `--mxl`. |
-| **«синхронизируй поставщиков 1С в битрикс»** | `py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py` | **Dry-run**. Перенос и Safe Merge фабрик КНР/поставщиков, теги папок 1С, реквизиты, банк. |
-| **«статус ключей llm»** (`«аудит metabase llm»`) | `py projects/metabase_analytics/scripts/audit_llm_keys.py --db-sync` | Пинг Gemini/DeepSeek, синхронизация `llm_keys_status` в DWH, алерт в Б24 при сбоях. |
-| **«запуск trend radar»** (`«радар трендов»`) | `py projects/SEO/scripts/trend_spike_radar.py --dry-run` | **Dry-run**. 5-модульный радар перехвата B2B-хайпа, кризисов карго, регуляторики и трендов Google, публикация в задачу Б24 #4972 и DWH. |
-| **«аудит тендеров sla»** | `py projects/1c_odata/scripts/audit_tender_sla_compliance.py --since 2026-08-13` | Сквозной аудит воронки «Тендеры» и побед в «Заказчиках», изоляция Группы 14, отсев слепых зон. |
+| **«follow up deals today»** | `py projects/1c_odata/scripts/process_deals_without_activities.py` | **Dry-run**. Белый список PDF, кулдаун 7 дн. См. [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md). |
+| **«обработай лидов [ящик/лид] [ответственный]»** | `py projects/1c_odata/scripts/process_b24_inbound_leads.py` | **Dry-run**. Квалификация, CRM и снабжение КНР. См. [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md). |
+| **«обработай обращение контакта [ID]»** | `py projects/1c_odata/scripts/process_b24_contact_inquiries.py` | **Dry-run**. Повторные заявки от контактов CRM. См. [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md). |
+| **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Dry-run**. Сверка 1С и Б24 без создания сделок. См. [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md). |
+| **«синхронизируй поставщиков 1С в битрикс»** | `py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py` | **Dry-run**. Перенос и Safe Merge фабрик КНР. См. [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md). |
+| **«статус ключей llm»** (`«аудит metabase llm»`) | `py projects/metabase_analytics/scripts/audit_llm_keys.py --db-sync` | Пинг Gemini/DeepSeek, синхронизация в DWH. См. [METABASE_ANALYTICS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md). |
+| **«запуск trend radar»** (`«радар трендов»`) | `py projects/SEO/scripts/trend_spike_radar.py --dry-run` | **Dry-run**. Радар перехвата B2B-хайпа и карго. См. [SEO_STRATEGIC_PLAN_2026.md](file:///C:/Codex/projects/SEO/docs/SEO_STRATEGIC_PLAN_2026.md). |
+| **«аудит тендеров sla»** | `py projects/1c_odata/scripts/audit_tender_sla_compliance.py --since 2026-08-13` | Аудит воронки тендеров и снабжения КНР. См. [TENDER_SUPPLY_SLA_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_SUPPLY_SLA_POLICY.md). |
 
 > **Explicit Scope Guard:** Если в командах лидов или сделок не указаны сотрудник, ящик или лимит — не запускать вслепую, а немедленно переспросить пользователя!
 
