@@ -361,8 +361,52 @@ def find_b24_company(inn: str = None, title: str = None, origin_id: str = None, 
 
     return None
 
+def normalize_phone_number(raw_phone: str) -> tuple[str, str]:
+    """
+    Нормализует номер телефона и изолирует добавочный (Phone & Extension Normalization Guard):
+    1. Извлекает добавочный номер (доб. 801 / ext. 801 / внутр. 801) в отдельную переменную;
+    2. Полностью вырезает добавочный из номера телефона, чтобы в поле PHONE не было лишних цифр,
+       ломающих автодозвон встроенной телефонии Битрикс24;
+    3. Очищает номер от сдвоенных окончаний (/06, /07) и маркеров факса;
+    4. Преобразует префикс '8' в '+7';
+    5. Форматирует номер в канонический формат '+7 (XXX) XXX-XX-XX'.
+    Возвращает кортеж: (clean_phone, ext_str).
+    """
+    if not raw_phone:
+        return "", ""
+    text = str(raw_phone).strip()
+
+    # 1. Извлечение добавочного (доб. / ext. / внутр.)
+    ext_str = ""
+    m_ext = re.search(r'(?:доб\.?|ext\.?|внутр\.?)\s*(\d+)', text, flags=re.IGNORECASE)
+    if m_ext:
+        ext_str = f"доб. {m_ext.group(1)}"
+        text = re.sub(r'\(?\s*(?:доб\.?|ext\.?|внутр\.?)\s*\d+\s*\)?', '', text, flags=re.IGNORECASE)
+
+    # 2. Очистка от сдвоенных номеров (/06, /215-87-68)
+    text = re.split(r'[/,;]', text)[0].strip()
+
+    # 3. Извлечение цифр и нормализация под +7
+    digits = re.sub(r'\D', '', text)
+    if len(digits) == 10:
+        digits = '7' + digits
+    elif len(digits) == 11 and digits.startswith('8'):
+        digits = '7' + digits[1:]
+
+    if len(digits) == 11 and digits.startswith('7'):
+        formatted_phone = f"+7 ({digits[1:4]}) {digits[4:7]}-{digits[7:9]}-{digits[9:11]}"
+    elif text.startswith('+') and len(digits) >= 10:
+        formatted_phone = '+' + digits
+    elif len(digits) >= 10:
+        formatted_phone = f"+7 ({digits[-10:-7]}) {digits[-7:-4]}-{digits[-4:-2]}-{digits[-2:]}"
+    else:
+        formatted_phone = text
+
+    return formatted_phone, ext_str
+
 def enrich_or_create_b24_company(title: str, inn: str = None, address: str = None, phone: str = None, email: str = None, origin_id: str = None, contact_company_id: int = None, assigned_by_id: int = USER_ARTEM, dry_run: bool = False) -> dict:
     existing = find_b24_company(inn=inn, title=title, origin_id=origin_id, contact_company_id=contact_company_id)
+    clean_phone, _ = normalize_phone_number(phone) if phone else ("", "")
     if existing:
         cid = existing['ID']
         fields = {}
@@ -370,8 +414,12 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
             fields['UF_CRM_699421CD2A684'] = inn
         if address and existing.get('ADDRESS') != address:
             fields['ADDRESS'] = address
-        if phone and not existing.get('PHONE'):
-            fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": phone}]
+        if clean_phone and not existing.get('PHONE'):
+            fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
+        elif clean_phone and existing.get('PHONE'):
+            curr_val = existing['PHONE'][0].get('VALUE', '') if isinstance(existing['PHONE'], list) and existing['PHONE'] else ''
+            if curr_val and (curr_val.startswith('8') or any(k in curr_val.lower() for k in ['доб', 'ext'])):
+                fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
         if email and not existing.get('EMAIL'):
             fields['EMAIL'] = [{"VALUE_TYPE": "WORK", "VALUE": email}]
         if origin_id and not existing.get('ORIGIN_ID'):
@@ -391,8 +439,8 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
             fields["UF_CRM_699421CD2A684"] = inn
         if address:
             fields["ADDRESS"] = address
-        if phone:
-            fields["PHONE"] = [{"VALUE_TYPE": "WORK", "VALUE": phone}]
+        if clean_phone:
+            fields["PHONE"] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
         if email:
             fields["EMAIL"] = [{"VALUE_TYPE": "WORK", "VALUE": email}]
         if origin_id:
@@ -403,7 +451,7 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
         cid = call_b24("crm.company.add", {"fields": fields})
         return {"action": "created", "id": cid}
 
-def enrich_or_create_b24_contact(name: str, email: str, phone: str = None, company_id: int = None, post: str = None, assigned_by_id: int = USER_ARTEM, dry_run: bool = False) -> dict:
+def enrich_or_create_b24_contact(name: str, email: str, phone: str = None, company_id: int = None, post: str = None, assigned_by_id: int = USER_ARTEM, dry_run: bool = False, ext: str = None) -> dict:
     existing = find_b24_contact_by_email(email)
     parts = name.split()
     if len(parts) >= 3:
@@ -413,6 +461,21 @@ def enrich_or_create_b24_contact(name: str, email: str, phone: str = None, compa
     else:
         first_name, last_name, second_name = name, "", ""
 
+    # Phone & Extension Normalization Guard (+7 Invariant & доб. -> SECOND_NAME)
+    clean_phone = ""
+    phone_ext = ""
+    if phone:
+        clean_phone, phone_ext = normalize_phone_number(phone)
+    if not ext and phone_ext:
+        ext = phone_ext
+
+    if ext:
+        clean_ext = f"доб. {ext}" if not str(ext).startswith("доб") else str(ext)
+        if second_name and clean_ext not in second_name:
+            second_name = f"{second_name} ({clean_ext})"
+        elif not second_name:
+            second_name = clean_ext
+
     if existing:
         cid = existing['ID']
         fields = {}
@@ -420,13 +483,17 @@ def enrich_or_create_b24_contact(name: str, email: str, phone: str = None, compa
             fields['POST'] = post
         if company_id and str(existing.get('COMPANY_ID')) != str(company_id):
             fields['COMPANY_ID'] = company_id
-        if phone and not existing.get('PHONE'):
-            fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": phone}]
+        if clean_phone and not existing.get('PHONE'):
+            fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
+        elif clean_phone and existing.get('PHONE'):
+            curr_val = existing['PHONE'][0].get('VALUE', '') if isinstance(existing['PHONE'], list) and existing['PHONE'] else ''
+            if curr_val and (curr_val.startswith('8') or any(k in curr_val.lower() for k in ['доб', 'ext'])):
+                fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
         if last_name and (existing.get('NAME') == last_name or not existing.get('LAST_NAME')):
             fields['NAME'] = first_name
             fields['LAST_NAME'] = last_name
-            if second_name:
-                fields['SECOND_NAME'] = second_name
+        if second_name and existing.get('SECOND_NAME') != second_name:
+            fields['SECOND_NAME'] = second_name
         if fields and not dry_run:
             call_b24("crm.contact.update", {"id": cid, "fields": fields})
             return {"action": "updated", "id": cid, "data": existing}
@@ -442,14 +509,14 @@ def enrich_or_create_b24_contact(name: str, email: str, phone: str = None, compa
         }
         if post:
             fields["POST"] = post
-        if phone:
-            fields["PHONE"] = [{"VALUE_TYPE": "WORK", "VALUE": phone}]
+        if clean_phone:
+            fields["PHONE"] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
         if company_id:
             fields["COMPANY_ID"] = company_id
         if dry_run:
             return {"action": "dry_run_create", "id": "PREVIEW_CTID", "fields": fields}
-        cid = call_b24("crm.contact.add", {"fields": fields})
-        return {"action": "created", "id": cid}
+        cnt_id = call_b24("crm.contact.add", {"fields": fields})
+        return {"action": "created", "id": cnt_id}
 
 # ----------------------------------------------------------------------
 # Проверка вложений снабжения (Attachment Hygiene Guard)
@@ -461,7 +528,7 @@ def is_prohibited_china_supply_file(filename: str) -> bool:
     """
     fn = filename.lower()
     prohibited_keywords = [
-        "карта", "карточка", "партнер", "партнера", "реквизит", "реквизиты",
+        "карт", "карта", "карточка", "партнер", "партнера", "реквизит", "реквизиты",
         "инн", "огрн", "устав", "договор", "выписка", "егрюл", "свидетельств",
         "паспорт", "доверенност", "бухгалтер", "счет", "akt", "акт", "счет-фактур",
         "упд", "upd"
@@ -609,18 +676,15 @@ def extract_phone_and_signature_details(text: str) -> dict:
         r'(8[\-\s]?[\(\[]\d{3,5}[\)\]][\-\s]?\d{2,3}[\-\s]?\d{2}[\-\s]?\d{2}(?:\s*\/\s*\d+)?(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)'
     ]
     phone = ""
+    ext = ""
     for pat in patterns:
         m = re.search(pat, clean_text, flags=re.IGNORECASE)
         if m:
             raw_phone = m.group(1).strip()
-            # Нормализация сдвоенных номеров вроде 211-31-05/06
-            raw_phone = re.sub(r'/\d+\b', '', raw_phone)
-            # Нормализация скобок вокруг добавочного: (доб. 457) -> доб. 457
-            raw_phone = re.sub(r'\(\s*(доб\.?\s*\d+)\s*\)', r'\1', raw_phone, flags=re.IGNORECASE)
-            raw_phone = raw_phone.strip(" ,;.-")
-            digits = re.sub(r'\D', '', raw_phone)
-            if len(digits) >= 10:
-                phone = raw_phone
+            norm_p, norm_ext = normalize_phone_number(raw_phone)
+            if norm_p:
+                phone = norm_p
+                ext = norm_ext
                 break
 
     # 2. Поиск должности
@@ -640,7 +704,7 @@ def extract_phone_and_signature_details(text: str) -> dict:
         if not any(dm in w_val.lower() for dm in ["yandex", "mail.ru", "gmail", "bk.ru", "inbox.ru"]):
             website = w_val
 
-    return {"phone": phone, "post": post, "website": website}
+    return {"phone": phone, "ext": ext, "post": post, "website": website}
 
 def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand: str = "") -> list:
     """
@@ -1326,11 +1390,19 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     email_desc = main_email_act.get("DESCRIPTION", "")
     email_message_id = main_email_act.get("SETTINGS", {}).get("MESSAGE_ID") if isinstance(main_email_act.get("SETTINGS"), dict) else None
 
-    # Извлечение телефона и должности из подписи письма, если они отсутствовали в лиде
+    # Извлечение телефона, добавочного и должности из подписи письма, если они отсутствовали в лиде
     sig_info = extract_phone_and_signature_details(f"{email_desc} {lead_comments}")
+    contact_ext = sig_info.get("ext", "")
     if not contact_phone and sig_info.get("phone"):
         contact_phone = sig_info["phone"]
-        print(f"  [PHONE-PARSER] Из подписи письма извлечен телефон: {contact_phone}")
+        print(f"  [PHONE-PARSER] Из подписи письма извлечен чистый телефон: {contact_phone}")
+        if contact_ext:
+            print(f"  [EXT-PARSER] Из подписи извлечен добавочный: {contact_ext} (будет сохранен в поле Отчество)")
+    elif contact_phone:
+        contact_phone, ext_from_lead = normalize_phone_number(contact_phone)
+        if ext_from_lead and not contact_ext:
+            contact_ext = ext_from_lead
+            print(f"  [EXT-PARSER] Из телефона лида извлечен добавочный: {contact_ext} (будет сохранен в поле Отчество)")
     if sig_info.get("post"):
         contact_post = sig_info["post"]
         print(f"  [SIGNATURE-PARSER] Из подписи извлечена должность: {contact_post}")
@@ -1407,7 +1479,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     if not inn and lead_file_ids:
         for fid, fname in lead_file_ids:
             fn_low = fname.lower()
-            if any(k in fn_low for k in ["реквизит", "карточк", "карточка", "инн"]):
+            if any(k in fn_low for k in ["реквизит", "карточк", "карточка", "карт", "инн"]):
                 try:
                     df = call_b24("disk.file.get", {"id": fid})
                     if df and df.get("DOWNLOAD_URL"):
@@ -1416,11 +1488,16 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                             content_bytes = r_f.content
                             for enc in ['utf-16le', 'cp1251', 'utf-8']:
                                 dec = content_bytes.decode(enc, errors='ignore')
+                                explicit_inns = re.findall(r'(?:инн|инн/кпп)[\s:]{1,10}(\d{10}|\d{12})', dec, flags=re.IGNORECASE)
+                                if explicit_inns:
+                                    inn = explicit_inns[0]
+                                    print(f"  [INN-ATTACHMENT] Извлечен точный ИНН {inn} из реквизитов файла '{fname}'")
+                                    break
                                 found_inns = re.findall(r'(?:\b|\D)(\d{10})(?:\b|\D)', dec)
                                 for fi in found_inns:
                                     if len(fi) == 10 and not fi.startswith('0000'):
                                         inn = fi
-                                        print(f"  [INN-ATTACHMENT] Извлечен точный ИНН {inn} из файла '{fname}'")
+                                        print(f"  [INN-ATTACHMENT] Извлечен ИНН {inn} из файла '{fname}'")
                                         break
                                 if inn:
                                     break
@@ -1619,7 +1696,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             
         res_comp = enrich_or_create_b24_company(company_title, inn=inn, address=address, phone=contact_phone, email=contact_email, assigned_by_id=assigned_by_id)
         cid = res_comp["id"]
-        res_cnt = enrich_or_create_b24_contact(contact_name, contact_email, phone=contact_phone, company_id=cid, post=contact_post, assigned_by_id=assigned_by_id)
+        res_cnt = enrich_or_create_b24_contact(contact_name, contact_email, phone=contact_phone, company_id=cid, post=contact_post, assigned_by_id=assigned_by_id, ext=contact_ext)
         cnt_id = res_cnt["id"]
         
         # Привязка Компании и Контакта к Лиду в Битрикс24
@@ -1800,7 +1877,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     # Боевое обогащение сущностей B24
     res_comp = enrich_or_create_b24_company(company_title, inn=inn, address=address, phone=contact_phone, email=contact_email, assigned_by_id=assigned_by_id)
     cid = res_comp["id"]
-    res_cnt = enrich_or_create_b24_contact(contact_name, contact_email, phone=contact_phone, company_id=cid, post=contact_post, assigned_by_id=assigned_by_id)
+    res_cnt = enrich_or_create_b24_contact(contact_name, contact_email, phone=contact_phone, company_id=cid, post=contact_post, assigned_by_id=assigned_by_id, ext=contact_ext)
     cnt_id = res_cnt["id"]
 
     # Обогащение Компании и Лида Б24 скорингом СБИС и закрепленным комментарием
