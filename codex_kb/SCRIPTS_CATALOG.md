@@ -22,6 +22,7 @@
 - [12. Синхронизация лидов и компаний в 1С и Битрикс24 (Idempotent CRM)](#idempotent_crm_1c)
 - [13. Тендеры, АСТ ГОЗ и RAG-пайплайн спецификаций](#tenders_goz)
 - [14. Инфраструктура, VPS-сервер, Docker и Бэкапы](#infra_vps)
+- [15. SEO Longwang.ru, поисковые краулеры и Trend Spike Radar](#seo_longwang)
 
 ---
 
@@ -1513,3 +1514,14 @@
 | **Диагностический** | `vps_diag.sh` | `scratch/vps_diag.sh` | Автоматизация рабочего процесса. | 0 |
 
 ---
+
+<a id='seo_longwang'></a>
+## 15. SEO Longwang.ru, поисковые краулеры и Trend Spike Radar
+
+| Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
+| :--- | :--- | :--- | :--- | :--- |
+| **Боевой канонический** | `trend_spike_radar.py` | `projects/SEO/scripts/trend_spike_radar.py` | 5-модульный радар перехвата B2B-хайпа, кризисов карго, регуляторики и трендов Google с публикацией в задачу Б24 #4972 и DWH | 0 |
+| **Боевой канонический** | `verify_sprint_2_indexation_and_donors.py` | `projects/SEO/scripts/verify_sprint_2_indexation_and_donors.py` | Аппаратный аудит 12 страниц Спринта 2 (HTTP, robots, canonical, GSC) и проверка донора ruselectronic.com в GoGetLinks | 0 |
+| **Боевой канонический** | `apply_wp_onpage_fixes.py` | `projects/SEO/scripts/apply_wp_onpage_fixes.py` | Автоматизированное внедрение On-Page правок, ликвидация 301-редиректов и перелинковка через WP REST API | 2 |
+| **Вспомогательный** | `analyze_gogetlinks.py` | `projects/SEO/scripts/analyze_gogetlinks.py` | Анализ ссылочного профиля биржи GoGetLinks и оценка распределения анкоров | 0 |
+| **Диагностический** | `verify_live_urls.py` | `projects/SEO/scripts/verify_live_urls.py` | Диагностическая проверка статус-кодов ключевых хабов и разделов сайта longwang.ru | 0 |

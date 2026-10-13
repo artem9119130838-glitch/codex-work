@@ -303,6 +303,29 @@ def filter_global_breakouts_via_llm(raw_trends: list, config: dict) -> list:
         try:
             with urllib.request.urlopen(req, timeout=12) as resp:
                 res_data = json.loads(resp.read().decode("utf-8"))
+                
+                # Log LLM token consumption into DWH (PostgreSQL marketing_db -> Metabase Dashboard 8)
+                try:
+                    usage = res_data.get("usageMetadata", {})
+                    p_tok = usage.get("promptTokenCount", 0)
+                    c_tok = usage.get("candidatesTokenCount", 0)
+                    tracker_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "metabase_analytics", "scripts"))
+                    if tracker_dir not in sys.path:
+                        sys.path.insert(0, tracker_dir)
+                    from llm_tracker import log_llm_usage
+                    log_llm_usage(
+                        provider="gemini",
+                        model_name="gemini-2.5-flash",
+                        task_type="longwang_trend_radar",
+                        key_alias="gemini_radar_primary",
+                        prompt_tokens=p_tok,
+                        completion_tokens=c_tok,
+                        initiated_by="system_cron",
+                        status="success"
+                    )
+                except Exception:
+                    pass
+
                 text = res_data["candidates"][0]["content"]["parts"][0]["text"]
                 json_match = re.search(r'\[.*\]', text, re.DOTALL)
                 if json_match:
