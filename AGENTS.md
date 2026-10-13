@@ -76,6 +76,7 @@
 | **«синхронизируй лидов, создай и обнови»** | `py projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | **Dry-run**. Чистая сверка 1С и Б24 без создания сделок, поддержка `--mxl`. |
 | **«синхронизируй поставщиков 1С в битрикс»** | `py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py` | **Dry-run**. Перенос и Safe Merge фабрик КНР/поставщиков, теги папок 1С, реквизиты, банк. |
 | **«статус ключей llm»** (`«аудит metabase llm»`) | `py projects/metabase_analytics/scripts/audit_llm_keys.py --db-sync` | Пинг Gemini/DeepSeek, синхронизация `llm_keys_status` в DWH, алерт в Б24 при сбоях. |
+| **«запуск trend radar»** (`«радар трендов»`) | `py projects/SEO/scripts/trend_spike_radar.py --dry-run` | **Dry-run**. 5-модульный радар перехвата B2B-хайпа, кризисов карго, регуляторики и трендов Google, публикация в задачу Б24 #4972 и DWH. |
 
 > **Explicit Scope Guard:** Если в командах лидов или сделок не указаны сотрудник, ящик или лимит — не запускать вслепую, а немедленно переспросить пользователя!
 
@@ -88,6 +89,7 @@
 
 | Ключевые темы в запросе | Домен | Целевой манифест (Читать строки 1–35) |
 |---|---|---|
+| SEO Longwang, аудит, тренды, B2B | **SEO Longwang** | [SEO_STRATEGIC_PLAN_2026.md](file:///C:/Codex/projects/SEO/docs/SEO_STRATEGIC_PLAN_2026.md) |
 | Лиды, входящая почта, заявки КНР | **Лиды & CRM** | [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md) |
 | Follow-up, зависшие КП, pre-sale | **Follow-up** | [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md) |
 | Спящие клиенты, реактивация | **Реактивация** | [LEAD_REACTIVATION_POLICY.md](file:///C:/Codex/projects/lead_reactivation/LEAD_REACTIVATION_POLICY.md) |
