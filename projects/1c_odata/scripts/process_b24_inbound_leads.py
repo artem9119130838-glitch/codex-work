@@ -1115,8 +1115,9 @@ def build_supply_task_chat_message(azat_id, cn_nomenclature, brand, model, quant
     """
     equiv_str = "可推荐同等参数国内优质替代品 (Разрешен качественный аналог)" if equivalents_allowed else "仅限原装正品 (Только оригинал)"
 
+    user_tag = f"[USER={azat_id}]王女士[/USER]" if azat_id == USER_MISS_WANG else f"[USER={azat_id}]阿扎特[/USER]"
     msg_lines = [
-        f"[USER={azat_id}]阿扎特[/USER] Новая заявка в снабжение КНР:",
+        f"{user_tag} Новая заявка в снабжение КНР:",
         f"请协助询价以下设备（采购清单）：",
         f"- 品牌及型号：{cn_nomenclature}",
         f"- 数量：{quantity}",
@@ -1333,7 +1334,7 @@ def evaluate_reseller_and_ghost_signals(dadata_info: dict, saby_info: dict, cont
 # ----------------------------------------------------------------------
 # Единый универсальный обработчик любого лида (Universal Lead Pipeline)
 # ----------------------------------------------------------------------
-def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, send_reply: bool = True, force: bool = False) -> dict:
+def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4) -> dict:
     lead = call_b24("crm.lead.get", {"id": lead_id})
     if not lead:
         print(f"[ERROR] Лид #{lead_id} не найден в Битрикс24")
@@ -1443,8 +1444,20 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         elif m_comp_comment and len(m_comp_comment.group(1).strip()) >= 3:
             raw_company_title = m_comp_comment.group(1).split('\n')[0].strip()
         else:
-            if contact_email and '@' in contact_email:
-                domain_part = contact_email.split('@')[-1].split('.')[0].lower()
+            site_domain = ""
+            if sig_info.get("website"):
+                w_clean = re.sub(r'^(?:https?:\/\/)?(?:www\.)?', '', sig_info["website"].lower().strip()).split('/')[0]
+                w_parts = w_clean.split('.')
+                if len(w_parts) >= 2 and w_parts[0] not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
+                    site_domain = w_parts[0]
+            if site_domain:
+                raw_company_title = site_domain
+            elif contact_email and '@' in contact_email:
+                d_parts = contact_email.split('@')[-1].lower().split('.')
+                if len(d_parts) >= 3 and d_parts[-1] in {'ru', 'com', 'org', 'net', 'by', 'kz', 'su', 'рф', 'io', 'ai'}:
+                    domain_part = d_parts[-2]
+                else:
+                    domain_part = d_parts[0]
                 if domain_part not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
                     raw_company_title = domain_part
 
@@ -1680,7 +1693,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     print(f"\n4. Квалификация обращения: {'Ветка А (Clear RFQ)' if is_rfq else 'Ветка Б (Ambiguous / Reseller Guard)'}")
     print(f"   Причина: {rfq_reason}")
 
-    deadline_plan = get_deadline_business_days(days=4, today=deadline_today)
+    task_dead_days = deadline_days if deadline_days is not None else 4
+    task_resp_id = responsible_id if responsible_id else USER_AZAT
+    deadline_plan = get_deadline_business_days(days=task_dead_days, today=deadline_today)
 
     # ---------------- ВЕТКА Б: Неоднозначное или перепродажное обращение ----------------
     if not is_rfq:
@@ -1866,7 +1881,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     if dry_run:
         print(f"\n[DRY-RUN] План действий для Ветки А:")
         print(f"  - Сделка: '{title_naming}' (Стадия: PREPARATION)")
-        print(f"  - Задача снабжению: Азат (user/{USER_AZAT}), Группа 14, Дедлайн: {deadline_plan}")
+        resp_name = "Мисс Ван" if task_resp_id == USER_MISS_WANG else "Азат"
+        print(f"  - Задача снабжению: {resp_name} (user/{task_resp_id}), Группа 14, Дедлайн: {deadline_plan}")
         print(f"  - Многопозиционная заявка (Multi-Item RFQ): {'ДА (генерация чистового Excel)' if is_multi_item_rfq else 'НЕТ'}")
         print(f"  - Чистых вложений клиента для Китая: {len(clean_attachments)}")
         print(f"  - Почтовый автоответ Шаблон № 66: {'ДА' if (contact_email and send_reply) else 'НЕТ'}")
@@ -1956,22 +1972,25 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         f"{attachments_task_block}"
     )
 
-    # Создание задачи снабжению Азату (user/20) с полным DESCRIPTION
+    # Создание задачи снабжению с полным DESCRIPTION
+    task_resp_id = responsible_id if responsible_id else USER_AZAT
+    task_dead_days = deadline_days if deadline_days is not None else 4
     task_id = create_b24_supply_task(
         title=title_naming,
         deal_id=deal_id,
         description=task_description,
-        responsible_id=USER_AZAT,
+        responsible_id=task_resp_id,
         group_id=GROUP_CHINA_SUPPLY,
-        deadline_days=4,
+        deadline_days=task_dead_days,
         deadline_today=deadline_today,
         file_ids=supply_disk_ids
     )
-    print(f"  [B24] Создана Задача #{task_id} (Ответственный: Азат, Дедлайн: {deadline_plan})")
+    resp_name = "Мисс Ван" if task_resp_id == USER_MISS_WANG else "Азат"
+    print(f"  [B24] Создана Задача #{task_id} (Ответственный: {resp_name}, Дедлайн: {deadline_plan})")
 
-    # Двуязычный комментарий в чат задачи для Азата (China Supply Anonymity Guard)
+    # Двуязычный комментарий в чат задачи (China Supply Anonymity Guard)
     bilingual_comment = build_supply_task_chat_message(
-        azat_id=USER_AZAT,
+        azat_id=task_resp_id,
         cn_nomenclature=cn_nomenclature,
         brand=rfq_details.get('brand', 'Hydac'),
         model=rfq_details.get('model', 'VD 8 C.0'),
@@ -2316,6 +2335,8 @@ def main():
     parser.add_argument("--limit", type=int, default=10, help="Ограничение количества обрабатываемых лидов")
     parser.add_argument("--no-reply", action="store_true", default=False, help="Отключить отправку автоответа Шаблон № 66")
     parser.add_argument("--force", action="store_true", default=False, help="Принудительная обработка даже если лид в статусе CONVERTED")
+    parser.add_argument("--responsible", type=str, default="azat", help="Ответственный за задачу снабжения: azat (20) или wang (30)")
+    parser.add_argument("--deadline-days", type=int, default=4, help="Количество рабочих дней на дедлайн задачи снабжения (по умолчанию 4)")
     parser.add_argument("--csv", "--csv-file", dest="csv_file", type=str, help="Путь к выгруженному CSV-файлу со списком лидов")
     args = parser.parse_args()
 
@@ -2364,6 +2385,8 @@ def main():
     print(f"=== ЗАПУСК КАНОНИЧЕСКОГО КОНВЕЙЕРА ЛИДОВ (Режим: {'DRY-RUN' if dry_run else 'БОЕВОЙ'}) ===")
     print(f"Целевые лиды: {targets}\n")
 
+    resp_id = USER_MISS_WANG if str(args.responsible).lower() in ["wang", "30", "miss_wang", "мисс_ван"] else (int(args.responsible) if str(args.responsible).isdigit() else USER_AZAT)
+
     results = []
     for lid in targets:
         res = process_single_lead(
@@ -2371,7 +2394,9 @@ def main():
             dry_run=dry_run,
             deadline_today=args.deadline_today,
             send_reply=(not args.no_reply),
-            force=args.force
+            force=args.force,
+            responsible_id=resp_id,
+            deadline_days=args.deadline_days
         )
         results.append(res)
 
