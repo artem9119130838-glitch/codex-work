@@ -120,29 +120,30 @@ They remain useful, but new global context should live in `codex_kb`.
 
 ## Ноутбуки личного контура и схема синхронизации
 
-Контур использует два рабочих ноутбука:
+Контур использует два рабочих ноутбука с **единым корневым монорепозиторием `C:\Codex`**:
 1. **HP Victus 16** (Основной домашний ноутбук / рабочая станция):
    - Пользователь Windows: `Артем` (`C:\Users\Артем`)
-   - Рабочий репозиторий Codex: `E:\Codex_Work`
-   - Локальные диски с данными: `E:\` и `D:\`
+   - Рабочий монорепозиторий Codex: `C:\Codex` (`origin/master` -> `artem9119130838-glitch/codex-work.git`)
+   - Локальные диски с данными: `C:\`, `D:\`, `E:\`
    - Внешний накопитель для бэкапа монтируется обычно как: `F:\`
 2. **Huawei MateBook 14** (Мобильный рабочий ноутбук):
    - Пользователь Windows: `Artem` (`C:\Users\Artem`, чистая латиница)
-   - Рабочий репозиторий Codex: `C:\Codex`
+   - Рабочий монорепозиторий Codex: `C:\Codex` (`origin/master` -> `artem9119130838-glitch/codex-work.git`)
    - Локальные диски с данными: `C:\` и `D:\`
    - Внешний накопитель для бэкапа монтируется обычно как: `E:\`
 
-### Карта синхронизации через внешний диск (Mirror_E_Home)
+### Канонический протокол Git-эстафеты (Victus ⮂ MateBook Dual-PC Handshake)
 
-* **Git (`artem9119130838-glitch/codex-work.git`)**: Первичный транспортный слой для исходного кода, базы знаний, скриптов и документации.
-* **FreeFileSync (`Mirror_E_Home`)**: Транспортный слой для тяжелых дистрибутивов, баз данных, сессий приложений и профилей AppData:
-  - `E:\Mirror_E_Home\SOFT` ⮂ Victus: `E:\SOFT` ⮂ MateBook: `D:\Дистрибутивы`
-  - `E:\Mirror_E_Home\SOFT_D` ⮂ Victus: `D:\Soft` ⮂ MateBook: `D:\Soft`
-  - `E:\Mirror_E_Home\SAVE` ⮂ Victus: `E:\SAVE` ⮂ MateBook: `D:\Save E`
-  - `E:\Mirror_E_Home\Документы` ⮂ Victus: `E:\Документы` ⮂ MateBook: `D:\Документы Sync E`
-  - `E:\Mirror_E_Home\Codex_Work` ⮂ Victus: `E:\Codex_Work` ⮂ MateBook: `C:\Codex`
-  - `E:\Mirror_E_Home\.gemini` ⮂ Victus: `C:\Users\Артем\.gemini` ⮂ MateBook: `C:\Users\Artem\.gemini`
-  - `E:\Mirror_E_Home\.ssh` ⮂ Victus: `C:\Users\Артем\.ssh` ⮂ MateBook: `C:\Users\Artem\.ssh`
-  - Профили AppData (Telegram, WeChat, DBeaver, NovoFon, dupeGuru, Direct Commander, DigiKam, Movavi, Punto Switcher, MobaXterm, 1C, Edge Bookmarks).
-* **Скрипт адаптации путей Antigravity**: При возврате на Victus обязательно запускать `py F:\Mirror_E_Home\fix_paths_for_victus.py` для коррекции `Artem` ➔ `Артем` и `C:\Codex` ➔ `E:\Codex_Work` в служебных файлах Antigravity.
+* **Git (`artem9119130838-glitch/codex-work.git`)** — единственный транспортный слой для исходного кода, бизнес-логики, регламентов и документации.
+* **Принцип эстафеты:**
+  1. Завершение работы на ПК: триггер `«конец чата»` (или `git push origin master`). Изменения и автосводка уходят в GitHub.
+  2. Начало работы на другом ПК: триггер `«подтяни обновления»` (или `git pull origin master`). Все наработки мгновенно становятся доступны.
+  3. **Запрет параллельных папок:** категорически запрещено работать в `C:\Codex_Shared` или создавать отдельные папки проектов. Вся работа — строго в `C:\Codex`.
+* **Конфигурация секретов (`.env`):**
+  - Файлы секретов исключены из Git (`.gitignore`).
+  - Переносятся вручную **ровно один раз** с Victus на MateBook в `C:\Codex\projects\1c_odata\.env` (и при необходимости `C:\Codex\projects\SEO\.env`). Повторный перенос не требуется, если не менялись доступы.
+
+### Дополнительный слой синхронизации тяжелых данных (Mirror_E_Home)
+
+* **FreeFileSync (`Mirror_E_Home`)**: Используется ТОЛЬКО для тяжелых дистрибутивов, сессий приложений и профилей AppData, не входящих в Git.
 
