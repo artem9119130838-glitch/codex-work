@@ -294,7 +294,8 @@ def get_emails_text_for_company(db: Session, owner_ref_key: str) -> str:
 def load_articles() -> list:
     articles = []
     paths = [
-        "C:/Codex_Shared/projects/n8n_email_ai/40_curated_kb/96_articles_index.md",
+        "C:/Codex/ARCHIVE/codex_shared_archive/n8n_email_ai_backup/40_curated_kb/96_articles_index.md",
+        "C:/Codex/projects/n8n_email_ai/kb_leads_v1/96_articles_index.md",
         "/app/40_curated_kb/96_articles_index.md",
         "40_curated_kb/96_articles_index.md"
     ]

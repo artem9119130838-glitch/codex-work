@@ -41,7 +41,6 @@ def load_dotenv():
         os.path.join(os.path.dirname(__file__), "..", ".env"),
         os.path.join(os.path.dirname(__file__), ".env"),
         r"C:\Codex\projects\1c_odata\.env",
-        r"C:\Codex_Shared\projects\1c_odata\.env",
         r"C:\Codex\ARCHIVE\codex_shared_archive\n8n_email_ai_backup\.env",
     ]
     for p in search_paths:

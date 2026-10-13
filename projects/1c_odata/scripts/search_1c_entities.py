@@ -20,7 +20,6 @@ def _load_env():
         os.path.join(os.path.dirname(__file__), "..", ".env"),
         os.path.join(os.path.dirname(__file__), ".env"),
         r"C:\Codex\projects\1c_odata\.env",
-        r"C:\Codex_Shared\projects\1c_odata\.env",
     ]
     for p in search_paths:
         if os.path.exists(p):
