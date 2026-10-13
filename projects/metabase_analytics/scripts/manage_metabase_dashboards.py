@@ -380,9 +380,11 @@ def deploy_token_analytics(base_url, session_id, dry_run=False):
     CASE 
         WHEN initiated_by IS NOT NULL AND initiated_by != 'system_automation' THEN initiated_by
         WHEN project_name = 'email_ai' THEN 'Робот Email & Реанимация (VPS Cron)'
+        WHEN project_name = 'seo_longwang' THEN 'Робот SEO Longwang (VPS Cron)'
         ELSE 'Системная автоматизация (VPS)'
     END AS "Инициатор",
     CASE 
+        WHEN request_type = 'longwang_trend_radar' THEN 'SEO Радар трендов Longwang'
         WHEN request_type = 'company_summary' THEN 'Суммаризация компаний (DWH)'
         WHEN request_type = 'contact_summary' THEN 'Суммаризация контактов (Email AI)'
         WHEN request_type = 'client_intelligence_summary' THEN 'Досье клиента (Intelligence)'
@@ -426,6 +428,7 @@ ORDER BY "Всего токенов" DESC;"""
             "display": "pie",
             "sql": """SELECT 
     CASE 
+        WHEN request_type = 'longwang_trend_radar' THEN 'SEO Радар трендов Longwang'
         WHEN request_type = 'company_summary' THEN 'Суммаризация компаний (DWH)'
         WHEN request_type = 'contact_summary' THEN 'Суммаризация контактов (Email AI)'
         WHEN request_type = 'client_intelligence_summary' THEN 'Досье клиента (Intelligence)'
@@ -447,6 +450,7 @@ ORDER BY "Всего токенов" DESC;"""
     CASE 
         WHEN initiated_by IS NOT NULL AND initiated_by != 'system_automation' THEN initiated_by
         WHEN project_name = 'email_ai' THEN 'Робот Email & Реанимация (VPS Cron)'
+        WHEN project_name = 'seo_longwang' THEN 'Робот SEO Longwang (VPS Cron)'
         ELSE 'Системная автоматизация (VPS)'
     END AS "Инициатор",
     COUNT(*) FILTER (WHERE total_tokens > 0) AS "Успешных вызовов",

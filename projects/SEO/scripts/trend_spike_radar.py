@@ -309,14 +309,21 @@ def filter_global_breakouts_via_llm(raw_trends: list, config: dict) -> list:
                     usage = res_data.get("usageMetadata", {})
                     p_tok = usage.get("promptTokenCount", 0)
                     c_tok = usage.get("candidatesTokenCount", 0)
-                    tracker_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "metabase_analytics", "scripts"))
-                    if tracker_dir not in sys.path:
-                        sys.path.insert(0, tracker_dir)
+                    tracker_candidates = [
+                        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "metabase_analytics", "scripts")),
+                        "/Storage/scripts/metabase_analytics",
+                        "/opt/longwang_trend_radar"
+                    ]
+                    for p in tracker_candidates:
+                        if os.path.exists(p) and p not in sys.path:
+                            sys.path.insert(0, p)
                     from llm_tracker import log_llm_usage
                     log_llm_usage(
                         provider="gemini",
                         model_name="gemini-2.5-flash",
                         task_type="longwang_trend_radar",
+                        request_type="longwang_trend_radar",
+                        project_name="seo_longwang",
                         key_alias="gemini_radar_primary",
                         prompt_tokens=p_tok,
                         completion_tokens=c_tok,
@@ -330,8 +337,32 @@ def filter_global_breakouts_via_llm(raw_trends: list, config: dict) -> list:
                 json_match = re.search(r'\[.*\]', text, re.DOTALL)
                 if json_match:
                     return json.loads(json_match.group(0))
-        except Exception:
-            pass
+        except Exception as e_llm:
+            try:
+                tracker_candidates = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "metabase_analytics", "scripts")),
+                    "/Storage/scripts/metabase_analytics",
+                    "/opt/longwang_trend_radar"
+                ]
+                for p in tracker_candidates:
+                    if os.path.exists(p) and p not in sys.path:
+                        sys.path.insert(0, p)
+                from llm_tracker import log_llm_usage
+                log_llm_usage(
+                    provider="gemini",
+                    model_name="gemini-2.5-flash",
+                    task_type="longwang_trend_radar",
+                    request_type="longwang_trend_radar",
+                    project_name="seo_longwang",
+                    key_alias="gemini_radar_primary",
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    initiated_by="system_cron",
+                    status="error",
+                    error_message=str(e_llm)[:250]
+                )
+            except Exception:
+                pass
             
     # Clean heuristic result (only return genuine commercial candidates, never sports/noise)
     result = []

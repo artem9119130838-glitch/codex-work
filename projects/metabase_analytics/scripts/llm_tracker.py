@@ -53,6 +53,30 @@ def calculate_cost_usd(model_name: str, prompt_tokens: int, completion_tokens: i
     cost = (prompt_tokens * rates["prompt"] + completion_tokens * rates["completion"]) / 1_000_000.0
     return round(cost, 6)
 
+# Auto-load .env candidates if not in environ
+def _load_env_candidates():
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "..", ".env"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "1c_odata", ".env"),
+        "/Storage/scripts/metabase_analytics/.env",
+        "/opt/longwang_trend_radar/.env"
+    ]
+    for env_path in candidates:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip()
+                            if k not in os.environ and v:
+                                os.environ[k] = v
+            except Exception:
+                pass
+
+_load_env_candidates()
+
 def log_llm_usage(
     provider: str,
     model_name: str,
@@ -61,18 +85,25 @@ def log_llm_usage(
     prompt_tokens: int,
     completion_tokens: int,
     initiated_by: str = None,
+    project_name: str = "seo_longwang",
+    request_type: str = None,
     status: str = "success",
     error_message: str = None,
     latency_ms: int = 0
 ):
     """
     Logs an LLM call to PostgreSQL DWH (marketing_db.llm_usage_logs).
+    Populates all required NOT NULL columns: project_name, request_type, api_key_mask.
     Falls back to a local JSONL log file if DB is unreachable.
     """
     if not task_type:
         prog = os.path.basename(sys.argv[0]) if sys.argv else "unknown_script"
         prog_clean = os.path.splitext(prog)[0]
         task_type = f"[ВРЕМЕННЫЙ] unclassified_{prog_clean}"
+
+    req_type = request_type or task_type or "general"
+    proj_name = project_name or "seo_longwang"
+    api_mask = key_alias or "unknown"
 
     initiator = detect_initiator(initiated_by)
     total_tokens = prompt_tokens + completion_tokens
@@ -82,13 +113,17 @@ def log_llm_usage(
     record = {
         "created_at": now_iso,
         "initiated_by": initiator,
+        "project_name": proj_name,
+        "request_type": req_type,
         "task_type": task_type,
         "key_alias": key_alias,
+        "api_key_mask": api_mask,
         "provider": provider,
         "model_name": model_name,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
         "total_tokens": total_tokens,
+        "estimated_cost": cost_usd,
         "cost_usd": cost_usd,
         "latency_ms": latency_ms,
         "status": status,
@@ -111,13 +146,15 @@ def log_llm_usage(
             cursor = conn.cursor()
             sql = """
                 INSERT INTO llm_usage_logs (
-                    created_at, initiated_by, task_type, key_alias, provider,
-                    model_name, prompt_tokens, completion_tokens, total_tokens,
-                    cost_usd, latency_ms, status, error_message
+                    created_at, initiated_by, project_name, request_type, task_type,
+                    key_alias, api_key_mask, provider, model_name, prompt_tokens,
+                    completion_tokens, total_tokens, estimated_cost, cost_usd,
+                    status, error_message
                 ) VALUES (
-                    %(created_at)s, %(initiated_by)s, %(task_type)s, %(key_alias)s, %(provider)s,
-                    %(model_name)s, %(prompt_tokens)s, %(completion_tokens)s, %(total_tokens)s,
-                    %(cost_usd)s, %(latency_ms)s, %(status)s, %(error_message)s
+                    %(created_at)s, %(initiated_by)s, %(project_name)s, %(request_type)s, %(task_type)s,
+                    %(key_alias)s, %(api_key_mask)s, %(provider)s, %(model_name)s, %(prompt_tokens)s,
+                    %(completion_tokens)s, %(total_tokens)s, %(estimated_cost)s, %(cost_usd)s,
+                    %(status)s, %(error_message)s
                 );
             """
             cursor.execute(sql, record)

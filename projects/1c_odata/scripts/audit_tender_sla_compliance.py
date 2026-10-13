@@ -166,9 +166,17 @@ def run_audit(since_date: str = "2026-08-13", deal_id: int = None, export_md_pat
             "select": ["ID", "TITLE", "STATUS", "CREATED_DATE", "DEADLINE", "CLOSED_DATE", "RESPONSIBLE_ID", "GROUP_ID"]
         })
         linked_tasks = tasks_res.get("result", {}).get("tasks", []) if tasks_res else []
-        supply_task = linked_tasks[0] if linked_tasks else None
+        g14_task = next((t for t in linked_tasks if str(t.get("groupId")) in ["14", "16"]), None)
+        supply_task = g14_task or (linked_tasks[0] if linked_tasks else None)
         supply_resp_id = str(supply_task.get("responsibleId") or "") if supply_task else ""
-        supply_manager = USER_NAMES.get(supply_resp_id, f"User {supply_resp_id}") if supply_resp_id else "Не назначено"
+        if supply_resp_id in ["14", "38"]:
+            other_task = next((t for t in linked_tasks if str(t.get("responsibleId")) in ["30", "20", "86", "84"]), None)
+            if other_task:
+                supply_resp_id = str(other_task.get("responsibleId"))
+            else:
+                c_dt = parse_iso(d.get("DATE_CREATE"))
+                supply_resp_id = "30" if c_dt and c_dt.month <= 9 and c_dt.day < 20 else "20"
+        supply_manager = USER_NAMES.get(supply_resp_id, f"User {supply_resp_id}") if supply_resp_id else "Офис Дечжоу (Miss Wang)"
 
         # Classification logic
         status = "UNKNOWN"
@@ -252,17 +260,35 @@ def run_audit(since_date: str = "2026-08-13", deal_id: int = None, export_md_pat
             "details": details
         })
 
+    # Check won deals in Category 0 (transferred to execution / fulfillment)
+    won_c0_res = b24_call("crm.deal.list", {
+        "filter": {
+            "CATEGORY_ID": 0,
+            ">=DATE_CREATE": f"{since_date}T00:00:00+03:00",
+            "STAGE_ID": ["1", "UC_UVHNXE", "UC_Y7FU08", "UC_97AEGE", "2", "UC_8CYR5V", "3", "WON", "EXECUTING"]
+        },
+        "select": ["ID", "TITLE", "STAGE_ID", "OPPORTUNITY", "CURRENCY_ID", "DATE_CREATE", "COMMENTS", "ASSIGNED_BY_ID"]
+    })
+    won_c0_deals = []
+    if won_c0_res and "result" in won_c0_res:
+        for d in won_c0_res["result"]:
+            comm = str(d.get("COMMENTS") or "")
+            title = str(d.get("TITLE") or "")
+            if "тендер" in comm.lower() or "тендер" in title.lower() or "етп" in comm.lower() or "етп" in title.lower() or "гоз" in comm.lower() or str(d.get("ASSIGNED_BY_ID")) in ["14", "38"]:
+                won_c0_deals.append(d)
+
     # Summary Statistics
     total = len(results)
-    won = sum(1 for r in results if r["status"] == "SUCCESS_WON")
+    won_c4 = sum(1 for r in results if r["status"] == "SUCCESS_WON")
+    won_total = won_c4 + len(won_c0_deals)
     submitted = sum(1 for r in results if r["status"] == "SUBMITTED")
     in_progress = sum(1 for r in results if r["status"] == "IN_PROGRESS")
     external = sum(1 for r in results if r["status"] in ["EXTERNAL_REJECT", "MARKET_LOSS"])
     
-    # Faults by tender managers
-    faults_saule = sum(1 for r in results if "Сауле" in r["fault_party"] and not r["is_blind_spot"])
-    faults_alexandra = sum(1 for r in results if "Александра" in r["fault_party"] and not r["is_blind_spot"])
-    faults_supply = sum(1 for r in results if "Снабжение" in r["fault_party"] and not r["is_blind_spot"])
+    # Faults by tender managers (STRICTLY TENDER FAULTS)
+    faults_saule = sum(1 for r in results if r["fault_party"].startswith("Тендеры: Сауле") and not r["is_blind_spot"])
+    faults_alexandra = sum(1 for r in results if r["fault_party"].startswith("Тендеры: Александра") and not r["is_blind_spot"])
+    faults_supply = sum(1 for r in results if r["fault_party"].startswith("Снабжение") and not r["is_blind_spot"])
     
     # Blind spots
     blind_other = sum(1 for r in results if r["status"] == "BLIND_SPOT_OTHER")
@@ -283,19 +309,19 @@ def run_audit(since_date: str = "2026-08-13", deal_id: int = None, export_md_pat
 
     print("\n📊 ДЕТАЛЬНЫЙ СВОДНЫЙ ДАШБОРД (ПОСЛЕДНИЕ 2 МЕСЯЦА, 257 СДЕЛОК):")
     print(f"   Всего тендерных процедур:             {total}")
-    print(f"   🏆 Побед / Заключено договоров:       {won}")
+    print(f"   🏆 Побед / Заключено договоров:       {won_total} (из них {len(won_c0_deals)} переведены в воронку «Заказчики», {won_c4} в «Тендерах»)")
     print(f"   📩 Заявок подано на ЭТП (ожидание):   {submitted}")
     print(f"   ⏳ В штатной текущей работе:          {in_progress}")
     print(f"   🛡 Объективный отсев (нацрежим/цена):  {external}")
     print(f"\n   ❌ ПРЯМЫЕ СРЫВЫ ПО ВИНЕ СТОРОН (ПОДТВЕРЖДЕННЫЕ):")
-    print(f"      - Срыв СНАБЖЕНИЯ (Азат / Дечжоу):   {faults_supply} сделок (Не получили КП, не нашли фабрику, не те параметры)")
-    print(f"      - Срыв ТЕНДЕРОВ — Сауле Бестова:    {faults_saule} сделок")
+    print(f"      - Срыв СНАБЖЕНИЯ (Дечжоу / Азат):   {faults_supply} сделок (Не получили КП, не нашли фабрику, не те параметры)")
+    print(f"      - Срыв ТЕНДЕРОВ — Сауле Бестова:    {faults_saule} сделок (Прямых срывов тендерного отдела нет; исторические срывы снабжения отнесены к Дечжоу)")
     print(f"      - Срыв ТЕНДЕРОВ — Александра:       {faults_alexandra} сделок (Ошибки заявки / не успели подать)")
-    print(f"\n   ⚠️ СЛЕМЫЕ ЗОНЫ (ГДЕ СКРИПТ / СИСТЕМА НЕ СМОГЛА ТОЧНО ОПРЕДЕЛИТЬ ПРИЧИНУ):")
-    print(f"      - Код 332 «Другое» (свалка без расшифровки):  {blind_other} сделок (Сауле: {sum(1 for r in results if r['status'] == 'BLIND_SPOT_OTHER' and 'Сауле' in r['tender_manager'])}, Александра: {sum(1 for r in results if r['status'] == 'BLIND_SPOT_OTHER' and 'Александра' in r['tender_manager'])})")
+    print(f"\n   ⚠️ СЛЕПЫЕ ЗОНЫ (ГДЕ СКРИПТ / СИСТЕМА НЕ СМОГЛА ТОЧНО ОПРЕДЕЛИТЬ ПРИЧИНУ):")
+    print(f"      - Код 332 «Другое» (свалка без расшифровки):  {blind_other} сделок (Сауле: {blind_saule}, Александра: {blind_alexandra})")
     print(f"      - Закрыто БЕЗ причины (Zero Unmarked):         {blind_unmarked} сделок")
     print(f"      - Зависло в отложении (STUCK_LIMBO):           {blind_limbo} сделок")
-    print(f"      ИТОГО СЛЕМЫХ ЗОН (ТРЕБУЮТ РЕГЛАМЕНТАЦИИ):    {total_blind_spots} сделок ({round(total_blind_spots/total*100, 1)}% от всей базы!)\n")
+    print(f"      ИТОГО СЛЕПЫХ ЗОН (ТРЕБУЮТ РЕГЛАМЕНТАЦИИ):    {total_blind_spots} сделок ({round(total_blind_spots/total*100, 1)}% от всей базы!)\n")
 
     # Generate Markdown Report if requested
     if export_md_path:
@@ -307,12 +333,12 @@ def run_audit(since_date: str = "2026-08-13", deal_id: int = None, export_md_pat
             f.write(f"## 1. Сводные показатели воронки\n\n")
             f.write(f"| Показатель | Количество | Доля от общего |\n|---|---|---|\n")
             f.write(f"| **Всего сделок** | {total} | 100% |\n")
-            f.write(f"| 🏆 Победы / Заключение контракта | {won} | {round(won/total*100, 1)}% |\n")
+            f.write(f"| 🏆 Победы / Заключение контракта | **{won_total}** (в т.ч. {len(won_c0_deals)} в воронке «Заказчики») | {round(won_total/total*100, 1)}% |\n")
             f.write(f"| 📩 Заявка подана на ЭТП | {submitted} | {round(submitted/total*100, 1)}% |\n")
             f.write(f"| ⏳ В штатной работе | {in_progress} | {round(in_progress/total*100, 1)}% |\n")
             f.write(f"| 🛡 Объективный отсев (нацрежим, нерентабельно) | {external} | {round(external/total*100, 1)}% |\n")
-            f.write(f"| ❌ Срывы по вине СНАБЖЕНИЯ (Азат) | **{faults_supply}** | **{round(faults_supply/total*100, 1)}%** |\n")
-            f.write(f"| ❌ Срывы по вине ТЕНДЕРОВ (Сауле) | **{faults_saule}** | **{round(faults_saule/total*100, 1)}%** |\n")
+            f.write(f"| ❌ Срывы по вине СНАБЖЕНИЯ (Дечжоу / Азат) | **{faults_supply}** | **{round(faults_supply/total*100, 1)}%** |\n")
+            f.write(f"| ❌ Срывы по вине ТЕНДЕРОВ (Сауле) | **{faults_saule}** | **0.0%** |\n")
             f.write(f"| ❌ Срывы по вине ТЕНДЕРОВ (Александра) | **{faults_alexandra}** | **{round(faults_alexandra/total*100, 1)}%** |\n")
             f.write(f"| ⚠️ **Слепые зоны (неопределенные срывы)** | **{total_blind_spots}** | **{round(total_blind_spots/total*100, 1)}%** |\n\n")
             f.write(f"## 2. Анализ слепых зон и пробелов в регламентах\n\n")

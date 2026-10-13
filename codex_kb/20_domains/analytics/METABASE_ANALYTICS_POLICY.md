@@ -94,6 +94,7 @@
    * `llm_keys_status`: мониторинг здоровья API-ключей (`ACTIVE`, `RATE_LIMITED_DAILY`, `DEAD_REVOKED`).
 2. **Обязательная таксономия задач (`task_type`):**
    * `tenders_extraction` (тендеры), `lead_inbound_triage` (почта), `lead_rfq_drafting` (расчет КП), `sales_followup` (сделки), `china_supplier_audit` (ВЭД), `client_scoring_dossier` (скоринг), `system_test_dev` (тесты).
+   * `longwang_trend_radar` (SEO радар трендов и продуктового хайпа Longwang).
    * **Группа «Реанимация старых лидов» (`lead_reactivation`):**
      - `reactivation_email_summary`: суммаризация истории переписки (ежечасный сбор контекста).
      - `reactivation_draft_generation`: генерация черновиков реанимации клиентам.
@@ -123,6 +124,8 @@
    * Канонический конвейер деплоя: `py projects/metabase_analytics/scripts/manage_metabase_dashboards.py`.
 8. **Реестр критических инцидентов:**
    * Все аварии бюджета LLM (включая сжигание DeepSeek) протоколируются в [INCIDENTS_LOG.md](file:///C:/Codex/codex_kb/00_control/INCIDENTS_LOG.md).
+9. **Autonomous AI Pipeline DWH Tracking Invariant:**
+   * Любой автономный скрипт, сервис или cron-пайплайн, использующий вызовы LLM API (Gemini, DeepSeek), обязан импортировать `llm_tracker.py` и логировать объем входных/выходных токенов в PostgreSQL DWH (`marketing_db.llm_usage_logs`) с явным указанием `task_type`. Расход обязан отображаться на Дашборде 8 Metabase.
 
 ---
 

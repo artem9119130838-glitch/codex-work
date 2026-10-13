@@ -481,12 +481,12 @@ def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, own
         return False
 
 
-def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days: int = 60, inactivity_months: int = 3, cold_limit: int = 3, max_daily_drafts: int = 6, dry_run: bool = False):
+def run_daily_reactivation(limit: int = 10, active_limit: int = 5, cooldown_days: int = 60, inactivity_months: int = 3, cold_limit: int = 5, max_daily_drafts: int = 15, dry_run: bool = False):
     """
     Ежедневный процесс реанимации клиентов:
     1. Ведение активных воронок по шагам 2-6 (с проверкой отправок и ответов, лимит active_limit).
     2. Запуск новых клиентов по стандарту (Шаг 1, лимит limit).
-    3. Жесткий суточный лимит черновиков (max_daily_drafts): суммарно не более max_daily_drafts в день.
+    3. Жесткий суточный лимит черновиков (max_daily_drafts): суммарно не более max_daily_drafts в день (10-15 черновиков).
     4. Защита от писем соискателям (HRGuard).
     5. Защита от дублей в одну компанию за один день.
     """
@@ -693,168 +693,94 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
         # Выборка кандидатов
         warm_candidates = db.query(ClientIntel).filter(or_(ClientIntel.client_type != 'cold_lead', ClientIntel.client_type == None)).order_by(ClientIntel.updated_at.desc()).all()
         cold_candidates = db.query(ClientIntel).filter(ClientIntel.client_type == 'cold_lead').order_by(ClientIntel.updated_at.desc()).all()
-        new_candidates = []
-        
         # Защита от дубликатов компаний и доменов внутри одной выборки
         selected_owner_keys = set()
         selected_domains = set()
 
-        # 1. Сбор теплых кандидатов
-        for cand in warm_candidates:
-            if len(new_candidates) >= effective_new_limit:
-                break
-                
+        def try_process_new_candidate(cand, is_cold=False) -> bool:
+            nonlocal drafts_created_today
             email = cand.email
             if not email or email in exclude_emails:
-                continue
+                return False
                 
+            if email.lower() in existing_draft_emails:
+                logger.info(f"[DRAFT GUARD] Для кандидата {email} уже создан черновик в папке Drafts. Пропуск.")
+                exclude_emails.add(email)
+                return False
+
             contact_1c = db.query(OnecContact).filter(text(":email = ANY(emails)")).params(email=email).first()
             if not contact_1c:
-                continue
+                return False
                 
             # Проверка HRGuard
             is_hr, hr_reason = HRGuard.is_job_seeker(email=email, contact_name=contact_1c.contact_name)
             if is_hr:
                 logger.info(f"Skipping job seeker / HR candidate {email}: {hr_reason}")
-                continue
+                exclude_emails.add(email)
+                return False
 
             owner_ref_key = contact_1c.owner_ref_key
             if owner_ref_key and owner_ref_key in selected_owner_keys:
-                continue
+                return False
 
             domain = email.split('@')[-1].lower().strip()
             if domain and domain not in PUBLIC_EMAIL_DOMAINS and domain in selected_domains:
-                continue
+                return False
 
-            max_received = db.execute(text("""
-                SELECT MAX(m.received_at)
-                FROM email_messages m
-                JOIN email_match_results r ON m.message_id = r.message_id
-                WHERE r.contact_ref_key = :ref_key OR r.owner_ref_key = :owner_key
-            """), {"ref_key": contact_1c.contact_ref_key, "owner_key": owner_ref_key}).scalar()
-            
-            raw_max = db.execute(text("""
-                SELECT MAX(received_at)
-                FROM email_messages
-                WHERE from_email = :email
-            """), {"email": email}).scalar()
-            
-            last_contact_date = None
-            if max_received and raw_max:
-                last_contact_date = max(max_received, raw_max)
-            elif max_received:
-                last_contact_date = max_received
-            elif raw_max:
-                last_contact_date = raw_max
+            owner_1c = db.query(OnecOwner).filter(OnecOwner.owner_ref_key == owner_ref_key).first() if owner_ref_key else None
+
+            if not is_cold:
+                max_received = db.execute(text("""
+                    SELECT MAX(m.received_at)
+                    FROM email_messages m
+                    JOIN email_match_results r ON m.message_id = r.message_id
+                    WHERE r.contact_ref_key = :ref_key OR r.owner_ref_key = :owner_key
+                """), {"ref_key": contact_1c.contact_ref_key, "owner_key": owner_ref_key}).scalar()
                 
-            if last_contact_date:
-                last_contact_naive = last_contact_date.replace(tzinfo=None) if last_contact_date.tzinfo else last_contact_date
-                if last_contact_naive > inactivity_threshold:
-                    continue
-            
+                raw_max = db.execute(text("""
+                    SELECT MAX(received_at)
+                    FROM email_messages
+                    WHERE from_email = :email
+                """), {"email": email}).scalar()
+                
+                last_contact_date = None
+                if max_received and raw_max:
+                    last_contact_date = max(max_received, raw_max)
+                elif max_received:
+                    last_contact_date = max_received
+                elif raw_max:
+                    last_contact_date = raw_max
+                    
+                if last_contact_date:
+                    last_contact_naive = last_contact_date.replace(tzinfo=None) if last_contact_date.tzinfo else last_contact_date
+                    if last_contact_naive > inactivity_threshold:
+                        return False
+            else:
+                c_date = None
+                if contact_1c.raw_payload:
+                    d_val = contact_1c.raw_payload.get("ДатаСоздания")
+                    if d_val and not str(d_val).startswith("0001"):
+                        try:
+                            c_date = datetime.datetime.fromisoformat(str(d_val).replace("Z", ""))
+                        except Exception:
+                            pass
+                if not c_date and owner_1c and owner_1c.raw_payload:
+                    d_val = owner_1c.raw_payload.get("ДатаСоздания")
+                    if d_val and not str(d_val).startswith("0001"):
+                        try:
+                            c_date = datetime.datetime.fromisoformat(str(d_val).replace("Z", ""))
+                        except Exception:
+                            pass
+                            
+                if not c_date or c_date > inactivity_threshold:
+                    return False
+
             # Cooldown Guard check (email, drafts, recent correspondence, company cooldown)
             can_send, reason = CooldownGuard.can_send_reactivation(db, email, owner_ref_key=owner_ref_key, days=cooldown_days, check_company=True)
             if not can_send:
-                logger.info(f"Skipping warm candidate {email}: {reason}")
-                continue
+                logger.info(f"Skipping candidate {email}: {reason}")
+                return False
 
-            new_candidates.append({
-                "cand": cand,
-                "contact_1c": contact_1c,
-                "owner_ref_key": owner_ref_key,
-                "max_received": max_received
-            })
-            if owner_ref_key:
-                selected_owner_keys.add(owner_ref_key)
-            if domain and domain not in PUBLIC_EMAIL_DOMAINS:
-                selected_domains.add(domain)
-            
-        # 2. Сбор холодных кандидатов (если слоты еще остались)
-        cold_selected = 0
-        for cand in cold_candidates:
-            if len(new_candidates) >= effective_new_limit or cold_selected >= cold_limit:
-                break
-                
-            email = cand.email
-            if not email or email in exclude_emails:
-                continue
-                
-            contact_1c = db.query(OnecContact).filter(text(":email = ANY(emails)")).params(email=email).first()
-            if not contact_1c:
-                continue
-                
-            # Проверка HRGuard
-            is_hr, hr_reason = HRGuard.is_job_seeker(email=email, contact_name=contact_1c.contact_name)
-            if is_hr:
-                logger.info(f"Skipping job seeker / HR cold candidate {email}: {hr_reason}")
-                continue
-
-            owner_ref_key = contact_1c.owner_ref_key
-            if owner_ref_key and owner_ref_key in selected_owner_keys:
-                continue
-
-            domain = email.split('@')[-1].lower().strip()
-            if domain and domain not in PUBLIC_EMAIL_DOMAINS and domain in selected_domains:
-                continue
-
-            owner_1c = db.query(OnecOwner).filter(OnecOwner.owner_ref_key == owner_ref_key).first() if owner_ref_key else None
-            
-            # Check 1C creation date (> 90 days ago / inactivity threshold)
-            c_date = None
-            if contact_1c.raw_payload:
-                d_val = contact_1c.raw_payload.get("ДатаСоздания")
-                if d_val and not str(d_val).startswith("0001"):
-                    try:
-                        c_date = datetime.datetime.fromisoformat(str(d_val).replace("Z", ""))
-                    except Exception:
-                        pass
-            if not c_date and owner_1c and owner_1c.raw_payload:
-                d_val = owner_1c.raw_payload.get("ДатаСоздания")
-                if d_val and not str(d_val).startswith("0001"):
-                    try:
-                        c_date = datetime.datetime.fromisoformat(str(d_val).replace("Z", ""))
-                    except Exception:
-                        pass
-                        
-            # If creation date is missing or younger than inactivity threshold, skip!
-            if not c_date or c_date > inactivity_threshold:
-                continue
-                
-            # Cooldown Guard check (email, drafts, recent correspondence, company cooldown)
-            can_send, reason = CooldownGuard.can_send_reactivation(db, email, owner_ref_key=owner_ref_key, days=cooldown_days, check_company=True)
-            if not can_send:
-                logger.info(f"Skipping cold candidate {email}: {reason}")
-                continue
-
-            new_candidates.append({
-                "cand": cand,
-                "contact_1c": contact_1c,
-                "owner_ref_key": owner_ref_key,
-                "max_received": None
-            })
-            if owner_ref_key:
-                selected_owner_keys.add(owner_ref_key)
-            if domain and domain not in PUBLIC_EMAIL_DOMAINS:
-                selected_domains.add(domain)
-            cold_selected += 1
-                
-        logger.info(f"Отобрано {len(new_candidates)} новых кандидатов на первичный контакт (Warm: {len(new_candidates)-cold_selected}, Cold: {cold_selected}).")
-        
-        for item in new_candidates:
-            if drafts_created_today >= max_daily_drafts:
-                logger.info(f"Достигнут суточный лимит черновиков ({max_daily_drafts}). Генерация новых черновиков завершена.")
-                break
-
-            cand = item["cand"]
-            email = cand.email
-            if email.lower() in existing_draft_emails:
-                logger.info(f"[DRAFT GUARD] Для кандидата {email} уже создан черновик в папке Drafts. Пропуск.")
-                continue
-
-            contact_1c = item["contact_1c"]
-            owner_ref_key = item["owner_ref_key"]
-            
-            owner_1c = db.query(OnecOwner).filter(OnecOwner.owner_ref_key == owner_ref_key).first() if owner_ref_key else None
             is_buyer = bool(owner_1c.owner_is_buyer) if owner_1c else False
             company_name = owner_1c.owner_name if owner_1c else "Неизвестная компания"
             client_name = resolve_client_name(contact_1c.contact_name, None, "")
@@ -863,7 +789,8 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
             query_ctx = build_client_query_context(cand, "", "")
             best_art = select_relevant_non_repeating_article(db, email, articles, query_ctx)
             
-            logger.info(f"Запуск Шага 1 (Стандарт) для: {email}...")
+            cand_type_label = "Холодный" if is_cold else "Теплый"
+            logger.info(f"Запуск Шага 1 ({cand_type_label}) для: {email} ({company_name})...")
             success = process_single_client_funnel_step(
                 db=db, email=email, step_num=1, cand=cand,
                 contact_1c=contact_1c, owner_ref_key=owner_ref_key,
@@ -874,6 +801,11 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
 
             if success:
                 drafts_created_today += 1
+                if owner_ref_key:
+                    selected_owner_keys.add(owner_ref_key)
+                if domain and domain not in PUBLIC_EMAIL_DOMAINS:
+                    selected_domains.add(domain)
+                exclude_emails.add(email)
                 if not dry_run:
                     fs = db.query(ReactivationFunnelState).filter(ReactivationFunnelState.client_email == email).first()
                     if fs:
@@ -886,11 +818,39 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
                             client_email=email,
                             current_step=1,
                             step_status="draft_created",
-                            last_action_at=None
+                            last_action_at=None,
+                            created_at=datetime.datetime.utcnow(),
+                            updated_at=datetime.datetime.utcnow()
                         )
                         db.add(fs)
                     db.commit()
                 time.sleep(5.0)
+                return True
+            else:
+                exclude_emails.add(email)
+                return False
+
+        # 1. Цикл добора теплых кандидатов (Warm Refill Loop)
+        warm_created = 0
+        for cand in warm_candidates:
+            if warm_created >= effective_new_limit or drafts_created_today >= max_daily_drafts:
+                break
+            if try_process_new_candidate(cand, is_cold=False):
+                warm_created += 1
+
+        logger.info(f"Теплых черновиков Шага 1 создано: {warm_created} (цель: {effective_new_limit}).")
+
+        # 2. Цикл добора холодных кандидатов (Cold Refill Loop)
+        cold_created = 0
+        remaining_cold_limit = min(cold_limit, max_daily_drafts - drafts_created_today)
+        if remaining_cold_limit > 0:
+            for cand in cold_candidates:
+                if cold_created >= remaining_cold_limit or drafts_created_today >= max_daily_drafts:
+                    break
+                if try_process_new_candidate(cand, is_cold=True):
+                    cold_created += 1
+
+        logger.info(f"Холодных черновиков Шага 1 создано: {cold_created} (цель: {remaining_cold_limit}).")
 
         logger.info(f"Обработка ежедневной реанимации успешно завершена. Создано черновиков сегодня: {drafts_created_today} (лимит: {max_daily_drafts}).")
 
@@ -903,10 +863,10 @@ def run_daily_reactivation(limit: int = 3, active_limit: int = 3, cooldown_days:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Запуск ежедневной реанимации клиентов (6-шаговая воронка).")
-    parser.add_argument("--limit", type=int, default=3, help="Лимит новых контактов за один запуск (Шаг 1, по умолчанию: 3)")
-    parser.add_argument("--active-limit", type=int, default=3, help="Лимит черновиков для активных воронок (Шаги 2-6, по умолчанию: 3)")
-    parser.add_argument("--cold-limit", type=int, default=3, help="Лимит холодных новых контактов за один запуск (по умолчанию: 3)")
-    parser.add_argument("--max-daily-drafts", type=int, default=6, help="Максимальное суммарное число создаваемых черновиков за день (по умолчанию: 6)")
+    parser.add_argument("--limit", type=int, default=10, help="Лимит новых контактов за один запуск (Шаг 1, по умолчанию: 10)")
+    parser.add_argument("--active-limit", type=int, default=5, help="Лимит черновиков для активных воронок (Шаги 2-6, по умолчанию: 5)")
+    parser.add_argument("--cold-limit", type=int, default=5, help="Лимит холодных новых контактов за один запуск (по умолчанию: 5)")
+    parser.add_argument("--max-daily-drafts", type=int, default=15, help="Максимальное суммарное число создаваемых черновиков за день (по умолчанию: 15)")
     parser.add_argument("--cooldown", type=int, default=60, help="Период в днях (кулдаун) после завершения воронки (по умолчанию: 60 дней / 2 мес)")
     parser.add_argument("--inactivity", type=int, default=3, help="Период неактивности клиента в месяцах (по умолчанию: 3 мес / 90 дней)")
     parser.add_argument("--dry-run", action="store_true", help="Режим симуляции (Dry-Run) без сохранения в IMAP и без изменения БД")
