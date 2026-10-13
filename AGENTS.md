@@ -4,6 +4,7 @@
 - Всегда оформляй ссылки на файлы в кликабельном формате: `[filename](file:///C:/Codex/path/to/file)`.
 - **Corporate Respect & Partner Discipline Invariant («На ВЫ» и запрет фамильярности):** Во всех проектах, сообщениях, шаблонах задач и деловой переписке от лица Артема обращение к сотрудникам (Азату, Александре, Михаилу и др.) и **внешним партнерам / контрагентам (Дэвиду, фабрикам КНР и др.)** оформляется СТРОГО уважительно, на «Вы» / «вы» (в китайском языке — строго «您», «大卫», категорически запрещены панибратские «brother», «дружище», «兄弟»). Панибратство и фамильярный тон категорически запрещены.
 - **Concept-First Invariant (Сначала концепция):** При выработке стратегии и сложных технических/таможенных решений ассистент обязан сначала сформулировать краткую, структурированную концепцию (3–4 тезиса) без многословия, согласовать ее с пользователем, и только после утверждения готовить итоговые тексты писем и документов.
+- **No-Scroll Explicit Output Invariant (Полный текст на выходе без отсылок назад):** Запрещено отсылать пользователя к «тексту из предыдущего сообщения» при завершении задачи или плана. Если готовился текст письма, ТЗ, документа или регламента для отправки человеку, ассистент обязан: (1) вывести полный готовый текст непосредственно в финальном сообщении; (2) сохранить его в отдельный артефакт/файл с кликабельной ссылкой для удобного копирования.
 
 # Workspace AI Contract (Root Router & Cascade Guard)
 
@@ -92,6 +93,7 @@
 | Спящие клиенты, реактивация | **Реактивация** | [LEAD_REACTIVATION_POLICY.md](file:///C:/Codex/projects/lead_reactivation/LEAD_REACTIVATION_POLICY.md) |
 | 1С:УНФ, OData, БСП JSON, скоринг | **ERP 1С:УНФ** | [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md) |
 | Тендер, ГОЗ, АСТ ГОЗ, извещение | **Тендерный RAG** | [TENDER_RAG_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_RAG_POLICY.md) |
+| Тендер ↔ Снабжение SLA, закупки КНР | **Тендер-Снабжение SLA** | [TENDER_SUPPLY_SLA_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_SUPPLY_SLA_POLICY.md) |
 | Китай, фабрика, Дечжоу, Miss Wang | **Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md) |
 | VPS, сервер, docker, nginx, порт | **VPS & DevOps** | [INFRA_VPS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md) |
 | Victus, ноутбук, GPU, экран, MPO | **HP Victus 16** | [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md) |

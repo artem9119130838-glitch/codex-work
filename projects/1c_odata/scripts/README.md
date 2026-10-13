@@ -149,8 +149,48 @@ py projects/1c_odata/scripts/process_deals_batch_azat.py --execute
 
 ---
 
-## 10. Доступы и окружение
+## 10. `scripts/sync_suppliers_1c_bitrix.py`
+**Назначение:** Канонический конвейер сквозной синхронизации китайских и общих поставщиков из 1С:УНФ в Битрикс24 CRM.  
+**Триггеры:** `«синхронизируй поставщиков 1С в битрикс»`, `«перенос китайских поставщиков»`.  
+**Что делает:**
+* Синхронизирует активных поставщиков (`Catalog_Контрагенты`, `Поставщик eq true`) с трансляцией структуры отраслевых папок 1С в теги CRM (`UF_CRM_1C_FOLDER`, таймлайн).
+* **6-уровневый каскадный матчинг:** GUID 1C (`ORIGIN_ID`), ИНН, домен веб-сайта, Email, международные телефоны (`+86`), Brand Core (ядро названия с отсевом суффиксов `Co., Ltd.` и провинций КНР).
+* **Safe Merge Invariant:** никогда не создает дубли, не перезатирает ответственного менеджера в CRM, дополняет контакты без удаления существующих, переносит банковские счета (SWIFT, CNY/USD) и фабричные заметки.
+* **Crash-Proof Extraction:** защищен от некорректных символов в полях сайтов/Alibaba (NFKC-нормализация).
+* **Архивные снимки:** `scripts/archive/sync_suppliers_1c_bitrix_v1.0.py`.
+* **Поддерживаемые параметры:** `--dry-run` (по умолчанию), `--execute`, `--folder <папка>`, `--code <код>`, `--codes <код1> <код2>`, `--limit <N>`.
+
+**Использование:**
+```bash
+py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py --dry-run --folder "Китай"
+py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py --execute --folder "Китай"
+py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py --dry-run --code "НФ-001072"
+```
+
+---
+
+## 11. `scripts/audit_tender_sla_compliance.py`
+**Назначение:** Канонический инструмент аппаратного аудита соблюдения Контракта-SLA между Тендерным отделом и Снабжением КНР.  
+**Что делает:**
+* Сканирует сделки воронки «Тендеры» (Категория 4) и привязанные задачи снабжения в Группе 14.
+* Выявляет сделки, сорванные по вине Снабжения (п. 3, п. 5 SLA), по вине Тендеров (п. 2 SLA), а также зависшие в отложении (`STUCK_LIMBO`) и закрытые без причины (`UNMARKED_LOSS`).
+* Вычисляет процент соблюдения SLA (KPI) и классифицирует срывы по кодам поля `UF_CRM_1784273768`.
+* Поддерживает синхронизацию в PostgreSQL DWH (`marketing_db.dwh_tender_sla_audit`) с флагом `--dwh-sync`.
+
+**Использование:**
+```bash
+py projects/1c_odata/scripts/audit_tender_sla_compliance.py --days 30
+py projects/1c_odata/scripts/audit_tender_sla_compliance.py --since 2026-09-01
+py projects/1c_odata/scripts/audit_tender_sla_compliance.py --deal-id 2388
+py projects/1c_odata/scripts/audit_tender_sla_compliance.py --days 30 --dwh-sync
+```
+
+---
+
+## 12. Доступы и окружение
 * **1С:УНФ OData:** `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/` (`odata.user` для чтения, `odata.writer` для записи).
 * **Битрикс24 Вебхук:** `https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}/`.
 * **DaData Token:** `${DADATA_API_KEY}`.
 * **Saby / СБИС Сессия:** `${SABY_LOGIN}` / `${SABY_PASSWORD}`.
+* **PostgreSQL DWH:** `${PG_HOST}:${PG_PORT}/${PG_DBNAME}` (`marketing_db`).
+

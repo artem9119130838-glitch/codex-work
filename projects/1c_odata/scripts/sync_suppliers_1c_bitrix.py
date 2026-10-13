@@ -166,23 +166,67 @@ def normalize_brand_core(title: str) -> str:
 
 
 def extract_domain(url_or_email: str) -> str:
-    """Извлекает чистый домен из URL или Email."""
+    """Извлекает чистый домен из URL или Email с защитой от некорректных символов."""
     if not url_or_email:
         return ""
-    s = url_or_email.strip().lower()
-    if "@" in s:
-        s = s.split("@")[-1]
-    else:
-        if not s.startswith("http://") and not s.startswith("https://"):
-            s = "http://" + s
-        parsed = urlparse(s)
-        s = parsed.netloc or parsed.path
-    s = re.sub(r'^www\.', '', s)
-    s = s.split(":")[0].strip()
-    # Исключаем общие почтовые сервисы
-    if any(s.endswith(comm) for comm in ["qq.com", "163.com", "126.com", "gmail.com", "yandex.ru", "mail.ru", "sina.com"]):
+    try:
+        s = url_or_email.strip().lower()
+        if "@" in s:
+            match_em = re.search(r'@[a-zA-Z0-9\-\.]+\.([a-zA-Z]{2,})', s)
+            if match_em:
+                s = s.split("@")[-1].strip()
+            else:
+                return ""
+        else:
+            match_url = re.search(r'https?://([a-zA-Z0-9\-\.]+)', s)
+            if match_url:
+                s = match_url.group(1)
+            else:
+                match_dom = re.search(r'\b([a-zA-Z0-9\-]+\.[a-zA-Z]{2,})\b', s)
+                if match_dom:
+                    s = match_dom.group(1)
+                else:
+                    return ""
+        s = re.sub(r'^www\.', '', s)
+        s = s.split("/")[0].split(":")[0].strip()
+        # Исключаем общие почтовые сервисы
+        if any(s.endswith(comm) for comm in ["qq.com", "163.com", "126.com", "gmail.com", "yandex.ru", "mail.ru", "sina.com"]):
+            return ""
+        return s
+    except Exception:
         return ""
-    return s
+
+
+def sanitize_email(raw_val: str) -> list:
+    """Извлекает и очищает валидные email адреса из сырой строки."""
+    if not raw_val:
+        return []
+    cleaned = []
+    found = re.findall(r'[a-zA-Z0-9_\.\+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9\.-]+', raw_val)
+    for em in found:
+        em = em.strip().rstrip(".,;:!?'\"\\/").lower()
+        if re.match(r'^[a-zA-Z0-9_\.\+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9\.-]{2,}$', em):
+            cleaned.append(em)
+    return cleaned
+
+
+def sanitize_phone(raw_val: str) -> list:
+    """Извлекает и очищает валидные телефонные номера."""
+    if not raw_val:
+        return []
+    cleaned = []
+    parts = re.split(r'[\r\n¶,;/|]+', raw_val)
+    for p in parts:
+        p_clean = re.sub(r'(?i)\b(тел\.?|телефон|тел|mob|mobile|tel|phone|whatsapp|wechat|доб\.?|факс|fax)\b', '', p)
+        digits = re.sub(r'[^\d+]', '', p_clean)
+        clean_num = re.sub(r'\D', '', digits)
+        if len(clean_num) >= 7:
+            if digits.startswith("0086"):
+                digits = "+86" + digits[4:]
+            elif digits.startswith("86") and not digits.startswith("+86"):
+                digits = "+86" + digits[2:]
+            cleaned.append(digits)
+    return cleaned
 
 
 def parse_supplier_contacts(s_data: dict) -> dict:
@@ -200,13 +244,12 @@ def parse_supplier_contacts(s_data: dict) -> dict:
         if not ci_val:
             continue
         if ci_type == "Телефон":
-            clean_p = re.sub(r'[^\d+]', '', ci_val)
-            if len(clean_p) >= 6:
-                phones.add(ci_val)
+            for p in sanitize_phone(ci_val):
+                phones.add(p)
         elif ci_type == "АдресЭлектроннойПочты":
-            if "@" in ci_val:
-                emails.add(ci_val.lower())
-                dm = extract_domain(ci_val)
+            for em in sanitize_email(ci_val):
+                emails.add(em)
+                dm = extract_domain(em)
                 if dm:
                     websites.add(dm)
         elif ci_type == "Адрес":
@@ -219,17 +262,15 @@ def parse_supplier_contacts(s_data: dict) -> dict:
 
     # 2. Из полей для быстрого поиска 1С
     if s_data.get("АдресЭПДляПоиска"):
-        em = s_data["АдресЭПДляПоиска"].strip().lower()
-        if "@" in em:
+        for em in sanitize_email(s_data["АдресЭПДляПоиска"]):
             emails.add(em)
             dm = extract_domain(em)
             if dm:
                 websites.add(dm)
 
     if s_data.get("НомерТелефонаДляПоиска"):
-        ph = s_data["НомерТелефонаДляПоиска"].strip()
-        if ph:
-            phones.add(ph)
+        for p in sanitize_phone(s_data["НомерТелефонаДляПоиска"]):
+            phones.add(p)
 
     # 3. Из текстового комментария / Заметки (в 1С там детальная карточка фабрики)
     comment = (s_data.get("Комментарий") or s_data.get("ОсновныеСведения") or "").strip()
@@ -237,9 +278,8 @@ def parse_supplier_contacts(s_data: dict) -> dict:
 
     if comment:
         # Поиск email в комментарии
-        found_emails = re.findall(r'[a-zA-Z0-9_\.\+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9\.-]+', comment)
-        for em in found_emails:
-            emails.add(em.lower())
+        for em in sanitize_email(comment):
+            emails.add(em)
             dm = extract_domain(em)
             if dm:
                 websites.add(dm)
@@ -262,8 +302,8 @@ def parse_supplier_contacts(s_data: dict) -> dict:
         c_norm = re.sub(r'\b0086\b', '+86', comment)
         found_phones = re.findall(r'(?:mob|tel|phone|факс|fax)?[\s/:]*(\+?86[\s\-]?(?:1[3-9]\d[\s\-]?\d{4}[\s\-]?\d{4}|(?:0\d{2,3}[\s\-]?)?\d{7,8}))', c_norm, flags=re.IGNORECASE)
         for ph in found_phones:
-            if len(re.sub(r'\D', '', ph)) >= 8:
-                phones.add(ph.strip())
+            for p in sanitize_phone(ph):
+                phones.add(p)
 
         # Поиск адресов (строки с Add: или Address:)
         for line in comment.splitlines():
@@ -315,8 +355,12 @@ class B24SupplierRegistry:
             if not res:
                 break
 
+            new_in_batch = 0
             for comp in res:
                 cid = int(comp["ID"])
+                if cid in self.companies:
+                    continue
+                new_in_batch += 1
                 self.companies[cid] = comp
                 loaded_count += 1
 
@@ -358,7 +402,7 @@ class B24SupplierRegistry:
                 if len(core) >= 4:
                     self.brand_core_map[core] = cid
 
-            if len(res) < batch_size:
+            if new_in_batch == 0 or len(res) < batch_size:
                 break
             start += batch_size
 
@@ -823,12 +867,14 @@ def main():
 
     results = []
 
-    for s in suppliers:
+    for idx, s in enumerate(suppliers, 1):
         res = sync_supplier_to_b24(s, onec, registry, execute=is_execute, verbose=args.verbose)
         results.append(res)
 
         act = res["action"]
-        if act == "CREATE":
+        if str(res.get("status", "")).startswith("ERROR"):
+            stats["errors"] += 1
+        elif act == "CREATE":
             stats["created"] += 1
         else:
             stats["updated"] += 1
@@ -838,7 +884,8 @@ def main():
         s_folder = (res.get("folder") or "")[:16]
         reason = res.get("match_reason") or ""
 
-        print(f"{res.get('code_1c', ''):<10} | {s_title:<32} | {s_folder:<18} | {act:<8} | {b_id:<8} | {reason}")
+        prog = f"[{idx}/{len(suppliers)}]"
+        print(f"{prog:<9} {res.get('code_1c', ''):<10} | {s_title:<32} | {s_folder:<18} | {act:<8} | {b_id:<8} | {reason}", flush=True)
 
     # 4. Итоговая сводка
     print("\n" + "=" * 80)
