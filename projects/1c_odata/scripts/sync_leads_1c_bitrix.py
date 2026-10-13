@@ -313,8 +313,38 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
     elif primary_email:
         find_filter = f"substringof('{primary_email}',Description)"
 
+    # Поиск существующего Контрагента в 1С (Counterparty Duplicate Guard)
+    existing_counterparty_guid = None
+    if inn:
+        try:
+            r_cp = requests.get(f"{ODATA_BASE}/Catalog_Контрагенты?$format=json&$top=1&$filter=substringof('{inn}', ИНН)", auth=auth, headers=headers, timeout=10)
+            if r_cp.status_code == 200:
+                vals = r_cp.json().get("value", [])
+                if vals:
+                    existing_counterparty_guid = vals[0]["Ref_Key"]
+                    cp_desc = vals[0].get("Description", "")
+                    print(f"  [1C] Найден существующий Контрагент 1С: '{cp_desc}' ({existing_counterparty_guid})")
+                    # Обогащение КИ существующего контрагента
+                    if primary_email and not dry_run:
+                        cp_ci = vals[0].get("КонтактнаяИнформация", [])
+                        if not any(row.get("АдресЭП") == primary_email for row in cp_ci):
+                            clean_ci = [r for r in cp_ci]
+                            clean_ci.append({
+                                "LineNumber": str(len(clean_ci) + 1),
+                                "Тип": "АдресЭлектроннойПочты",
+                                "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
+                                "Представление": primary_email,
+                                "АдресЭП": primary_email,
+                                "ДоменноеИмяСервера": primary_email.split("@")[-1],
+                                "ЗначенияПолей": f'{{"EMail":"{primary_email}"}}'
+                            })
+                            requests.patch(f"{ODATA_BASE}/Catalog_Контрагенты(guid'{existing_counterparty_guid}')?$format=json", json={"КонтактнаяИнформация": clean_ci}, auth=auth, headers=headers, timeout=15)
+                            print(f"  [1C] Email {primary_email} добавлен в Контактную Информацию контрагента {cp_desc}")
+        except Exception as e_cp:
+            print(f"  [1C-WARN] Ошибка поиска контрагента по ИНН: {e_cp}")
+
     one_c_guid = None
-    if find_filter:
+    if not existing_counterparty_guid and find_filter:
         try:
             r_1c = requests.get(f"{ODATA_BASE}/Catalog_Лиды?$format=json&$top=1&$filter={find_filter}", auth=auth, headers=headers, timeout=20)
             if r_1c.status_code == 200:
@@ -325,7 +355,7 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
         except Exception as e:
             print(f"  [1C-WARN] Ошибка поиска лида в 1С: {e}")
 
-    if not one_c_guid:
+    if not existing_counterparty_guid and not one_c_guid:
         print(f"  [1C] Создание нового Лида 1С по регламенту Zero-Blank Lead Guard ('{title}', ИНН: {inn or 'нет'})")
         if not dry_run:
             post_payload = {
@@ -338,6 +368,8 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                 "СостояниеЛида_Key": "0c989b06-70c5-11ed-b990-f01898a67170",
                 "Комментарий": f"Лид Битрикс24 #{lead_id}."
             }
+            if primary_email:
+                post_payload["АдресЭПДляПоиска"] = primary_email
             try:
                 r_post = requests.post(f"{ODATA_BASE}/Catalog_Лиды?$format=json", json=post_payload, auth=auth, headers=headers, timeout=20)
                 if r_post.status_code in (200, 201):
@@ -345,11 +377,29 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                     # Фаза 2: PATCH КонтактнаяИнформация
                     ci_rows = []
                     if primary_email:
-                        ci_rows.append({"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c", "Представление": primary_email, "ЗначенияПолей": f'{{"EMail":"{primary_email}"}}'})
+                        ci_rows.append({
+                            "LineNumber": "1",
+                            "Тип": "АдресЭлектроннойПочты",
+                            "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
+                            "Представление": primary_email,
+                            "АдресЭП": primary_email,
+                            "ДоменноеИмяСервера": primary_email.split("@")[-1],
+                            "Значение": f"{{\n\"version\": 4,\n\"value\": \"{primary_email}\",\n\"type\": \"АдресЭлектроннойПочты\"\n}}",
+                            "ЗначенияПолей": f'{{"EMail":"{primary_email}"}}'
+                        })
                     if primary_phone:
-                        ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc76d-23c6-11ed-91a8-a068f8f3337c", "Представление": primary_phone, "ЗначенияПолей": f'{{"Phone":"{primary_phone}"}}'})
-                    if ci_rows:
-                        requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{one_c_guid}')?$format=json", json={"КонтактнаяИнформация": ci_rows}, auth=auth, headers=headers, timeout=20)
+                        ci_rows.append({
+                            "LineNumber": str(len(ci_rows) + 1),
+                            "Тип": "Телефон",
+                            "Вид_Key": "5c0dc76d-23c6-11ed-91a8-a068f8f3337c",
+                            "Представление": primary_phone,
+                            "НомерТелефона": primary_phone,
+                            "ЗначенияПолей": f'{{"Phone":"{primary_phone}"}}'
+                        })
+                    patch_lead = {"КонтактнаяИнформация": ci_rows}
+                    if primary_email:
+                        patch_lead["АдресЭПДляПоиска"] = primary_email
+                    requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{one_c_guid}')?$format=json", json=patch_lead, auth=auth, headers=headers, timeout=20)
                     print(f"  [1C OK] Успешно создан Лид 1С: {one_c_guid}")
                 else:
                     print(f"  [1C-ERROR] Ошибка создания лида: {r_post.text}")
