@@ -553,6 +553,8 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Боевой / SLA** | `audit_tender_sla_compliance.py` | `projects/1c_odata/scripts/audit_tender_sla_compliance.py` | Канонический аудит соблюдения SLA: Тендерный отдел ↔ Снабжение КНР, кросс-воронковый поиск в Категории 0 («Заказчики»), детекция слепых зон и синхронизация с DWH (`--since`, `--dwh-sync`, `--export`). | 0 |
+| **Боевой / SLA** | `post_sla_to_task_780.py` | `projects/1c_odata/scripts/post_sla_to_task_780.py` | Публикация регламентов Контракта-SLA и инструкций CRM в Задачу #780 с 3-контурным прикреплением файлов Диска (`--dry-run`, `--execute`). | 0 |
 | **Базовый** | `add_error_handling.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tender-extraction-lab/scratch/add_error_handling.py` | --------------------------------------------------------- 1. Error Trigger & Notify Error | 1 |
 | **Базовый** | `analyze_exact_balances.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/analyze_exact_balances.py` | Fetch all balances for suppliers | 0 |
 | **Базовый** | `analyze_exact_details.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/tenders_ast_goz/scripts/analyze_exact_details.py` | Organizations | 0 |

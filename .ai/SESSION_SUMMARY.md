@@ -41,8 +41,9 @@
 - `codex_kb/20_domains/tenders/reports/tender_sla_audit_report_60days.md` — обновленный аналитический дашборд аудита 257 сделок.
 - `projects/1c_odata/scripts/audit_tender_sla_compliance.py` — канонический скрипт аудита SLA с точной фильтрацией Группы 14 и сквозным учетом побед в воронке «Заказчики».
 - `projects/1c_odata/scripts/archive/2026-10-13_audit_tender_sla_compliance_v1_before_won_and_group14_fix.py` — снапшот скрипта перед доработкой.
-- `projects/1c_odata/scripts/post_sla_to_task_780.py` — канонический скрипт отправки регламентов в Задачу #780 с безопасным `--dry-run`.
-- `AGENTS.md` — обновлены правила, TOC навигатор и таблица триггеров.
+- `codex_kb/00_control/INCIDENTS_LOG.md` — зафиксирован инцидент INC-2026-10-13 (скрытые победы, атрибуция задач, прикрепление файлов).
+- `codex_kb/SCRIPTS_CATALOG.md` — зарегистрированы скрипты `audit_tender_sla_compliance.py` и `post_sla_to_task_780.py` в разделе 13.
+- `AGENTS.md` — добавлен триггер «аудит тендеров sla».
 - `.ai/SESSION_SUMMARY.md` — актуализирован итог сессии.
 
 ---

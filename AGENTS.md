@@ -78,6 +78,7 @@
 | **«синхронизируй поставщиков 1С в битрикс»** | `py projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py` | **Dry-run**. Перенос и Safe Merge фабрик КНР/поставщиков, теги папок 1С, реквизиты, банк. |
 | **«статус ключей llm»** (`«аудит metabase llm»`) | `py projects/metabase_analytics/scripts/audit_llm_keys.py --db-sync` | Пинг Gemini/DeepSeek, синхронизация `llm_keys_status` в DWH, алерт в Б24 при сбоях. |
 | **«запуск trend radar»** (`«радар трендов»`) | `py projects/SEO/scripts/trend_spike_radar.py --dry-run` | **Dry-run**. 5-модульный радар перехвата B2B-хайпа, кризисов карго, регуляторики и трендов Google, публикация в задачу Б24 #4972 и DWH. |
+| **«аудит тендеров sla»** | `py projects/1c_odata/scripts/audit_tender_sla_compliance.py --since 2026-08-13` | Сквозной аудит воронки «Тендеры» и побед в «Заказчиках», изоляция Группы 14, отсев слепых зон. |
 
 > **Explicit Scope Guard:** Если в командах лидов или сделок не указаны сотрудник, ящик или лимит — не запускать вслепую, а немедленно переспросить пользователя!
 
