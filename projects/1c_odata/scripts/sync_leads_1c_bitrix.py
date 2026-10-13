@@ -180,10 +180,66 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
     inn_match = re.search(r'\b(ИНН\s*[:№]?\s*)?(\d{10}|\d{12})\b', f"{title} {company_title} {comments}", re.IGNORECASE)
     inn = inn_match.group(2) if inn_match else ""
 
+    # Каскадное обогащение ИНН из связанной Компании / Контакта Б24
+    b24_company_id = lead.get("COMPANY_ID")
+    if not inn and b24_company_id:
+        try:
+            r_comp = call_b24("crm.company.get", {"id": b24_company_id})
+            comp_data = r_comp.get("result", {})
+            c_inn = comp_data.get("UF_CRM_699421CD2A684", "").strip()
+            if c_inn:
+                inn = c_inn
+                if not company_title or company_title == "Без названия":
+                    company_title = comp_data.get("TITLE", company_title)
+                print(f"  [B24] ИНН {inn} подтянут из связанной Компании #{b24_company_id} ('{company_title}')")
+        except Exception:
+            pass
+
+    b24_contact_id = lead.get("CONTACT_ID")
+    if not inn and b24_contact_id:
+        try:
+            r_ct = call_b24("crm.contact.get", {"id": b24_contact_id})
+            ct_data = r_ct.get("result", {})
+            ct_cid = ct_data.get("COMPANY_ID")
+            if ct_cid:
+                r_comp = call_b24("crm.company.get", {"id": ct_cid})
+                comp_data = r_comp.get("result", {})
+                c_inn = comp_data.get("UF_CRM_699421CD2A684", "").strip()
+                if c_inn:
+                    inn = c_inn
+                    if not b24_company_id:
+                        b24_company_id = int(ct_cid)
+                    if not company_title or company_title == "Без названия":
+                        company_title = comp_data.get("TITLE", company_title)
+                    print(f"  [B24] ИНН {inn} подтянут через Контакт #{b24_contact_id} из Компании #{ct_cid} ('{company_title}')")
+        except Exception:
+            pass
+
+    # Поиск ИНН через DaData по названию компании в заголовке / контакте / домену
+    if not inn and DADATA_TOKEN:
+        clean_name = re.sub(r'^(Запрос предложений компанией|Запрос КП на поставку|Запрос|запрос|Re:|RE:|Fwd:)\s*', '', title, flags=re.IGNORECASE).strip()
+        m_org = re.search(r'(?:ООО|АО|ПАО|ЗАО)\s*["«]?[^"»\r\n]+["»]?', f"{clean_name} {name}")
+        search_query = m_org.group(0).strip() if m_org else company_title
+        if "gislaved.su" in primary_email:
+            search_query = "АО КОРДИАНТ"
+        if search_query and search_query not in ["Без названия", ""]:
+            try:
+                h_dd = {"Authorization": f"Token {DADATA_TOKEN}", "Content-Type": "application/json"}
+                r_dd = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", json={"query": search_query, "count": 1}, headers=h_dd, timeout=5)
+                if r_dd.status_code == 200:
+                    suggs = r_dd.json().get("suggestions", [])
+                    if suggs:
+                        inn = suggs[0]["data"].get("inn", "")
+                        comp_name = suggs[0]["value"]
+                        print(f"  [DADATA] Автоматически определен контрагент: '{comp_name}', ИНН: {inn}")
+                        if not company_title or company_title.strip() in ["Без названия", "", "无标题"]:
+                            company_title = comp_name
+            except Exception:
+                pass
+
     print(f"  Б24 Лид: '{title}' | ИНН: '{inn or 'нет'}' | Email: '{primary_email or 'нет'}' | Тел: '{primary_phone or 'нет'}'")
 
     # 1. Обогащение Компании и Контакта в Битрикс24
-    b24_company_id = lead.get("COMPANY_ID")
     if inn:
         existing_comp = find_company_by_inn(inn)
         if existing_comp:
