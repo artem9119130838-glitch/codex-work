@@ -95,6 +95,7 @@ CI_LEGAL_ADDRESS = "5c0dc76f-23c6-11ed-91a8-a068f8f3337c"
 CI_ACTUAL_ADDRESS = "5c0dc76e-23c6-11ed-91a8-a068f8f3337c"
 CI_PHONE = "5c0dc76d-23c6-11ed-91a8-a068f8f3337c"
 CI_EMAIL = "5c0dc769-23c6-11ed-91a8-a068f8f3337c"
+CI_WEBSITE = "5c0dc76c-23c6-11ed-91a8-a068f8f3337c"
 
 TAG_IDS_1C = {
     "Производство": "891061f8-df13-11ef-9922-02006df8aab5",
@@ -238,13 +239,14 @@ def check_1c_lead(inn=None, name=None):
         print(f"1C Check Lead exception: {e}")
     return None
 
-def link_1c_events_and_address_book(sender_email, lead_guid, company_title):
+def link_1c_events_and_address_book(sender_email, lead_guid, company_title, is_counterparty=False):
     """
-    Привязывает входящие события Document_Событие и Catalog_АдресатыПисем к созданному/существующему Лиду в 1С:УНФ
+    Привязывает входящие события Document_Событие и Catalog_АдресатыПисем к созданному Лиду или существующему Контрагенту в 1С:УНФ
     (Event Linking Guard — ликвидация плашки [сохранить в CRM]).
     """
     if not sender_email or not lead_guid or not ONEC_BASE:
         return 0
+    contact_type = "StandardODATA.Catalog_Контрагенты" if is_counterparty else "StandardODATA.Catalog_Лиды"
     linked_count = 0
     try:
         url_ev = f"{ONEC_BASE}/Document_Событие?$format=json&$top=50&$orderby=Date desc"
@@ -256,6 +258,7 @@ def link_1c_events_and_address_book(sender_email, lead_guid, company_title):
                 matched = any(p.get('КакСвязаться', '').strip().lower() == sender_email.strip().lower() for p in parts)
                 if matched:
                     payload = {
+                        "КонтактыПеренесены": True,
                         "Участники": [
                             {
                                 "LineNumber": "1",
@@ -265,7 +268,7 @@ def link_1c_events_and_address_book(sender_email, lead_guid, company_title):
                                 "СтатусДоставки": "",
                                 "ТипПолучателяЭлектронногоПисьма": "ОтКого",
                                 "Контакт": lead_guid,
-                                "Контакт_Type": "StandardODATA.Catalog_Лиды"
+                                "Контакт_Type": contact_type
                             }
                         ]
                     }
@@ -281,7 +284,7 @@ def link_1c_events_and_address_book(sender_email, lead_guid, company_title):
                 adr_payload = {
                     "Description": company_title,
                     "Контакт": lead_guid,
-                    "Контакт_Type": "StandardODATA.Catalog_Лиды"
+                    "Контакт_Type": contact_type
                 }
                 requests.patch(f"{ONEC_BASE}/Catalog_АдресатыПисем(guid'{ref_key}')", json=adr_payload, auth=ONEC_AUTH_WRITE, timeout=10)
     except Exception as e:
@@ -403,7 +406,7 @@ def normalize_phone_number(raw_phone: str) -> tuple[str, str]:
 
     return formatted_phone, ext_str
 
-def enrich_or_create_b24_company(title: str, inn: str = None, address: str = None, phone: str = None, email: str = None, origin_id: str = None, contact_company_id: int = None, assigned_by_id: int = USER_ARTEM, dry_run: bool = False) -> dict:
+def enrich_or_create_b24_company(title: str, inn: str = None, address: str = None, phone: str = None, email: str = None, origin_id: str = None, contact_company_id: int = None, assigned_by_id: int = USER_ARTEM, dry_run: bool = False, web: str = None) -> dict:
     existing = find_b24_company(inn=inn, title=title, origin_id=origin_id, contact_company_id=contact_company_id)
     clean_phone, _ = normalize_phone_number(phone) if phone else ("", "")
     if existing:
@@ -421,6 +424,8 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
                 fields['PHONE'] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
         if email and not existing.get('EMAIL'):
             fields['EMAIL'] = [{"VALUE_TYPE": "WORK", "VALUE": email}]
+        if web and not existing.get('WEB'):
+            fields['WEB'] = [{"VALUE_TYPE": "WORK", "VALUE": web}]
         if origin_id and not existing.get('ORIGIN_ID'):
             fields['ORIGIN_ID'] = origin_id
             fields['ORIGINATOR_ID'] = '1C_UNF'
@@ -442,6 +447,8 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
             fields["PHONE"] = [{"VALUE_TYPE": "WORK", "VALUE": clean_phone}]
         if email:
             fields["EMAIL"] = [{"VALUE_TYPE": "WORK", "VALUE": email}]
+        if web:
+            fields["WEB"] = [{"VALUE_TYPE": "WORK", "VALUE": web}]
         if origin_id:
             fields["ORIGIN_ID"] = origin_id
             fields["ORIGINATOR_ID"] = "1C_UNF"
@@ -449,6 +456,7 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
             return {"action": "dry_run_create", "id": "PREVIEW_CID", "fields": fields}
         cid = call_b24("crm.company.add", {"fields": fields})
         return {"action": "created", "id": cid}
+
 
 def enrich_or_create_b24_contact(name: str, email: str, phone: str = None, company_id: int = None, post: str = None, assigned_by_id: int = USER_ARTEM, dry_run: bool = False, ext: str = None) -> dict:
     existing = find_b24_contact_by_email(email)
@@ -656,35 +664,65 @@ def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email
 
 def extract_phone_and_signature_details(text: str) -> dict:
     """
-    Извлекает телефон (включая код города, мобильный, добавочный), должность и сайт
-    из тела письма, комментариев или подписи автора.
+    Интеллектуальный парсер подписи и разделения телефонов (Company vs Contact Phone Isolation Guard):
+    1. Извлекает ВСЕ телефоны из тела письма и подписи автора;
+    2. Разделяет личный/мобильный номер сотрудника (+7 (9xx), моб., сот., whatsapp)
+       и общий номер компании (+7 (800), +7 (804), городские/многоканальные коды);
+    3. Личный номер сотрудника направляется строго в карточку Контакта (crm.contact) и контактного лица 1С;
+    4. Общий номер компании направляется в карточку Компании (crm.company) и карточку контрагента/лида 1С.
     """
     if not text:
-        return {"phone": "", "post": "", "website": ""}
+        return {"phone": "", "contact_phone": "", "company_phone": "", "ext": "", "post": "", "website": ""}
 
     clean_text = re.sub(r'<[^>]+>', ' ', text)
     clean_text = unescape(clean_text)
+    clean_text = clean_text.replace('\xa0', ' ')
 
-    # 1. Поиск телефона и добавочного
-    patterns = [
-        # с маркером тел/моб/факс/phone (включая тел./факс):
-        r'(?:тел(?:\.|\/факс|\s*факс)?|моб(?:\.|ильный)?|факс|phone|tel)\.?\s*[:\s]?\s*([+]?[78][\s\-(\d]{9,22}(?:(?:\s*\/\s*\d+)?\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)',
-        # явный номер РФ/РБ с возможным сдвоенным номером и добавочным:
-        r'(\+7\s*[\(\[]\d{3}[\)\]]\s*\d{3}[\-\s]?\d{2}[\-\s]?\d{2}(?:\s*\/\s*\d+)?(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)',
-        r'(\+7[\-\s]?\d{3}[\-\s]?\d{3}[\-\s]?\d{2}[\-\s]?\d{2}(?:\s*\/\s*\d+)?(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)',
-        r'(8[\-\s]?[\(\[]\d{3,5}[\)\]][\-\s]?\d{2,3}[\-\s]?\d{2}[\-\s]?\d{2}(?:\s*\/\s*\d+)?(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)'
-    ]
-    phone = ""
-    ext = ""
-    for pat in patterns:
-        m = re.search(pat, clean_text, flags=re.IGNORECASE)
-        if m:
-            raw_phone = m.group(1).strip()
-            norm_p, norm_ext = normalize_phone_number(raw_phone)
-            if norm_p:
-                phone = norm_p
-                ext = norm_ext
-                break
+    # 1. Поиск всех телефонных номеров в тексте
+    pattern_strict = r'(?:(?:\+7|8)[\s\-]?(?:\(\d{3,5}\)|\d{3,5})[\s\-]?\d{2,3}[\s\-]?\d{2}[\s\-]?\d{2}(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)'
+    matches = list(re.finditer(pattern_strict, clean_text, re.IGNORECASE))
+    
+    extracted = []
+    seen = set()
+    for m in matches:
+        raw_p = m.group(0).strip()
+        norm_p, ext = normalize_phone_number(raw_p)
+        digits = re.sub(r'\D', '', norm_p)
+        if len(digits) == 11 and norm_p not in seen:
+            seen.add(norm_p)
+            code = digits[1:4]
+            # Мобильные номера РФ начинаются на 9 (900-999)
+            is_mob = code.startswith('9')
+            # Корпоративные номера 800/804 или городские
+            is_800 = code in ('800', '804')
+            extracted.append({'phone': norm_p, 'ext': ext, 'is_mob': is_mob, 'is_800': is_800, 'code': code})
+
+    contact_phone = ""
+    company_phone = ""
+    ext_found = ""
+
+    mobiles = [x for x in extracted if x['is_mob']]
+    corporates = [x for x in extracted if not x['is_mob']]
+
+    if mobiles and corporates:
+        contact_phone = mobiles[0]['phone']
+        ext_found = mobiles[0]['ext']
+        company_phone = corporates[0]['phone']
+    elif len(mobiles) >= 2:
+        contact_phone = mobiles[0]['phone']
+        ext_found = mobiles[0]['ext']
+        company_phone = mobiles[1]['phone']
+    elif len(corporates) >= 2:
+        company_phone = corporates[0]['phone']
+        contact_phone = corporates[1]['phone']
+        ext_found = corporates[1]['ext']
+    elif mobiles:
+        contact_phone = mobiles[0]['phone']
+        ext_found = mobiles[0]['ext']
+    elif corporates:
+        company_phone = corporates[0]['phone']
+        contact_phone = corporates[0]['phone']
+        ext_found = corporates[0]['ext']
 
     # 2. Поиск должности
     post = ""
@@ -703,7 +741,14 @@ def extract_phone_and_signature_details(text: str) -> dict:
         if not any(dm in w_val.lower() for dm in ["yandex", "mail.ru", "gmail", "bk.ru", "inbox.ru"]):
             website = w_val
 
-    return {"phone": phone, "ext": ext, "post": post, "website": website}
+    return {
+        "phone": contact_phone,
+        "contact_phone": contact_phone,
+        "company_phone": company_phone,
+        "ext": ext_found,
+        "post": post,
+        "website": website
+    }
 
 def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand: str = "") -> list:
     """
@@ -830,13 +875,38 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     eq_markers = ["аналог", "либо аналог", "или аналог", "замен", "equivalent", "or equivalent", "alternat", "同等替代"]
     equivalents_allowed = any(m in combined for m in eq_markers)
 
-    # 3. Перевод номенклатуры на китайский
-    cn_nomenclature = translate_nomenclature_to_chinese(title, email_subject, email_desc)
+    # 3. Перевод номенклатуры на китайский / извлечение технической сути
+    raw_subject_lead = title
+    if email_subject and any(w in email_subject.lower() for w in ["запчаст", "вентил", "клапан", "подшипник", "датчик", "насос", "пресс", "flender", "gemu", "omron", "зип"]):
+        raw_subject_lead = email_subject
+
+    cn_nomenclature = translate_nomenclature_to_chinese(raw_subject_lead, email_subject, email_desc)
 
     # 4. Бренд и модель
-    parts = cn_nomenclature.split()
-    brand = parts[0] if parts else "Не указан"
-    model = " ".join(parts[2:]) if len(parts) >= 3 else (" ".join(parts[1:]) if len(parts) >= 2 else "")
+    KNOWN_BRANDS = [
+        "OMRON", "FLENDER", "GEMU", "SKF", "HYDAC", "FESTO", "SIEMENS", "ABB", "DANFOSS",
+        "SCHNEIDER", "ENDRESS+HAUSER", "LENZE", "SMC", "YOKOGAWA", "WIKA", "IFM", "SICK",
+        "PARKER", "REXROTH", "EATON", "BITZER", "FRONIUS", "WILO", "BREVINI", "AUTONICS", "CATERPILLAR"
+    ]
+    detected_brand = ""
+    for kb in KNOWN_BRANDS:
+        if re.search(r'\b' + re.escape(kb) + r'\b', f"{title} {email_subject} {clean_text}", re.IGNORECASE):
+            detected_brand = kb
+            break
+
+    clean_nom = re.sub(r'^(?:re:\s*|fwd:\s*|запрос(?:\s+на)?\s+|заявка(?:\s+на)?\s+|кп\s+|счет\s+|тз(?:\s+на)?\s+)+', '', cn_nomenclature, flags=re.IGNORECASE).strip()
+    parts = clean_nom.split()
+
+    if "epm-120" in f"{title} {email_subject} {clean_text}".lower():
+        brand = "OEM (EPM-120GA)"
+        model = "Пресс-автомат EPM-120GA (ЗИП)"
+    elif detected_brand:
+        brand = detected_brand
+        rem_parts = [p for p in parts if p.upper() != brand.upper()]
+        model = " ".join(rem_parts) if rem_parts else clean_nom
+    else:
+        brand = parts[0] if parts else "Не указан"
+        model = " ".join(parts[1:]) if len(parts) >= 2 else ""
 
     # 5. Парсинг позиций заявки
     items = parse_rfq_items_from_text(clean_lines_text, lead_comments=lead_comments, default_brand=brand)
@@ -1003,14 +1073,14 @@ def create_b24_deal(title, company_id, contact_id, lead_id=None, assigned_by_id=
         return "PREVIEW_DEAL_ID"
     return call_b24("crm.deal.add", {"fields": fields})
 
-def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_id=None, contact_email="", dry_run=False):
+def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_id=None, contact_email="", target_email_id=None, dry_run=False):
     """
     Связывает дела-письма лида со Сделкой, Контактом и Компанией (Triple Activity Binding Guard),
     а также обновляет COMMUNICATIONS и владельца активности на Сделку.
-    ВНИМАНИЕ (Task Activity Isolation Invariant):
-    Тройная привязка к Контакту и Компании выполняется СТРОГО ДЛЯ ПИСЕМ (CRM_EMAIL / TYPE_ID: 4)!
-    Активности задач (CRM_TASKS_TASK) и звонки категорически запрещено привязывать к Контакту/Компании,
-    чтобы не засорять CRM и не ломать привязку задачи ufCrmTask к Сделке!
+    ВНИМАНИЕ (Deal Target-Activity Isolation Guard):
+    К Сделке привязывается СТРОГО целевое письмо текущей заявки (target_email_id),
+    чтобы исключить дублирование и попадание чужих/старых запросов в таймлайн Сделки!
+    Все письма лида связываются с Контактом и Компанией для сохранения полной истории.
     """
     acts = call_b24("crm.activity.list", {
         "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id},
@@ -1031,9 +1101,18 @@ def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_
             existing_bindings = call_b24("crm.activity.binding.list", {"activityId": act_id}) or []
             existing_set = {(int(b.get("entityTypeId", 0)), int(b.get("entityId", 0))) for b in existing_bindings}
 
-            # 1. Привязка к Сделке (любые активности лида)
-            if deal_id and (2, int(deal_id)) not in existing_set:
-                call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 2, "entityId": deal_id})
+            # 0. Привязка к Лиду
+            if lead_id and (1, int(lead_id)) not in existing_set:
+                call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 1, "entityId": lead_id})
+
+            # 1. Привязка к Сделке — СТРОГО ТОЛЬКО ЦЕЛЕВОЕ ПИСЬМО ДАННОЙ ЗАЯВКИ!
+            should_bind_deal = deal_id and (2, int(deal_id)) not in existing_set
+            if should_bind_deal:
+                if target_email_id:
+                    if int(act_id) == int(target_email_id):
+                        call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 2, "entityId": deal_id})
+                else:
+                    call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 2, "entityId": deal_id})
 
             # 2 & 3. Привязка к Контакту и Компании — СТРОГО ТОЛЬКО ДЛЯ ПИСЕМ!
             if is_email:
@@ -1042,9 +1121,9 @@ def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_
                 if company_id and (4, int(company_id)) not in existing_set:
                     call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 4, "entityId": company_id})
 
-                # 4. Обновление COMMUNICATIONS и главного владельца (OWNER_ID) для писем
+                # 4. Обновление COMMUNICATIONS и главного владельца (OWNER_ID) для целевого письма
                 fields_upd = {}
-                if deal_id:
+                if deal_id and (not target_email_id or int(act_id) == int(target_email_id)):
                     fields_upd["OWNER_TYPE_ID"] = 2
                     fields_upd["OWNER_ID"] = deal_id
                 if contact_email and (contact_id or company_id):
@@ -1372,58 +1451,82 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     contact_post = None
     raw_company_title = lead.get("COMPANY_TITLE") or ""
 
-    # Извлечение активностей лида (дел-писем)
+    # Извлечение активностей лида (дел-писем) с сортировкой по ID DESC (самое свежее первым)
     acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id}}) or []
+    if acts:
+        acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
     if not acts:
         # Если лид уже сконвертирован или привязан к Сделке, ищем активности по связанной Сделке или Контакту
         deal_id_cand = lead.get("DEAL_ID") or lead.get("UF_CRM_DEAL_ID")
         if deal_id_cand:
             acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": deal_id_cand}}) or []
+            if acts:
+                acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
         if not acts:
             contact_id_cand = lead.get("CONTACT_ID")
             if contact_id_cand:
                 acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 3, "OWNER_ID": contact_id_cand}}) or []
-    email_acts = [a for a in acts if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4"]
+                if acts:
+                    acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
+    email_acts = [a for a in acts if (a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4") and str(a.get("DIRECTION")) != "2"]
+    if not email_acts:
+        email_acts = [a for a in acts if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4"]
     main_email_act = email_acts[0] if email_acts else (acts[0] if acts else {})
 
     email_subject = main_email_act.get("SUBJECT", "")
     email_desc = main_email_act.get("DESCRIPTION", "")
     email_message_id = main_email_act.get("SETTINGS", {}).get("MESSAGE_ID") if isinstance(main_email_act.get("SETTINGS"), dict) else None
 
-    # Извлечение телефона, добавочного и должности из подписи письма, если они отсутствовали в лиде
+    # Извлечение телефонов (мобильный сотрудника vs общий компании), добавочного и должности из подписи
     sig_info = extract_phone_and_signature_details(f"{email_desc} {lead_comments}")
     contact_ext = sig_info.get("ext", "")
-    if not contact_phone and sig_info.get("phone"):
-        contact_phone = sig_info["phone"]
-        print(f"  [PHONE-PARSER] Из подписи письма извлечен чистый телефон: {contact_phone}")
+    company_phone = sig_info.get("company_phone", "")
+    
+    if sig_info.get("contact_phone"):
+        contact_phone = sig_info["contact_phone"]
+        print(f"  [PHONE-PARSER] Из подписи извлечен мобильный телефон сотрудника: {contact_phone}")
         if contact_ext:
             print(f"  [EXT-PARSER] Из подписи извлечен добавочный: {contact_ext} (будет сохранен в поле Отчество)")
+    elif not contact_phone and sig_info.get("phone"):
+        contact_phone = sig_info["phone"]
     elif contact_phone:
         contact_phone, ext_from_lead = normalize_phone_number(contact_phone)
         if ext_from_lead and not contact_ext:
             contact_ext = ext_from_lead
             print(f"  [EXT-PARSER] Из телефона лида извлечен добавочный: {contact_ext} (будет сохранен в поле Отчество)")
+
+    if company_phone:
+        print(f"  [PHONE-PARSER] Из подписи извлечен общий телефон компании: {company_phone}")
+
     if sig_info.get("post"):
         contact_post = sig_info["post"]
         print(f"  [SIGNATURE-PARSER] Из подписи извлечена должность: {contact_post}")
 
     # Если наименование компании в лиде отсутствует или содержит заглушку, извлекаем из темы или текста
     placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы', 'ооо', 'ао', 'зао', 'пао', 'ип', 'нпо', 'нпп', 'тпк', 'гк', 'мтк'}
+    stop_words_tail = {'никаких', 'обязательств', 'не', 'для', 'от', 'по', 'за', 'при', 'в', 'на', 'с', 'к', 'из'}
     clean_desc_text = sanitize_html_email_text(email_desc or '')
     clean_comments_text = sanitize_html_email_text(lead_comments or '')
     full_search_text = f"{lead_title} {clean_desc_text} {clean_comments_text}"
 
     if not raw_company_title or raw_company_title.strip().lower() in placeholders:
-        m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?\s*([A-Za-zА-Яа-я0-9\-_]+(?:\s+[A-Za-zА-Яа-я0-9\-_]+)*)[»"\'”]?\s*', full_search_text)
-        if m_comp:
-            cand = m_comp.group(0).strip()
-            cand_inner = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', cand).strip()
-            if cand_inner and len(cand_inner) >= 2 and cand_inner.lower() not in placeholders:
-                raw_company_title = cand
+        m_comp_comment = re.search(r'компания:?\s*([A-Za-zА-Яа-я0-9\-_«»""\s]+)', f"{clean_comments_text} {lead_title}", flags=re.IGNORECASE)
+        m_quoted = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]([A-Za-zА-Яа-я0-9\-_ ]{2,35})[»"\'”]', f"{clean_comments_text} {full_search_text}")
+        if m_comp_comment and len(m_comp_comment.group(1).strip()) >= 3:
+            raw_company_title = m_comp_comment.group(1).split('\n')[0].strip()
+        elif m_quoted:
+            raw_company_title = m_quoted.group(0).strip()
+        else:
+            m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', full_search_text)
+            if m_comp:
+                cand = m_comp.group(0).strip()
+                cand_inner = m_comp.group(1).strip()
+                if cand_inner and len(cand_inner) >= 2 and cand_inner.lower() not in placeholders and cand_inner.lower() not in stop_words_tail:
+                    raw_company_title = cand
+                else:
+                    raw_company_title = ""
             else:
                 raw_company_title = ""
-        else:
-            raw_company_title = ""
 
     # Поиск ИНН в тексте, комментариях или теле письма
     combined_text = f"{lead_title} {raw_company_title} {clean_comments_text} {email_subject} {clean_desc_text}"
@@ -1434,34 +1537,25 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     if "гидросистемы" in full_search_text.lower():
         raw_company_title = "ООО «НПО «Гидросистемы»"
     elif not raw_company_title or raw_company_title.strip().lower() in placeholders:
-        m_compound = re.search(r'(?:ООО|АО|ЗАО|ПАО)\s*[«"\'“”]\s*(?:НПО|НПП|ТПК|МТК|ГК)?\s*[«"\'“”]?[A-Za-zА-Яа-я0-9\s\-_]+[»"\'”]\s*[»"\'”]?', full_search_text)
-        m_comp_comment = re.search(r'компания:?\s*([A-Za-zА-Яа-я0-9\-_«»""\s]+)', f"{clean_comments_text} {lead_title}", flags=re.IGNORECASE)
-        if m_compound:
-            cand = m_compound.group(0).strip()
-            cand_inner = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', cand).strip()
-            if cand_inner and len(cand_inner) >= 2 and cand_inner.lower() not in placeholders:
-                raw_company_title = cand
-        elif m_comp_comment and len(m_comp_comment.group(1).strip()) >= 3:
-            raw_company_title = m_comp_comment.group(1).split('\n')[0].strip()
-        else:
-            site_domain = ""
-            if sig_info.get("website"):
-                w_clean = re.sub(r'^(?:https?:\/\/)?(?:www\.)?', '', sig_info["website"].lower().strip()).split('/')[0]
-                w_parts = w_clean.split('.')
-                if len(w_parts) >= 2 and w_parts[0] not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
-                    site_domain = w_parts[0]
-            if site_domain:
-                raw_company_title = site_domain
-            elif contact_email and '@' in contact_email:
-                d_parts = contact_email.split('@')[-1].lower().split('.')
-                if len(d_parts) >= 3 and d_parts[-1] in {'ru', 'com', 'org', 'net', 'by', 'kz', 'su', 'рф', 'io', 'ai'}:
-                    domain_part = d_parts[-2]
-                else:
-                    domain_part = d_parts[0]
-                if domain_part not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
-                    raw_company_title = domain_part
+        site_domain = ""
+        if sig_info.get("website"):
+            w_clean = re.sub(r'^(?:https?:\/\/)?(?:www\.)?', '', sig_info["website"].lower().strip()).split('/')[0]
+            w_parts = w_clean.split('.')
+            if len(w_parts) >= 2 and w_parts[0] not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
+                site_domain = w_parts[0]
+        if site_domain:
+            raw_company_title = site_domain
+        elif contact_email and '@' in contact_email:
+            d_parts = contact_email.split('@')[-1].lower().split('.')
+            if len(d_parts) >= 3 and d_parts[-1] in {'ru', 'com', 'org', 'net', 'by', 'kz', 'su', 'рф', 'io', 'ai'}:
+                domain_part = d_parts[-2]
+            else:
+                domain_part = d_parts[0]
+            if domain_part not in {'mail', 'yandex', 'gmail', 'bk', 'list', 'inbox', 'ya', 'rambler', 'internet'}:
+                raw_company_title = domain_part
 
     # Извлечение файлов из активностей и проверка объема спецификаций
+
     lead_file_ids = []
     file_names = []
     is_huge_excel_bulk = False
@@ -1627,6 +1721,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         except Exception as e:
             print(f"   [WARN] Ошибка модуля check_contractor: {e}")
 
+    company_website = sig_info.get("website") or (dadata_info.get("website") if dadata_info else None) or (dadata_info.get("site") if dadata_info else None) or (saby_info.get("site") if saby_info else None)
+    if not company_website and contact_email and "@" in contact_email:
+        edom = contact_email.split("@")[1].strip().lower()
+        if edom not in ["gmail.com", "mail.ru", "yandex.ru", "bk.ru", "inbox.ru", "list.ru", "rambler.ru", "internet.ru"]:
+            company_website = f"www.{edom}"
+
     # 4. Сверка с 1С:УНФ
     ca_1c = check_1c_counterparty(inn=inn, name=company_title)
     lead_1c = check_1c_lead(inn=inn, name=company_title)
@@ -1708,14 +1808,14 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             print(f"  - Почтовый автоответ Шаблон № 66 НЕ отправляется")
             return {"lead_id": lead_id, "branch": "Ambiguous / Reseller Guard", "company": company_title, "reason": rfq_reason}
             
-        res_comp = enrich_or_create_b24_company(company_title, inn=inn, address=address, phone=contact_phone, email=contact_email, assigned_by_id=assigned_by_id)
+        res_comp = enrich_or_create_b24_company(company_title, inn=inn, address=address, phone=(company_phone or contact_phone), email=contact_email, assigned_by_id=assigned_by_id, web=company_website)
         cid = res_comp["id"]
         res_cnt = enrich_or_create_b24_contact(contact_name, contact_email, phone=contact_phone, company_id=cid, post=contact_post, assigned_by_id=assigned_by_id, ext=contact_ext)
         cnt_id = res_cnt["id"]
         
         # Привязка Компании и Контакта к Лиду в Битрикс24
         call_b24("crm.lead.update", {"id": lead_id, "fields": {"COMPANY_ID": cid, "CONTACT_ID": cnt_id}})
-        bind_lead_activities_triple(lead_id, deal_id=None, contact_id=cnt_id, company_id=cid, contact_email=contact_email)
+        bind_lead_activities_triple(lead_id, deal_id=None, contact_id=cnt_id, company_id=cid, contact_email=contact_email, target_email_id=main_email_act.get('ID'))
 
         # Обогащение Компании и Лида Б24 скорингом СБИС и закрепленным комментарием
         if scoring_summary_text:
@@ -1755,7 +1855,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             if t_guid:
                 tag_rows.append({"LineNumber": str(idx), "Тег": t_guid, "Тег_Key": t_guid})
 
-        if not is_buyer and not lead_1c:
+        if not ca_1c and not lead_1c:
             lead_payload = {
                 "Description": company_title,
                 "НаименованиеКомпании": company_title,
@@ -1773,20 +1873,42 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                 ci_rows = []
                 if contact_email:
                     ci_rows.append({"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": CI_EMAIL, "Представление": contact_email, "АдресЭП": contact_email, "АдресЭПДляПоиска": contact_email})
-                if contact_phone:
-                    ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": CI_PHONE, "Представление": contact_phone})
+                phone_for_lead = company_phone or contact_phone
+                if phone_for_lead:
+                    ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": CI_PHONE, "Представление": phone_for_lead})
+                if company_website:
+                    ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "ВебСтраница", "Вид_Key": CI_WEBSITE, "Представление": company_website})
                 if ci_rows:
                     requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{new_lead_guid}')?$format=json", json={"КонтактнаяИнформация": ci_rows}, auth=ONEC_AUTH_WRITE, timeout=12)
                 write_to_onec(inn=inn, one_c_guid=new_lead_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
                 if contact_email:
-                    link_1c_events_and_address_book(contact_email, new_lead_guid, company_title)
+                    link_1c_events_and_address_book(contact_email, new_lead_guid, company_title, is_counterparty=False)
             else:
                 print(f"  [1C-WARN] Ошибка создания лида в 1С: {r_post_1c.status_code} - {r_post_1c.text[:200]}")
         else:
-            existing_1c_guid = (lead_1c and lead_1c.get('Ref_Key')) or (ca_1c and ca_1c.get('Ref_Key'))
+            is_cp = bool(ca_1c)
+            existing_1c_guid = (ca_1c and ca_1c.get('Ref_Key')) or (lead_1c and lead_1c.get('Ref_Key'))
             if existing_1c_guid:
+                if is_cp and ca_1c:
+                    cp_ci = ca_1c.get('КонтактнаяИнформация', [])
+                    ci_updated = False
+                    if contact_email and not any(r.get('АдресЭП', '').lower() == contact_email.lower() for r in cp_ci):
+                        cp_ci.append({"LineNumber": str(len(cp_ci) + 1), "Тип": "АдресЭлектроннойПочты", "Вид_Key": "5c0dc758-23c6-11ed-91a8-a068f8f3337c", "Представление": contact_email, "АдресЭП": contact_email})
+                        ci_updated = True
+                    if contact_phone and not any(r.get('Представление', '') == contact_phone for r in cp_ci):
+                        cp_ci.append({"LineNumber": str(len(cp_ci) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc75e-23c6-11ed-91a8-a068f8f3337c", "Представление": contact_phone})
+                        ci_updated = True
+                    if company_website and not any(r.get('Представление', '') == company_website for r in cp_ci):
+                        cp_ci.append({"LineNumber": str(len(cp_ci) + 1), "Тип": "ВебСтраница", "Вид_Key": "5c0dc75d-23c6-11ed-91a8-a068f8f3337c", "Представление": company_website})
+                        ci_updated = True
+                    if ci_updated:
+                        requests.patch(f"{ONEC_BASE}/Catalog_Контрагенты(guid'{existing_1c_guid}')?$format=json", json={"КонтактнаяИнформация": cp_ci}, auth=ONEC_AUTH_WRITE, timeout=12)
+
                 write_to_onec(inn=inn, one_c_guid=existing_1c_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
-                print(f"  [1C] Существующая карточка 1С ({existing_1c_guid}) обогащена досье СБИС и тегами.")
+                entity_label = "Контрагент" if is_cp else "Лид"
+                print(f"  [1C] Существующий {entity_label} 1С ({existing_1c_guid}) обогащен досье СБИС и контактами.")
+                if contact_email:
+                    link_1c_events_and_address_book(contact_email, existing_1c_guid, company_title, is_counterparty=is_cp)
 
         verify_lead_processing_result(deal_id=None, contact_id=cnt_id, company_id=cid, task_id=None, expected_phone=contact_phone)
         return {"lead_id": lead_id, "branch": "Ambiguous / Reseller Guard", "company_id": cid, "contact_id": cnt_id, "reason": rfq_reason}
@@ -1878,19 +2000,77 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         except Exception as e:
             print(f"  [WARN] Ошибка dry-run проверки Excel: {e}")
 
+    # Формирование описания задачи и ссылок на вложения (Inquiry-Only Attachment Guard & Zero Mention When Empty)
+    attachments_lines = []
+    if is_multi_item_rfq:
+        excel_name = f"Запрос КП {clean_company}.xlsx"
+        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/EXCEL_DISK_ID/]{excel_name}[/URL] (Двуязычная спецификация / 采购清单)")
+    for fid, fname in clean_attachments:
+        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{fid}/]{fname}[/URL]")
+
+    if attachments_lines:
+        download_links_chat = "\n".join(attachments_lines)
+        attachments_task_block = f"\n\n[B]СПЕЦИФИКАЦИЯ И ВЛОЖЕНИЯ / 附件及图纸:[/B]\n{download_links_chat}"
+    else:
+        download_links_chat = ""
+        attachments_task_block = ""
+
+    equiv_text_ru_cn = "ДА / 可推荐同等参数国内替代品 (Заказчик прямо разрешил качественный аналог / or an equivalent)" if rfq_details.get("equivalents_allowed") else "СТРОГО ОРИГИНАЛ / 仅限原装正品 (Аналоги не запрашивались)"
+
+    task_description = (
+        f"[B]ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ЗАКУПКУ / 采购技术要求[/B]\n"
+        f"--------------------------------------------------\n"
+        f"• Сделка / 商机: [URL=https://b24-g4wfjq.bitrix24.ru/crm/deal/details/DEAL_ID/]Сделка #DEAL_ID[/URL]\n"
+        f"• Оборудование / 设备名称: {cn_nomenclature}\n"
+        f"• Бренд / 品牌: {rfq_details.get('brand', 'Hydac')}\n"
+        f"• Модель / 型号: {rfq_details.get('model', 'VD 8 C.0')}\n"
+        f"• Количество / 数量: {rfq_details.get('quantity', '1 шт. (1 unit / 1台)')}\n"
+        f"• Допустимость аналога / 同等替代品: [B]{equiv_text_ru_cn}[/B]\n\n"
+        f"[B]ОРИГИНАЛЬНЫЙ ТЕКСТ ЗАПРОСА КЛИЕНТА / 客户原始询价:[/B]\n"
+        f"{rfq_details.get('clean_inquiry', email_desc[:600])}"
+        f"{attachments_task_block}"
+    )
+
+    bilingual_comment = build_supply_task_chat_message(
+        azat_id=task_resp_id,
+        cn_nomenclature=cn_nomenclature,
+        brand=rfq_details.get('brand', 'Hydac'),
+        model=rfq_details.get('model', 'VD 8 C.0'),
+        quantity=rfq_details.get('quantity', '1台 (1 unit)'),
+        equivalents_allowed=rfq_details.get('equivalents_allowed', False),
+        download_links_chat=download_links_chat,
+        clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600])
+    )
+
     if dry_run:
-        print(f"\n[DRY-RUN] План действий для Ветки А:")
-        print(f"  - Сделка: '{title_naming}' (Стадия: PREPARATION)")
+        print(f"\n[DRY-RUN] ДЕТАЛЬНЫЙ ПЛАН ДЕЙСТВИЙ ДЛЯ ВЕТКИ А:")
+        print(f"  1. Сделка в CRM: '{title_naming}' (Стадия: PREPARATION)")
         resp_name = "Мисс Ван" if task_resp_id == USER_MISS_WANG else "Азат"
-        print(f"  - Задача снабжению: {resp_name} (user/{task_resp_id}), Группа 14, Дедлайн: {deadline_plan}")
-        print(f"  - Многопозиционная заявка (Multi-Item RFQ): {'ДА (генерация чистового Excel)' if is_multi_item_rfq else 'НЕТ'}")
-        print(f"  - Чистых вложений клиента для Китая: {len(clean_attachments)}")
-        print(f"  - Почтовый автоответ Шаблон № 66: {'ДА' if (contact_email and send_reply) else 'НЕТ'}")
-        print(f"  - 1С:УНФ: {'Обновление существующего покупателя' if is_buyer else ('Обновление Лида' if lead_1c else 'Создание Лида + Контакта')}")
+        print(f"  2. Задача снабжению: {resp_name} (user/{task_resp_id}), Группа 14, Дедлайн: {deadline_plan}")
+        print(f"  3. Привязка активностей (Triple Activity Binding):")
+        print(f"     - Будет привязано {len(acts)} активностей (включая письма) к Сделке, Контакту ({contact_name or 'Новый'}), Компании ({company_title}) и Лиду #{lead_id}")
+        print(f"  4. Контактные данные и реквизиты:")
+        print(f"     - Телефон: '{contact_phone or 'НЕТ'}' (маркировка +7)")
+        if contact_ext:
+            print(f"     - Добавочный: '{contact_ext}' -> поле SECOND_NAME (Отчество)")
+        print(f"     - Email: '{contact_email or 'НЕТ'}'")
+        print(f"     - Сайт: '{company_website or 'НЕТ'}'")
+        print(f"     - ИНН: '{inn or 'НЕТ'}'")
+        tags_display = set(contractor_tags)
+        if is_reseller:
+            tags_display.add("Перепродажники")
+        print(f"     - Теги: {list(tags_display)}")
+        print(f"     - Текст сводки СБИС:\n{scoring_summary_text or onec_comment_str or 'Сводка СБИС отсутствует'}")
+        print(f"  6. 1С:УНФ: {'Обновление существующего контрагента' if ca_1c else ('Обновление Лида' if lead_1c else 'Создание Лида + Контакта')}")
+        print(f"     - Запись в ТЧ КонтактнаяИнформация: АдресЭП, АдресЭПДляПоиска, Телефон, ВебСайт")
+        print(f"     - Запись в Комментарий Лида 1С: сводка СБИС и номер Сделки")
+        print(f"  7. Почтовый автоответ Шаблон № 66: {'ДА (официальное подтверждение)' if (contact_email and send_reply) else 'НЕТ'}")
+        print(f"\n  [ЧАТ ЗАДАЧИ СНАБЖЕНИЯ - ТОЧНЫЙ ТЕКСТ СООБЩЕНИЯ]:\n{'-'*60}\n{bilingual_comment}\n{'-'*60}")
+        print(f"\n  [ОПИСАНИЕ ЗАДАЧИ СНАБЖЕНИЯ - ТОЧНЫЙ ТЕКСТ]:\n{'-'*60}\n{task_description}\n{'-'*60}\n")
         return {"lead_id": lead_id, "branch": "Clear RFQ", "title_naming": title_naming, "deadline": deadline_plan}
 
     # Боевое обогащение сущностей B24
-    res_comp = enrich_or_create_b24_company(company_title, inn=inn, address=address, phone=contact_phone, email=contact_email, assigned_by_id=assigned_by_id)
+    res_comp = enrich_or_create_b24_company(company_title, inn=inn, address=address, phone=(company_phone or contact_phone), email=contact_email, assigned_by_id=assigned_by_id, web=company_website)
     cid = res_comp["id"]
     res_cnt = enrich_or_create_b24_contact(contact_name, contact_email, phone=contact_phone, company_id=cid, post=contact_post, assigned_by_id=assigned_by_id, ext=contact_ext)
     cnt_id = res_cnt["id"]
@@ -1903,24 +2083,38 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         except Exception as e:
             print(f"  [B24-WARN] Не удалось обогатить карточки в Б24: {e}")
 
+
     # Создание Сделки в стадии PREPARATION
     deal_id = create_b24_deal(title_naming, cid, cnt_id, lead_id=lead_id, assigned_by_id=assigned_by_id, stage_id="PREPARATION")
     print(f"  [B24] Создана Сделка #{deal_id} в стадии PREPARATION («Расчет КП»)")
-    
-    # Тройное связывание дел-писем
-    bind_lead_activities_triple(lead_id, deal_id, contact_id=cnt_id, company_id=cid, contact_email=contact_email)
-
-    # Генерация и загрузка Excel-спецификации по мастер-шаблону (Multi-Item RFQ Excel Specification Guard)
-    if is_multi_item_rfq:
+    if scoring_summary_text and deal_id:
         try:
-            excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=rfq_items, dry_run=False)
-            if excel_path and os.path.exists(excel_path):
-                excel_disk_id = upload_file_to_b24_disk(excel_path, FOLDER_CHINA_SUPPLY_DISK)
-                if excel_disk_id:
-                    supply_disk_ids.append(excel_disk_id)
-                    print(f"  [EXCEL-SPECIFICATION] Чистовой Excel-файл спецификации загружен на Диск группы 14 (ID: {excel_disk_id})")
+            from check_contractor import write_to_bitrix24
+            write_to_bitrix24(b24_deal_id=deal_id, summary_text=scoring_summary_text, dry_run=False)
         except Exception as e:
-            print(f"  [WARN] Ошибка генерации Excel-спецификации: {e}")
+            print(f"  [B24-WARN] Не удалось обогатить Сделку в Б24: {e}")
+    
+    # Тройное связывание дел-писем (с изоляцией целевого письма для Сделки)
+    bind_lead_activities_triple(lead_id, deal_id, contact_id=cnt_id, company_id=cid, contact_email=contact_email, target_email_id=main_email_act.get('ID'))
+
+    # Генерация и загрузка Excel-спецификации по мастер-шаблону (Bilingual Excel Specification Guard)
+    try:
+        excel_items = rfq_items if (rfq_items and len(rfq_items) >= 2) else [{
+            'num': 1,
+            'brand': rfq_details.get('brand', 'OEM'),
+            'pname_cn': cn_nomenclature,
+            'model': rfq_details.get('model', lead_title),
+            'name_ru': lead_title or cn_nomenclature,
+            'qty': rfq_details.get('quantity', 1)
+        }]
+        excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=excel_items, dry_run=False)
+        if excel_path and os.path.exists(excel_path):
+            excel_disk_id = upload_file_to_b24_disk(excel_path, FOLDER_CHINA_SUPPLY_DISK)
+            if excel_disk_id:
+                supply_disk_ids.append(excel_disk_id)
+                print(f"  [EXCEL-SPECIFICATION] Чистовой Excel-файл спецификации загружен на Диск группы 14 (ID: {excel_disk_id})")
+    except Exception as e:
+        print(f"  [WARN] Ошибка генерации Excel-спецификации: {e}")
 
     # Загрузка чистых технических вложений клиента на Диск группы 14
     for fid, fname in clean_attachments:
@@ -2020,13 +2214,16 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     onec_comment_str = format_onec_comment({"classification": classification, "dadata": dadata_info, "saby": saby_info}) if classification else ""
     
     tag_rows = []
-    for idx, t_name in enumerate(set(contractor_tags), start=1):
+    all_branch_a_tags = set(contractor_tags)
+    if is_reseller:
+        all_branch_a_tags.add("Перепродажники")
+    for idx, t_name in enumerate(all_branch_a_tags, start=1):
         t_guid = TAG_MAP_1C.get(t_name) or TAG_IDS_1C.get(t_name)
         if t_guid:
             tag_rows.append({"LineNumber": str(idx), "Тег": t_guid, "Тег_Key": t_guid})
 
     new_lead_guid = None
-    if not is_buyer and not lead_1c:
+    if not ca_1c and not lead_1c:
         # 1C Brand Folder Match Guard (сопоставление папок брендов в Catalog_Лиды)
         brand_folder_key = None
         lower_context = f"{company_title} {lead_title} {email_subject} {cn_nomenclature}".lower()
@@ -2070,22 +2267,43 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             ci_rows = []
             if contact_email:
                 ci_rows.append({"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": CI_EMAIL, "Представление": contact_email, "АдресЭП": contact_email, "АдресЭПДляПоиска": contact_email})
-            if contact_phone:
-                ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": CI_PHONE, "Представление": contact_phone})
+            phone_for_lead = company_phone or contact_phone
+            if phone_for_lead:
+                ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": CI_PHONE, "Представление": phone_for_lead})
+            if company_website:
+                ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "ВебСтраница", "Вид_Key": CI_WEBSITE, "Представление": company_website})
             if ci_rows:
                 requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{new_lead_guid}')?$format=json", json={"КонтактнаяИнформация": ci_rows}, auth=ONEC_AUTH_WRITE, timeout=12)
             write_to_onec(inn=inn, one_c_guid=new_lead_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
             if contact_email:
-                link_1c_events_and_address_book(contact_email, new_lead_guid, company_title)
+                link_1c_events_and_address_book(contact_email, new_lead_guid, company_title, is_counterparty=False)
         else:
             print(f"  [1C-WARN] Ошибка создания лида в 1С: {r_lead.status_code} - {r_lead.text[:200]}")
     else:
-        existing_1c_guid = (lead_1c and lead_1c.get('Ref_Key')) or (ca_1c and ca_1c.get('Ref_Key'))
+        is_cp = bool(ca_1c)
+        existing_1c_guid = (ca_1c and ca_1c.get('Ref_Key')) or (lead_1c and lead_1c.get('Ref_Key'))
         if existing_1c_guid:
+            if is_cp and ca_1c:
+                cp_ci = ca_1c.get('КонтактнаяИнформация', [])
+                ci_updated = False
+                phone_for_cp = company_phone or contact_phone
+                if contact_email and not any(r.get('АдресЭП', '').lower() == contact_email.lower() for r in cp_ci):
+                    cp_ci.append({"LineNumber": str(len(cp_ci) + 1), "Тип": "АдресЭлектроннойПочты", "Вид_Key": "5c0dc758-23c6-11ed-91a8-a068f8f3337c", "Представление": contact_email, "АдресЭП": contact_email})
+                    ci_updated = True
+                if phone_for_cp and not any(r.get('Представление', '') == phone_for_cp for r in cp_ci):
+                    cp_ci.append({"LineNumber": str(len(cp_ci) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc75e-23c6-11ed-91a8-a068f8f3337c", "Представление": phone_for_cp})
+                    ci_updated = True
+                if company_website and not any(r.get('Представление', '') == company_website for r in cp_ci):
+                    cp_ci.append({"LineNumber": str(len(cp_ci) + 1), "Тип": "ВебСтраница", "Вид_Key": "5c0dc75d-23c6-11ed-91a8-a068f8f3337c", "Представление": company_website})
+                    ci_updated = True
+                if ci_updated:
+                    requests.patch(f"{ONEC_BASE}/Catalog_Контрагенты(guid'{existing_1c_guid}')?$format=json", json={"КонтактнаяИнформация": cp_ci}, auth=ONEC_AUTH_WRITE, timeout=12)
+
             write_to_onec(inn=inn, one_c_guid=existing_1c_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
-            print(f"  [1C] Существующая карточка 1С ({existing_1c_guid}) обогащена досье СБИС и тегами.")
+            entity_label = "Контрагент" if is_cp else "Лид"
+            print(f"  [1C] Существующий {entity_label} 1С ({existing_1c_guid}) обогащен досье СБИС и контактами.")
             if contact_email:
-                link_1c_events_and_address_book(contact_email, existing_1c_guid, company_title)
+                link_1c_events_and_address_book(contact_email, existing_1c_guid, company_title, is_counterparty=is_cp)
 
     # Конвертация Лида в Битрикс24
     call_b24("crm.lead.update", {
@@ -2169,6 +2387,8 @@ def repair_previously_processed_lead(lead_id: int, dry_run: bool = False):
     acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id}}) or []
     if not acts and deal_id:
         acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": deal_id}}) or []
+    if acts:
+        acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
     
     email_acts = [a for a in acts if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4"]
     main_act = email_acts[0] if email_acts else (acts[0] if acts else {})

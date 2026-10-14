@@ -303,7 +303,11 @@ def classify_client(dadata_info: dict, saby_info: dict) -> dict:
     is_trade_okved = okved.startswith("46")
     is_reseller = False
     
-    if is_trade_okved and p_cnt >= 5 and c_cnt < p_cnt:
+    if is_trade_okved and not is_real_sector and not is_holding and scale != "Крупный бизнес":
+        is_reseller = True
+        tags.append("Перепродажники")
+        reasons.append("Оптовая торговля (ОКВЭД 46) без собственного производства/строительства и не холдинг")
+    elif is_trade_okved and p_cnt >= 5 and c_cnt < p_cnt:
         is_reseller = True
         tags.append("Перепродажники")
         reasons.append(f"Торговый ОКВЭД 46 + активные поставки по тендерам ({p_cnt} участий)")
@@ -381,7 +385,7 @@ def _merge_sbis_block(existing_text: str, new_sbis_block: str) -> str:
     return f"{new_sbis_block}\n\n{cleaned}".strip() if cleaned else new_sbis_block
 
 
-def write_to_bitrix24(b24_company_id: int = None, b24_lead_id: int = None, summary_text: str = "", dry_run: bool = True) -> bool:
+def write_to_bitrix24(b24_company_id: int = None, b24_lead_id: int = None, b24_deal_id: int = None, summary_text: str = "", dry_run: bool = True) -> bool:
     if not B24_WEBHOOK or B24_WEBHOOK == "/":
         return False
     try:
@@ -400,8 +404,8 @@ def write_to_bitrix24(b24_company_id: int = None, b24_lead_id: int = None, summa
                 }, timeout=15)
                 if r_tl.status_code == 200 and r_tl.json().get("result"):
                     comment_id = r_tl.json().get("result")
-                    requests.post(f"{B24_WEBHOOK}crm.timeline.item.pin", json={"id": comment_id, "pin": "Y"}, timeout=15)
-            print(f"  [B24] Скоринг СБИС сохранен в Компанию #{b24_company_id} ({'DRY-RUN' if dry_run else 'OK'})")
+                    requests.post(f"{B24_WEBHOOK}crm.timeline.item.pin", json={"id": comment_id, "ownerTypeId": 4, "ownerId": b24_company_id}, timeout=15)
+            print(f"  [B24] Скоринг СБИС сохранен и закреплен в Компании #{b24_company_id} ({'DRY-RUN' if dry_run else 'OK'})")
 
         if b24_lead_id:
             if not dry_run:
@@ -409,14 +413,35 @@ def write_to_bitrix24(b24_company_id: int = None, b24_lead_id: int = None, summa
                 cur_comm = r_get.json().get("result", {}).get("COMMENTS", "") or ""
                 new_comm = _merge_sbis_block(cur_comm, summary_text)
                 requests.post(f"{B24_WEBHOOK}crm.lead.update", json={"id": b24_lead_id, "fields": {"COMMENTS": new_comm}}, timeout=15)
-                requests.post(f"{B24_WEBHOOK}crm.timeline.comment.add", json={
+                r_tl = requests.post(f"{B24_WEBHOOK}crm.timeline.comment.add", json={
                     "fields": {
                         "ENTITY_ID": b24_lead_id,
                         "ENTITY_TYPE": "lead",
                         "COMMENT": summary_text
                     }
                 }, timeout=15)
-            print(f"  [B24] Скоринг СБИС сохранен в Лид #{b24_lead_id} ({'DRY-RUN' if dry_run else 'OK'})")
+                if r_tl.status_code == 200 and r_tl.json().get("result"):
+                    comment_id = r_tl.json().get("result")
+                    requests.post(f"{B24_WEBHOOK}crm.timeline.item.pin", json={"id": comment_id, "ownerTypeId": 1, "ownerId": b24_lead_id}, timeout=15)
+            print(f"  [B24] Скоринг СБИС сохранен и закреплен в Лиде #{b24_lead_id} ({'DRY-RUN' if dry_run else 'OK'})")
+
+        if b24_deal_id:
+            if not dry_run:
+                r_get = requests.post(f"{B24_WEBHOOK}crm.deal.get", json={"id": b24_deal_id}, timeout=15)
+                cur_comm = r_get.json().get("result", {}).get("COMMENTS", "") or ""
+                new_comm = _merge_sbis_block(cur_comm, summary_text)
+                requests.post(f"{B24_WEBHOOK}crm.deal.update", json={"id": b24_deal_id, "fields": {"COMMENTS": new_comm}}, timeout=15)
+                r_tl = requests.post(f"{B24_WEBHOOK}crm.timeline.comment.add", json={
+                    "fields": {
+                        "ENTITY_ID": b24_deal_id,
+                        "ENTITY_TYPE": "deal",
+                        "COMMENT": summary_text
+                    }
+                }, timeout=15)
+                if r_tl.status_code == 200 and r_tl.json().get("result"):
+                    comment_id = r_tl.json().get("result")
+                    requests.post(f"{B24_WEBHOOK}crm.timeline.item.pin", json={"id": comment_id, "ownerTypeId": 2, "ownerId": b24_deal_id}, timeout=15)
+            print(f"  [B24] Скоринг СБИС сохранен и закреплен в Сделке #{b24_deal_id} ({'DRY-RUN' if dry_run else 'OK'})")
         return True
     except Exception as e:
         print(f"  [B24-ERROR] Ошибка записи в Битрикс24: {e}")

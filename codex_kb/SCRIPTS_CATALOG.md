@@ -450,8 +450,9 @@
 | **Расширенный** | `prepare_excel_for_1c.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/prepare_excel_for_1c.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `run_check_contractors_batch_4.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/run_check_contractors_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `run_onec_sync.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_onec_sync.py` | Автоматизация рабочего процесса. | 9 |
-| **Расширенный** | `sync_b24_to_novofon.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/sync_b24_to_novofon.py` | Автоматизация рабочего процесса. | 0 |
+| **Боевой** | `sync_b24_to_novofon.py` | `projects/1c_odata/scripts/sync_b24_to_novofon.py` | Автономная двухсторонняя синхронизация телефонной книги Битрикс24 и Новофон Data API v2.0 | 0 |
 | **Расширенный** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | !/usr/bin/env python3 | 0 |
+
 | **Расширенный** | `sync_suppliers_1c_bitrix.py` | `projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `sync_to_bitrix.py` | `D:/Soft/Codex Backup/projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `sync_to_bitrix.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |
