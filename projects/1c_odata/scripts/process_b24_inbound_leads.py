@@ -1147,7 +1147,7 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
     if not dry_run and deal_id:
         existing_tasks = call_b24("tasks.task.list", {
             "filter": {"UF_CRM_TASK": f"D_{deal_id}", "GROUP_ID": group_id},
-            "select": ["ID", "TITLE", "STATUS", "RESPONSIBLE_ID", "DESCRIPTION", "UF_CRM_TASK"]
+            "select": ["ID", "TITLE", "STATUS", "RESPONSIBLE_ID", "DESCRIPTION", "UF_CRM_TASK", "UF_TASK_WEBDAV_FILES"]
         })
         tasks_list = existing_tasks.get("tasks", []) if isinstance(existing_tasks, dict) else []
         if tasks_list:
@@ -1156,9 +1156,14 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
             print(f"  [Single Task Guard] Для сделки {deal_id} уже найдена активная задача #{existing_id}. Дубль не создается.")
             # Обеспечиваем строгую привязку задачи ТОЛЬКО к Сделке (Task Deal-Only Guard)
             upd_fields = {"UF_CRM_TASK": [f"D_{deal_id}"]}
-            if description and (not existing_desc or "Вложения доступны в карточке задачи" in existing_desc):
+            if description and (not existing_desc or "Вложения доступны в карточке задачи" in existing_desc or "showFile" in description):
                 upd_fields["DESCRIPTION"] = description
                 print(f"  [Task Enrichment] В задачу #{existing_id} добавлено подробное ТЗ (ранее было пустым/неполным).")
+            if file_ids:
+                cur_files = tasks_list[0].get("ufTaskWebdavFiles") or []
+                all_files = list(set([int(f) for f in cur_files if str(f).isdigit()] + [int(f) for f in file_ids if str(f).isdigit()]))
+                upd_fields["UF_TASK_WEBDAV_FILES"] = [f"n{fid}" for fid in all_files]
+                print(f"  [Task Files Enrichment] В задачу #{existing_id} переданы вложения Диска: {upd_fields['UF_TASK_WEBDAV_FILES']}")
             call_b24("tasks.task.update", {"taskId": existing_id, "fields": upd_fields})
             return existing_id
 
@@ -1976,6 +1981,19 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             {"num": 2, "brand": "JX", "pname_cn": "机油滤清器 / 滤芯", "model": "0814", "name_ru": "Фильтр масляный JX 0814", "qty": 2},
             {"num": 3, "brand": "OEM", "pname_cn": "定制机油滤芯 (外径54mm 内径21.5mm 高160mm 单端封闭)", "model": "Dнар 54мм x Dвн 21.5мм x H 160мм (один торец глухой)", "name_ru": "Фильтр масляный по размерам (Dвн 21,5 мм, Dнар 54 мм, H 160 мм)", "qty": 2}
         ]
+    elif int(lead_id) == 18376:
+        brand_model_part = "Telco Sensors SMR 3206 / SMT 3000C"
+        cn_part = "光电传感器"
+        ru_part = "Оптические датчики Telco Sensors (2 поз., 2 шт.)"
+        title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
+        cn_nomenclature = "光电传感器 (Telco Sensors SMR 3206 / SMT 3000C)"
+        rfq_details["brand"] = "Telco Sensors"
+        rfq_details["model"] = "SMR 3206 S30 5 (1 шт.), SMT 3000C S30 5 (1 шт.)"
+        rfq_details["quantity"] = "2 шт. (2 позиции / 2项)"
+        rfq_items = [
+            {"num": 1, "brand": "Telco Sensors", "pname_cn": "光电传感器", "model": "SMR 3206 S30 5", "name_ru": "Датчик Telco Sensors SMR 3206 S30 5", "qty": 1},
+            {"num": 2, "brand": "Telco Sensors", "pname_cn": "光电传感器", "model": "SMT 3000C S30 5", "name_ru": "Датчик Telco Sensors SMT 3000C S30 5", "qty": 1}
+        ]
         is_multi_item_rfq = True
     elif is_multi_item_rfq:
         title_naming = f"{company_title}, {cn_nomenclature}"
@@ -2000,13 +2018,13 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         except Exception as e:
             print(f"  [WARN] Ошибка dry-run проверки Excel: {e}")
 
-    # Формирование описания задачи и ссылок на вложения (Inquiry-Only Attachment Guard & Zero Mention When Empty)
+    # Формирование описания задачи и ссылок на вложения (Shared Group Disk Invariant & Inquiry-Only Attachment Guard)
     attachments_lines = []
     if is_multi_item_rfq:
         excel_name = f"Запрос КП {clean_company}.xlsx"
         attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/EXCEL_DISK_ID/]{excel_name}[/URL] (Двуязычная спецификация / 采购清单)")
     for fid, fname in clean_attachments:
-        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{fid}/]{fname}[/URL]")
+        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/GROUP14_DISK_ID/]{fname}[/URL] (Диск группы 14 / 原图纸)")
 
     if attachments_lines:
         download_links_chat = "\n".join(attachments_lines)
@@ -2117,6 +2135,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         print(f"  [WARN] Ошибка генерации Excel-спецификации: {e}")
 
     # Загрузка чистых технических вложений клиента на Диск группы 14
+    uploaded_attachments = []
     for fid, fname in clean_attachments:
         df = call_b24("disk.file.get", {"id": fid})
         dl_url = df.get("DOWNLOAD_URL") if df else None
@@ -2130,18 +2149,19 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                     uploaded_id = upload_file_to_b24_disk(tmp_p, FOLDER_CHINA_SUPPLY_DISK)
                     if uploaded_id:
                         supply_disk_ids.append(uploaded_id)
+                        uploaded_attachments.append((uploaded_id, fname))
                     if os.path.exists(tmp_p):
                         os.remove(tmp_p)
             except Exception as e:
                 print(f"    [WARN] Ошибка загрузки файла {fname}: {e}")
 
-    # Формирование описания задачи и ссылок на вложения (Inquiry-Only Attachment Guard & Zero Mention When Empty)
+    # Формирование описания задачи и ссылок на вложения (Shared Group Disk Invariant & Inquiry-Only Attachment Guard)
     attachments_lines = []
     if excel_disk_id:
         excel_name = f"Запрос КП {clean_company}.xlsx"
         attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{excel_disk_id}/]{excel_name}[/URL] (Двуязычная спецификация / 采购清单)")
-    for fid, fname in clean_attachments:
-        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{fid}/]{fname}[/URL]")
+    for up_id, fname in uploaded_attachments:
+        attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/{up_id}/]{fname}[/URL]")
 
     if attachments_lines:
         download_links_chat = "\n".join(attachments_lines)
