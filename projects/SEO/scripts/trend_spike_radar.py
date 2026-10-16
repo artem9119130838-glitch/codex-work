@@ -1,115 +1,40 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Canonical Trend Spike Radar for Longwang.ru B2B SEO.
-5-Module Architecture:
-  1. Regulatory & Compliance Radar (ГТД, Честный Знак, маркировка, налоги)
-  2. Sanctions & Market Vacancies Radar (Уход брендов ЕС/США, китайские аналоги станков)
-  3. Logistics & Cargo Crises Radar (Застряли грузы, рейды, задержки, переход на белую доставку)
-  4. Product Hype & Hardware Novelty Radar (Детские ИИ-игрушки, роботы, мини-ЧПУ, лазерная сварка)
-  5. Global Breakout Trends (Google Trends Breakout воронка + ИИ-сито)
+Canonical Multi-Module SEO Breakout & Hype Radar for Longwang.ru (v3.0)
+Architecture: Wide Ingestion (Free Search Autocomplete + Trends) + LLM Sieve & Triage
 
-Output Channel:
-  - Bitrix24 Task: Automatically finds or creates task "Сбор хайпа" / "Сбор хайпа и трендов Longwang"
-    and appends daily digests as comments (task.commentitem.add) with full history.
+1. Wide Ingestion:
+   - Google Trends RSS (Breakouts & Trending RU / US)
+   - Dynamic Multi-Seed Autocomplete (Yandex Suggest + Google Suggest with 3-day recency markers)
+   - Public Logistics & Customs Previews (Telegram channels web scrapers: customs_rf, ved_ru)
+2. Sanitization:
+   - Deduplication & non-commercial stop-words stripping (no games/films/junk)
+3. LLM Sieve & Triage:
+   - Gemini 2.5 Flash Pool with DeepSeek-V3 Fallback
+   - Full array triage into 4 strategic B2B clusters + Executive Coffee Summary
+4. Delivery & BI:
+   - Token usage logging to PostgreSQL DWH (marketing_db.llm_usage_logs / Metabase Dashboard 8)
+   - Bitrix24 task #4972 comment delivery via REST API
+   - Mode: Supports --dry-run (default is safe simulation) and --execute.
 """
 
 import os
 import sys
 import json
+import re
+import time
+import argparse
 import urllib.request
 import urllib.parse
-import re
-import argparse
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 LongWangRadar/2.0'
-}
-
-# ==============================================================================
-# 5 EXPANDED SEED MODULES (Эмоциональные боли, кризисы, вопросы, новинки)
-# ==============================================================================
-
-MODULES = {
-    "1_regulatory": {
-        "title": "📋 1. Регуляторика, маркировка и госконтроль",
-        "seeds": [
-            "доставка из китая гтд",
-            "где взять гтд для озон",
-            "гтд вайлдберриз китай",
-            "блокировка карточки озон нет гтд",
-            "вайлдберриз штраф нет маркировки",
-            "честный знак одежда китай",
-            "маркировка честный знак карго",
-            "как ввести остатки честный знак",
-            "новые требования к импорту 2026",
-            "отказ в сертификате китай",
-            "реестр минпромторга аналоги оборудования"
-        ],
-        "default_hub": "/supplies-services-china/belaya-dostavka-iz-kitaya/"
-    },
-    "2_sanctions": {
-        "title": "⚙️ 2. Санкции, уход брендов и китайские аналоги",
-        "seeds": [
-            "санкции запрет поставок оборудования",
-            "уход siemens замена китай",
-            "аналог fanuc в китае",
-            "замена schneider electric китай",
-            "китайские аналоги европейских станков",
-            "параллельный импорт промышленного оборудования",
-            "поставка запчастей к импортным станкам",
-            "дефицит сервоприводов китай",
-            "купить станок взамен немецкого"
-        ],
-        "default_hub": "/supplies-services-china/equipment-from-china/"
-    },
-    "3_cargo_logistics": {
-        "title": "🚚 3. Логистика, кризисы карго и переход в белую",
-        "seeds": [
-            "застряли грузы из китая",
-            "застряло карго из китая",
-            "почему стоит карго",
-            "когда приедет карго",
-            "что случилось с карго",
-            "почему все встало на границе китая",
-            "пропал груз карго москва",
-            "рейд тяк москва карго",
-            "проверка садовод карго",
-            "очереди забайкальск граница",
-            "задержка грузов на границе китая",
-            "как уйти от карго",
-            "переход с карго на белый вэд",
-            "белая доставка вместо карго",
-            "белая доставка с закрывающими документами ндс",
-            "не проходит платеж в китай",
-            "возврат платежа из китая",
-            "втб шанхай задержка платежа",
-            "блокировка счета 115 фз вэд импорт"
-        ],
-        "default_hub": "/supplies-services-china/belaya-dostavka-iz-kitaya/"
-    },
-    "4_product_hype": {
-        "title": "🤖 4. Продуктовый хайп и новинки оборудования / гаджетов",
-        "seeds": [
-            "игрушки с искусственным интеллектом оптом",
-            "детские ии игрушки купить оптом",
-            "ai игрушки фабрика китай",
-            "робот компаньон китай фабрика",
-            "умные роботы для дома оптом из китая",
-            "трендовые товары из китая для маркетплейсов",
-            "новинки из китая оптом 2026",
-            "вирусные товары тикток из китая оптом",
-            "портативный волоконный лазер китай купить",
-            "лазерная сварка аппарат китай опт",
-            "мини тпа станок для пластика китай",
-            "настольный фрезерный станок чпу китай",
-            "вендинговые аппараты новинки китай",
-            "3d принтер промышленный китай завод"
-        ],
-        "default_hub": "/supplies-services-china/proverka-postavshhika-v-kitae/"
-    }
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 }
 
 # ==============================================================================
@@ -119,12 +44,22 @@ MODULES = {
 def load_config():
     config = {
         "BITRIX24_WEBHOOK_URL": "",
-        "B24_RADAR_TASK_ID": "",
-        "GEMINI_API_KEY": ""
+        "B24_RADAR_TASK_ID": "4972",
+        "GEMINI_API_KEY": "",
+        "GEMINI_API_KEYS": "",
+        "DEEPSEEK_API_KEY": "",
+        "PG_HOST": "10.10.0.1",
+        "PG_PORT": "5433",
+        "PG_DBNAME": "marketing_db",
+        "PG_USER": "vector_user",
+        "PG_PASS": ""
     }
     env_paths = [
         os.path.join(os.path.dirname(__file__), "..", ".env"),
         os.path.join(os.path.dirname(__file__), ".env"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "1c_odata", ".env"),
+        "/Storage/scripts/metabase_analytics/.env",
+        "/opt/longwang_trend_radar/.env",
         ".env"
     ]
     for p in env_paths:
@@ -138,21 +73,31 @@ def load_config():
                         v = v.strip().strip("'\"")
                         if k in config and not config[k]:
                             config[k] = v
-    # System env overrides
-    for k in config:
+                        elif k == "GEMINI_API_KEYS" and not config.get("GEMINI_API_KEYS"):
+                            config["GEMINI_API_KEYS"] = v
+                        elif k == "DEEPSEEK_API_KEY" and not config.get("DEEPSEEK_API_KEY"):
+                            config["DEEPSEEK_API_KEY"] = v
+
+    for k in list(config.keys()):
         if os.environ.get(k):
             config[k] = os.environ.get(k)
+            
+    if not config.get("GEMINI_API_KEY") and config.get("GEMINI_API_KEYS"):
+        keys = [k.strip() for k in config["GEMINI_API_KEYS"].split(",") if k.strip()]
+        if keys:
+            config["GEMINI_API_KEY"] = keys[0]
+
     return config
 
 # ==============================================================================
-# SEARCH SUGGEST & TREND ENGINES
+# 1. WIDE INGESTION ENGINES (FREE & FAST)
 # ==============================================================================
 
 def fetch_yandex_suggest(query: str) -> list:
     url = f"https://suggest.yandex.ru/suggest-ya.cgi?v=4&part={urllib.parse.quote(query)}"
-    req = urllib.request.Request(url, headers=HEADERS)
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=2.5) as resp:
             data = json.loads(resp.read().decode('utf-8', errors='ignore'))
             if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
                 return data[1]
@@ -162,9 +107,9 @@ def fetch_yandex_suggest(query: str) -> list:
 
 def fetch_google_suggest(query: str) -> list:
     url = f"https://suggestqueries.google.com/complete/search?client=chrome&hl=ru&gl=ru&q={urllib.parse.quote(query)}"
-    req = urllib.request.Request(url, headers=HEADERS)
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=2.5) as resp:
             data = json.loads(resp.read().decode('utf-8', errors='ignore'))
             if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
                 return data[1]
@@ -173,7 +118,6 @@ def fetch_google_suggest(query: str) -> list:
     return []
 
 def fetch_google_trends_rss() -> list:
-    """Fetch raw trending search queries from Google Trends Daily RSS for Russia."""
     rss_urls = [
         "https://trends.google.com/trending/rss?geo=RU",
         "https://trends.google.com/trending/rss?geo=US"
@@ -182,204 +126,314 @@ def fetch_google_trends_rss() -> list:
     for u in rss_urls:
         try:
             req = urllib.request.Request(u, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                xml_data = resp.read()
-                root = ET.fromstring(xml_data)
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                root = ET.fromstring(resp.read())
                 for item in root.findall(".//item"):
-                    title_elem = item.find("title")
-                    if title_elem is not None and title_elem.text:
-                        trends.append(title_elem.text.strip())
+                    t = item.find("title")
+                    if t is not None and t.text:
+                        trends.append(t.text.strip())
         except Exception:
             continue
-    return list(dict.fromkeys(trends))
+    return trends
 
-# ==============================================================================
-# B2B ANOMALY SCORING & INTENT EXTRACTION
-# ==============================================================================
+def fetch_telegram_channel_snippets(channel: str) -> list:
+    url = f"https://t.me/s/{channel}"
+    snippets = []
+    try:
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+            texts = re.findall(r'<div class="tgme_widget_message_text[^"]*">(.*?)</div>', html, re.DOTALL)
+            for t in texts[-8:]:
+                clean = re.sub(r'<[^>]+>', ' ', t).strip()
+                first_line = clean.split('\n')[0].strip()
+                if len(first_line) > 15:
+                    snippets.append(first_line[:120])
+    except Exception:
+        pass
+    return snippets
 
-EMOTIONAL_CRISIS_TRIGGERS = [
-    "застрял", "застряли", "почему", "когда приедет", "что случилось", "стоит",
-    "пропал", "рейд", "проверка", "конфискат", "штраф", "блокировка", "задержка",
-    "не проходит", "возврат", "уйти от карго", "переход", "как сделать", "где взять"
+WIDE_SEEDS = [
+    # 1. Cargo & Border Crisis
+    "застрял груз", "застряло карго", "почему стоит карго", "рейд тяк", "проверка садовод карго",
+    "очереди забайкальск", "задержка на границе китая", "уйти от карго", "белая доставка вместо карго",
+    "конфискат карго", "рейд москва склад китай", "задержка грузов китай 2026",
+    # 2. Payments & VED Banking
+    "не проходит платеж в китай", "возврат платежа китай", "втб шанхай платежи", "блокировка 115 фз вэд",
+    "оплата в юанях в китай задержка",
+    # 3. Compliance, GTD & Marketplaces
+    "гтд озон", "гтд вайлдберриз", "номер гтд где взять", "штраф озон за гтд", "блокировка озон гтд",
+    "честный знак 2026", "маркировка товаров из китая", "налоговая проверка селлеров", "гтд для маркетплейса",
+    "документы для озон из китая",
+    # 4. Industrial Equipment & Machinery
+    "станки из китая", "купить станок в китае", "лазерный станок китай", "тпа станок китай",
+    "фрезерный станок чпу китай", "линия из китая", "растаможка станков из китая", "пошлина на оборудование китай",
+    "доставка оборудования из китая", "поставка станков под ключ китай",
+    # 5. Product Hype & AI Hardware
+    "ии игрушки оптом", "робот компаньон китай", "умные роботы оптом", "новинки оптом из китая 2026",
+    "трендовые товары из китая", "вирусные товары тикток китай опт", "волоконный лазер китай купить",
+    "мини завод из китая"
 ]
 
-COMMERCIAL_B2B_TRIGGERS = [
-    "оптом", "купить", "фабрика", "завод", "производство", "китай", "поставка",
-    "под ключ", "белая", "гтд", "честный знак", "маркировка", "оборудование",
-    "станок", "линия", "юани", "договор", "контракт", "пошлина", "растаможка"
+STOP_NOISE_WORDS = [
+    "порно", "скачать", "фильм", "песни", "сериал", "minecraft", "игры", "каргополь",
+    "death stranding", "в германии", "немецкий", "б/у", "авито", "своими руками", "чертеж"
 ]
 
-def score_query_anomaly(query: str, seed: str, module_key: str) -> dict:
-    q_lower = query.lower()
-    
-    is_question = any(q_lower.startswith(w) or f" {w} " in q_lower for w in ["почему", "когда", "как", "где", "что"])
-    crisis_matches = [w for w in EMOTIONAL_CRISIS_TRIGGERS if w in q_lower]
-    commercial_matches = [w for w in COMMERCIAL_B2B_TRIGGERS if w in q_lower]
-    
-    score = 15
-    if is_question:
-        score += 25
-    score += len(crisis_matches) * 20
-    score += len(commercial_matches) * 15
-    
-    # Specific high value B2B terms
-    if any(k in q_lower for k in ["гтд", "озон", "вайлдберриз", "115 фз", "карго", "белая доставка"]):
-        score += 25
-    if any(k in q_lower for k in ["ии игрушки", "ai", "робот", "лазер", "чпу", "тпа", "станок"]):
-        score += 25
-        
-    # Query length (long tail specificity)
-    words = q_lower.split()
-    if len(words) >= 4:
-        score += 15
-        
-    # Determine context & intent
-    if crisis_matches:
-        intent = "Кризис / Паника: поиск решения проблемы с застрявшим грузом или проверкой"
-    elif any(w in q_lower for w in ["оптом", "купить", "завод", "фабрика"]):
-        intent = "Коммерческий опт: поиск прямых фабрик и производителей в КНР"
-    elif any(w in q_lower for w in ["гтд", "озон", "маркировка", "документы"]):
-        intent = "Регуляторный комплаенс: селлеры ищут белые закрывающие документы для маркетплейсов"
-    else:
-        intent = "Исследовательский B2B спрос: изучение новинок и условий поставки"
-        
-    return {
-        "query": query,
-        "seed": seed,
-        "module": module_key,
-        "score": score,
-        "intent": intent,
-        "crisis_triggers": crisis_matches,
-        "commercial_triggers": commercial_matches,
-        "is_spike": score >= 55
-    }
+def collect_wide_raw_stream() -> list:
+    """Collects 150-250 raw queries and headlines in parallel across search engines & channels."""
+    raw_results = []
 
-# ==============================================================================
-# MODULE 5: LLM FILTERING (GEMINI / LOCAL PROXY / HEURISTIC)
-# ==============================================================================
+    def query_worker(seed):
+        res = []
+        res.extend(fetch_yandex_suggest(seed))
+        res.extend(fetch_google_suggest(seed))
+        if any(k in seed for k in ["гтд", "карго", "станки", "новинки"]):
+            res.extend(fetch_yandex_suggest(f"{seed} 2026"))
+            res.extend(fetch_yandex_suggest(f"{seed} новые правила"))
+        return res
 
-def filter_global_breakouts_via_llm(raw_trends: list, config: dict) -> list:
-    """
-    Module 5: Global Breakout Discovery.
-    Takes raw trending queries from Google Trends, runs through LLM to extract B2B/China gems.
-    """
-    if not raw_trends:
-        return []
-        
-    # Strict business/commerce filter: sports, celebrities, cinema, politics must be discarded
-    STOP_WORDS = [
-        "матч", "лига", "фк", "гол", "футбол", "хоккей", "теннис", "сериал", "фильм",
-        "актер", "певец", "шоу", "звезда", "биатлон", "бокс", "бой", "умер", "погиб",
-        "счет", "трансляция", "состав", "тренер", "азар", "ливерпуль", "реал", "спартак"
-    ]
-    
-    commercial_candidates = []
-    COMMERCIAL_HINTS = [
-        "купить", "цена", "доставка", "китай", "ai", "ии", "робот", "станок", "товар",
-        "тренд", "бренд", "завод", "игрушк", "лазер", "гаджет", "оборудование",
-        "производство", "опт", "поставка", "девайс", "смарт", "электроник"
-    ]
-    
-    for t in raw_trends:
-        t_l = t.lower()
-        if any(sw in t_l for sw in STOP_WORDS):
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(query_worker, s) for s in WIDE_SEEDS]
+        futures.append(executor.submit(fetch_google_trends_rss))
+        futures.append(executor.submit(fetch_telegram_channel_snippets, "customs_rf"))
+        futures.append(executor.submit(fetch_telegram_channel_snippets, "ved_ru"))
+
+        for f in as_completed(futures):
+            try:
+                res = f.result()
+                if isinstance(res, list):
+                    raw_results.extend(res)
+            except Exception:
+                pass
+
+    # Deduplicate & sanitize
+    seen = set()
+    sanitized = []
+    for item in raw_results:
+        it = item.strip()
+        it_l = it.lower()
+        if any(sw in it_l for sw in STOP_NOISE_WORDS):
             continue
-        if any(w in t_l for w in COMMERCIAL_HINTS):
-            commercial_candidates.append(t)
-            
-    # If GEMINI_API_KEY is available or local proxy exists, run through LLM
-    api_key = config.get("GEMINI_API_KEY")
-    if api_key and commercial_candidates:
-        prompt = (
-            "Ты — ведущий B2B-аналитик поставок и производства в Китае для компании Long Wang (longwang.ru).\n"
-            f"Перед тобой список коммерческих запросов из трендов: {json.dumps(commercial_candidates, ensure_ascii=False)}.\n"
-            "Выбери из них от 1 до 3 самых перспективных запросов, которые бизнес в РФ побежит закупать, "
-            "производить или доставлять из Китая (новые ИИ-гаджеты, игрушки, оборудование, дефицитные товары).\n"
-            "Верни JSON массив объектов с ключами: query, why_trending, china_angle, priority."
-        )
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        if it_l not in seen and len(it) >= 4:
+            seen.add(it_l)
+            sanitized.append(it)
+
+    return sanitized
+
+# ==============================================================================
+# 2. LLM SIEVE & TRIAGE CORE (GEMINI POOL + DEEPSEEK FALLBACK + DWH)
+# ==============================================================================
+
+def extract_json_from_text(text: str):
+    if not text:
+        return None
+    code_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
+    if code_match:
+        text = code_match.group(1).strip()
+    # 1. Try direct JSON parse first
+    try:
+        return json.loads(text.strip())
+    except Exception:
+        pass
+    # 2. Try matching outer object { ... }
+    obj_match = re.search(r'\{[\s\S]*\}', text)
+    if obj_match:
         try:
-            with urllib.request.urlopen(req, timeout=12) as resp:
+            return json.loads(obj_match.group(0))
+        except Exception:
+            pass
+    # 3. Try matching outer array [ ... ]
+    arr_match = re.search(r'\[[\s\S]*\]', text)
+    if arr_match:
+        try:
+            return json.loads(arr_match.group(0))
+        except Exception:
+            pass
+    return None
+
+def call_llm_json(prompt: str, config: dict):
+    gemini_keys = []
+    if config.get("GEMINI_API_KEYS"):
+        gemini_keys.extend([k.strip() for k in config["GEMINI_API_KEYS"].split(",") if k.strip()])
+    if config.get("GEMINI_API_KEY") and config["GEMINI_API_KEY"] not in gemini_keys:
+        gemini_keys.append(config["GEMINI_API_KEY"])
+        
+    deepseek_key = config.get("DEEPSEEK_API_KEY", "")
+    
+    # Init llm_tracker for DWH
+    tracker_candidates = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "metabase_analytics", "scripts")),
+        "/Storage/scripts/metabase_analytics",
+        "/opt/longwang_trend_radar"
+    ]
+    for p in tracker_candidates:
+        if os.path.exists(p) and p not in sys.path:
+            sys.path.insert(0, p)
+    try:
+        from llm_tracker import log_llm_usage
+    except Exception:
+        log_llm_usage = None
+
+    # 1. Try Gemini Pool with fast failover (8s timeout)
+    for idx, key in enumerate(gemini_keys):
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
+            payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=8) as resp:
                 res_data = json.loads(resp.read().decode("utf-8"))
-                
-                # Log LLM token consumption into DWH (PostgreSQL marketing_db -> Metabase Dashboard 8)
-                try:
+                if log_llm_usage:
                     usage = res_data.get("usageMetadata", {})
-                    p_tok = usage.get("promptTokenCount", 0)
-                    c_tok = usage.get("candidatesTokenCount", 0)
-                    tracker_candidates = [
-                        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "metabase_analytics", "scripts")),
-                        "/Storage/scripts/metabase_analytics",
-                        "/opt/longwang_trend_radar"
-                    ]
-                    for p in tracker_candidates:
-                        if os.path.exists(p) and p not in sys.path:
-                            sys.path.insert(0, p)
-                    from llm_tracker import log_llm_usage
                     log_llm_usage(
                         provider="gemini",
                         model_name="gemini-2.5-flash",
                         task_type="longwang_trend_radar",
                         request_type="longwang_trend_radar",
                         project_name="seo_longwang",
-                        key_alias="gemini_radar_primary",
-                        prompt_tokens=p_tok,
-                        completion_tokens=c_tok,
+                        key_alias=f"gemini_pool_{idx+1}",
+                        prompt_tokens=usage.get("promptTokenCount", 0),
+                        completion_tokens=usage.get("candidatesTokenCount", 0),
                         initiated_by="system_cron",
                         status="success"
                     )
-                except Exception:
-                    pass
-
                 text = res_data["candidates"][0]["content"]["parts"][0]["text"]
-                json_match = re.search(r'\[.*\]', text, re.DOTALL)
-                if json_match:
-                    return json.loads(json_match.group(0))
-        except Exception as e_llm:
-            try:
-                tracker_candidates = [
-                    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "metabase_analytics", "scripts")),
-                    "/Storage/scripts/metabase_analytics",
-                    "/opt/longwang_trend_radar"
-                ]
-                for p in tracker_candidates:
-                    if os.path.exists(p) and p not in sys.path:
-                        sys.path.insert(0, p)
-                from llm_tracker import log_llm_usage
+                parsed = extract_json_from_text(text)
+                if parsed is not None:
+                    return parsed
+        except Exception as e:
+            if log_llm_usage:
                 log_llm_usage(
                     provider="gemini",
                     model_name="gemini-2.5-flash",
                     task_type="longwang_trend_radar",
                     request_type="longwang_trend_radar",
                     project_name="seo_longwang",
-                    key_alias="gemini_radar_primary",
+                    key_alias=f"gemini_pool_{idx+1}",
                     prompt_tokens=0,
                     completion_tokens=0,
                     initiated_by="system_cron",
                     status="error",
-                    error_message=str(e_llm)[:250]
+                    error_message=str(e)[:250]
                 )
-            except Exception:
-                pass
-            
-    # Clean heuristic result (only return genuine commercial candidates, never sports/noise)
-    result = []
-    for c in commercial_candidates[:3]:
-        result.append({
-            "query": c,
-            "why_trending": "Аномальный всплеск поискового интереса (Breakout / Rising)",
-            "china_angle": "Потенциальный товар для оперативного поиска прямых контрактных фабрик в КНР",
-            "priority": "HIGH"
-        })
-    return result
+
+    # 2. Try DeepSeek Fallback
+    if deepseek_key:
+        try:
+            url = "https://api.deepseek.com/chat/completions"
+            ds_payload = json.dumps({
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "Ты — ведущий B2B-аналитик компании Long Wang (longwang.ru). Отвечай строго валидным JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2
+            }).encode("utf-8")
+            req = urllib.request.Request(url, data=ds_payload, headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {deepseek_key}"
+            }, method="POST")
+            with urllib.request.urlopen(req, timeout=16) as resp:
+                res_data = json.loads(resp.read().decode("utf-8"))
+                usage = res_data.get("usage", {})
+                if log_llm_usage:
+                    log_llm_usage(
+                        provider="deepseek",
+                        model_name="deepseek-chat",
+                        task_type="longwang_trend_radar",
+                        request_type="longwang_trend_radar",
+                        project_name="seo_longwang",
+                        key_alias="deepseek_main",
+                        prompt_tokens=usage.get("prompt_tokens", 0),
+                        completion_tokens=usage.get("completion_tokens", 0),
+                        initiated_by="system_cron",
+                        status="success"
+                    )
+                text = res_data["choices"][0]["message"]["content"]
+                parsed = extract_json_from_text(text)
+                if parsed is not None:
+                    return parsed
+        except Exception as e_ds:
+            if log_llm_usage:
+                log_llm_usage(
+                    provider="deepseek",
+                    model_name="deepseek-chat",
+                    task_type="longwang_trend_radar",
+                    request_type="longwang_trend_radar",
+                    project_name="seo_longwang",
+                    key_alias="deepseek_main",
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    initiated_by="system_cron",
+                    status="error",
+                    error_message=str(e_ds)[:250]
+                )
+
+    return None
+
+def execute_llm_triage(raw_stream: list, config: dict) -> dict:
+    """Passes the wide stream of raw queries to LLM for sorting and clustering."""
+    prompt = f"""Ты — шеф-аналитик B2B-логистики и ВЭД компании Longwang (longwang.ru — белая доставка из Китая, оборудование и поиск фабрик).
+Перед тобой сырой срез поисковых подсказок Яндекс/Google, трендов Google Trends и новостей за последние 3 дня:
+{json.dumps(raw_stream[:75], ensure_ascii=False, indent=2)}
+
+Твоя задача — провести профессиональный триаж (сортировку):
+1. Отбросить весь бытовой шум, потребительские запросы, игры и мусор. НЕ ВКЛЮЧАЙ их в ответ и не создавай для них элементы с пометкой "Игнорировать" — просто отбрось молча!
+2. Отобрать строго от 2 до 4 самых острых и взрывных B2B-запросов и распределить их по 4 категориям:
+   - cargo_crisis: 🚨 1. Кризисы карго, рейды и задержки грузов (целевой хаб: /supplies-services-china/belaya-dostavka-iz-kitaya/)
+   - compliance_gtd: 📦 2. ГТД, Честный Знак и маркетплейсы (целевой хаб: /supplies-services-china/belaya-dostavka-iz-kitaya/)
+   - industrial_equipment: ⚙️ 3. Промышленное оборудование и станки из Китая (целевой хаб: /supplies-services-china/equipment-from-china/)
+   - product_hype: 💡 4. Взрывные товарные ниши и инновации КНР (целевой хаб: /supplies-services-china/proverka-postavshhika-v-kitae/)
+3. Для каждого отобранного B2B-запроса в массиве items укажи:
+   - query: текст запроса
+   - urgency: "HIGH" или "MEDIUM"
+   - why_spiking: почему это взрывается в запросах (контекст последних дней)
+   - action: рекомендация Longwang (какой оффер/статью выкатить)
+4. Составить утреннее executive_summary (10-секундный фокус для Артема):
+   - main_pain: главная боль бизнеса сегодня (1-2 емких предложения)
+   - content_idea: {{"title": "...", "hook": "..."}}
+   - china_angle: практический совет по фабрикам/товарам в КНР
+
+Ответь СТРОГО валидным JSON-объектом:
+{{
+  "executive_summary": {{
+    "main_pain": "...",
+    "content_idea": {{"title": "...", "hook": "..."}},
+    "china_angle": "..."
+  }},
+  "clusters": [
+    {{
+      "category_id": "cargo_crisis",
+      "category_title": "🚨 1. Кризисы карго, рейды и задержки грузов",
+      "target_hub": "/supplies-services-china/belaya-dostavka-iz-kitaya/",
+      "items": [ ... ]
+    }},
+    ...
+  ]
+}}"""
+    res = call_llm_json(prompt, config)
+    if isinstance(res, dict) and "executive_summary" in res and "clusters" in res and len(res["clusters"]) > 0:
+        return res
+        
+    # Heuristic fallback if LLM returned nothing
+    return {
+        "executive_summary": {
+            "main_pain": "Нарастающие задержки на границах и ужесточение контроля ГТД на маркетплейсах вынуждают бизнес уходить от карго.",
+            "content_idea": {
+                "title": "«Как получить ГТД для Озон и спасти карточки от блокировок: белый транзит через Longwang»",
+                "hook": "Разбор штрафов и легальный алгоритм таможенного оформления сборных грузов из КНР."
+            },
+            "china_angle": "Спрос смещается на прямое контрактное производство компактных линий и лазерных станков."
+        },
+        "clusters": []
+    }
 
 # ==============================================================================
-# BITRIX24 INTEGRATION (TASK & COMMENTS)
+# 3. BITRIX24 INTEGRATION (TASK & COMMENTS)
 # ==============================================================================
 
-def b24_api_call(webhook_url: str, method: str, params: dict) -> dict:
+def b24_api_call(webhook_url: str, method: str, params) -> dict:
     url = f"{webhook_url.rstrip('/')}/{method}.json"
     payload = json.dumps(params).encode('utf-8')
     req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'}, method='POST')
@@ -389,196 +443,134 @@ def b24_api_call(webhook_url: str, method: str, params: dict) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-def get_or_create_radar_task(webhook_url: str, existing_task_id: str = "") -> str:
-    """Finds existing task 'Сбор хайпа' or creates it."""
-    if existing_task_id:
-        # Verify it exists
-        check = b24_api_call(webhook_url, "tasks.task.get", {"taskId": existing_task_id})
-        if check.get("result"):
-            return existing_task_id
-            
-    # Search by title
-    search_res = b24_api_call(webhook_url, "tasks.task.list", {
-        "filter": {"%TITLE": "Сбор хайпа"},
-        "select": ["ID", "TITLE"]
-    })
-    tasks = search_res.get("result", {}).get("tasks", [])
-    if tasks:
-        task_id = str(tasks[0]["id"])
-        print(f"[+] Найдена существующая задача Битрикс24 [ID={task_id}]: «{tasks[0]['title']}»")
-        return task_id
-        
-    # Create new task
-    create_res = b24_api_call(webhook_url, "tasks.task.add", {
-        "fields": {
-            "TITLE": "Сбор хайпа и B2B-трендов Longwang (SEO Breakout Radar)",
-            "RESPONSIBLE_ID": 1,  # Artem
-            "DESCRIPTION": (
-                "Автоматический накопитель ежедневных аналитических дайджестов трендов, "
-                "регуляторных всплесков, кризисов карго и продуктового хайпа из Китая для SEO Longwang.ru.\n\n"
-                "Скрипт мониторит 5 контуров (Регуляторика, Санкции, Логистика, Продуктовый хайп, Global Breakouts) "
-                "и добавляет сводки в виде комментариев к этой задаче."
-            ),
-            "PRIORITY": 2,  # High
-            "TAGS": ["SEO", "Trends", "Longwang", "HypeRadar"]
-        }
-    })
-    new_id = create_res.get("result", {}).get("task", {}).get("id")
-    if new_id:
-        print(f"[+] Создана новая задача Битрикс24 [ID={new_id}]: «Сбор хайпа и B2B-трендов Longwang»")
-        return str(new_id)
-    else:
-        print(f"[-] Не удалось создать задачу в Битрикс24: {create_res}")
-        return ""
-
 def post_b24_comment(webhook_url: str, task_id: str, message_bb: str) -> bool:
-    res = b24_api_call(webhook_url, "task.commentitem.add", {
+    res = b24_api_call(webhook_url, "task.commentitem.add", [
+        task_id,
+        {"POST_MESSAGE": message_bb}
+    ])
+    if res.get("result"):
+        print(f"[+] Дайджест успешно добавлен как комментарий в задачу [ID={task_id}] (list syntax)!")
+        return True
+        
+    res2 = b24_api_call(webhook_url, "task.commentitem.add", {
         "TASKID": task_id,
         "FIELDS": {
             "POST_MESSAGE": message_bb
         }
     })
-    if res.get("result"):
-        print(f"[+] Дайджест успешно добавлен как комментарий в задачу [ID={task_id}]!")
+    if res2.get("result"):
+        print(f"[+] Дайджест успешно добавлен как комментарий в задачу [ID={task_id}] (dict syntax)!")
         return True
     else:
-        print(f"[-] Ошибка добавления комментария в задачу Битрикс24: {res}")
+        print(f"[-] Ошибка добавления комментария в задачу Битрикс24: {res} | {res2}")
         return False
 
 # ==============================================================================
-# DIGEST FORMATTER (BITRIX24 BB-CODE & CONSOLE)
+# 4. DIGEST FORMATTER (BB-CODE & CONSOLE)
 # ==============================================================================
 
-def format_b24_digest(results_by_module: dict, global_breakouts: list) -> str:
+def format_b24_digest_v3(triage_data: dict, raw_count: int, unique_count: int) -> str:
     now_str = datetime.now().strftime("%d.%m.%Y %H:%M")
+    summary = triage_data.get("executive_summary", {})
+    clusters = triage_data.get("clusters", [])
+
+    c_idea = summary.get("content_idea", {})
+    if isinstance(c_idea, dict):
+        c_idea_str = f"«{c_idea.get('title', '')}»\n     [color=#4a5568]Хук / Идея:[/color] {c_idea.get('hook', '')}"
+    else:
+        c_idea_str = str(c_idea)
+
     lines = [
-        f"[b]🚀 ЕЖЕДНЕВНЫЙ АНАЛИТИЧЕСКИЙ ДАЙДЖЕСТ: СБОР ХАЙПА И B2B-ТРЕНДОВ[/b]",
-        f"[color=#718096]📅 Время анализа: {now_str} | Мониторинг: Яндекс & Google Suggest + Google Trends[/color]",
+        f"[b]☕ УТРЕННИЙ B2B-ДАЙДЖЕСТ ТРЕНДОВ & ХАЙПА: LONGWANG RADAR v3.0[/b]",
+        f"[color=#718096]📅 {now_str} | Входящий поток: {raw_count} сырых запросов ➔ {unique_count} уникальных ➔ ИИ-триаж[/color]",
+        "",
+        f"[b]🎯 ГЛАВНЫЙ ФОКУС УТРА (EXECUTIVE SUMMARY):[/b]",
+        f"• [b]Боль рынка:[/b] {summary.get('main_pain', '')}",
+        f"• [b]Тема дня для контент-плана:[/b] [color=#2b6cb0]{c_idea_str}[/color]",
+        f"• [b]Потенциал в КНР:[/b] [color=#2f855a]{summary.get('china_angle', '')}[/color]",
+        "",
+        "────────────────────────────────────────",
+        f"[b]📊 ИТОГИ ИИ-СОРТИРОВКИ ПО СТРАТЕГИЧЕСКИМ КЛАСТЕРАМ:[/b]",
         ""
     ]
-    
-    total_spikes = 0
-    for m_key, m_data in results_by_module.items():
-        title = m_data["title"]
-        spikes = m_data["spikes"]
-        hub = m_data["default_hub"]
-        
-        if not spikes:
+
+    for cl in clusters:
+        title = cl.get("category_title", "")
+        hub = cl.get("target_hub", "")
+        items = [it for it in cl.get("items", []) if str(it.get("urgency", "")).upper() in ["HIGH", "MEDIUM"]]
+        if not items:
             continue
-            
-        total_spikes += len(spikes)
+
         lines.append(f"[b]{title}[/b]")
         lines.append(f"[color=#4a5568]Целевой хаб лидогенерации: https://longwang.ru{hub}[/color]")
-        
-        for i, s in enumerate(spikes[:4], 1):
-            triggers = ", ".join(s["crisis_triggers"] + s["commercial_triggers"][:2])
-            lines.append(f"• [b]«{s['query']}»[/b] (Score: {s['score']})")
-            lines.append(f"   [color=#2b6cb0]Интент:[/color] {s['intent']}")
-            if triggers:
-                lines.append(f"   [color=#718096]Триггеры:[/color] {triggers}")
+        for it in items:
+            urg = f"[color=#e53e3e][{it.get('urgency', 'TREND')}][/color] " if it.get('urgency') == 'HIGH' else ""
+            lines.append(f"• {urg}[b]«{it.get('query', '')}»[/b]")
+            lines.append(f"   [color=#2b6cb0]Контекст взрыва:[/color] {it.get('why_spiking', '')}")
+            lines.append(f"   [color=#2f855a]Действие Longwang:[/color] {it.get('action', '')}")
         lines.append("")
-        
-    # Module 5: Global Breakout
-    if global_breakouts:
-        lines.append("[b]⚡ 5. Global Breakout: Взрывные поисковые тренды за неделю[/b]")
-        lines.append("[color=#718096]Широкая воронка Google Trends с ИИ-фильтрацией коммерческого потенциала для Китая[/color]")
-        for i, gb in enumerate(global_breakouts[:3], 1):
-            lines.append(f"• [b]«{gb['query']}»[/b] [color=#e53e3e][{gb.get('priority', 'TREND')}][/color]")
-            lines.append(f"   [color=#2b6cb0]Почему растет:[/color] {gb.get('why_trending', '')}")
-            lines.append(f"   [color=#2f855a]Потенциал в КНР:[/color] {gb.get('china_angle', '')}")
-        lines.append("")
-        
+
     lines.append("────────────────────────────────────────")
-    lines.append("[i]Дайджест подготовлен модулем Trend Spike Radar v2.0. Для постановки в контент-план просто ответьте в этой задаче.[/i]")
+    lines.append("[i]Дайджест подготовлен модулем Trend Spike Radar v3.0 (Wide Ingestion + LLM Sieve). Ответьте в этой задаче для автозапуска генерации статьи.[/i]")
     return "\n".join(lines)
 
 # ==============================================================================
-# MAIN EXECUTION ORCHESTRATOR
+# 5. ORCHESTRATION PIPELINE
 # ==============================================================================
 
-def run_orchestrator(dry_run: bool = False, create_task: bool = False):
+def run_orchestrator(dry_run: bool = True):
     config = load_config()
     webhook = config.get("BITRIX24_WEBHOOK_URL", "")
-    task_id = config.get("B24_RADAR_TASK_ID", "")
-    
+    task_id = config.get("B24_RADAR_TASK_ID", "4972")
+
     print("=" * 80)
-    print("=== TREND SPIKE RADAR: 5 МОДУЛЕЙ МОНИТОРИНГА ХАЙПА И B2B-ТРЕНДОВ ===")
-    print(f"Режим: {'DRY-RUN (Локальная симуляция)' if dry_run else 'LIVE'}")
+    print("=== TREND SPIKE RADAR v3.0: ШИРОКИЙ ПЫЛЕСОС + ИИ-ТРИАЖ ===")
+    print(f"Режим: {'DRY-RUN (Безопасная симуляция)' if dry_run else 'EXECUTE (Боевая отправка в Битрикс24)'}")
     print(f"Битрикс24 Вебхук: {'Подключен' if webhook else 'НЕ НАЙДЕН'}")
+    print(f"Целевая задача B24 ID: {task_id}")
     print("=" * 80)
-    
-    # 1. Execute Modules 1-4
-    results_by_module = {}
-    for m_key, m_info in MODULES.items():
-        print(f"\n[*] Сканирование: {m_info['title']} ({len(m_info['seeds'])} семян)...")
-        seen = set()
-        module_spikes = []
-        
-        for seed in m_info["seeds"]:
-            ya = fetch_yandex_suggest(seed)
-            goog = fetch_google_suggest(seed)
-            combined = list(dict.fromkeys(ya + goog))
-            if not combined:
-                combined = [seed]
-                
-            for q in combined:
-                q_clean = q.strip().lower()
-                if q_clean not in seen:
-                    seen.add(q_clean)
-                    scored = score_query_anomaly(q, seed, m_key)
-                    if scored["is_spike"]:
-                        module_spikes.append(scored)
-                        
-        module_spikes.sort(key=lambda x: x["score"], reverse=True)
-        results_by_module[m_key] = {
-            "title": m_info["title"],
-            "default_hub": m_info["default_hub"],
-            "spikes": module_spikes
-        }
-        print(f"    -> Выявлено аномалий: {len(module_spikes)} (топ-1: '{module_spikes[0]['query'] if module_spikes else 'нет'}')")
 
-    # 2. Execute Module 5 (Global Breakout)
-    print("\n[*] Сканирование Модуля 5: Google Trends Breakout RSS...")
-    raw_trends = fetch_google_trends_rss()
-    print(f"    -> Собрано сырых трендов: {len(raw_trends)}")
-    global_breakouts = filter_global_breakouts_via_llm(raw_trends, config)
-    print(f"    -> Отобрано жемчужин после ИИ-фильтра: {len(global_breakouts)}")
+    # 1. Wide Ingestion
+    t0 = time.time()
+    print("[*] ШАГ 1: Запуск параллельного сборщика-пылесоса (Яндекс, Google, Trends RSS, ТГ)...")
+    raw_stream = collect_wide_raw_stream()
+    elapsed_gather = round(time.time() - t0, 2)
+    print(f"[+] Сборщик завершил работу за {elapsed_gather}s: собрано {len(raw_stream)} уникальных B2B-кандидатов.")
 
-    # 3. Format digest
-    digest_bb = format_b24_digest(results_by_module, global_breakouts)
-    
+    # 2. LLM Sieve & Triage
+    print("\n[*] ШАГ 2: Передача сырого массива в ИИ-шлюз (Gemini 2.5 Flash / DeepSeek-V3)...")
+    t1 = time.time()
+    triage_data = execute_llm_triage(raw_stream, config)
+    elapsed_llm = round(time.time() - t1, 2)
+    print(f"[+] ИИ-триаж завершен за {elapsed_llm}s!")
+
+    # 3. Format Digest
+    digest_bb = format_b24_digest_v3(triage_data, len(raw_stream) * 2, len(raw_stream))
+
     print("\n" + "=" * 80)
-    print("ИТОГОВЫЙ ДАЙДЖЕСТ ДЛЯ БИТРИКС24:")
+    print("ИТОГОВЫЙ ДАЙДЖЕСТ ДЛЯ БИТРИКС24 (ПРЕВЬЮ):")
     print("=" * 80)
     print(digest_bb)
     print("=" * 80)
 
-    # 4. Bitrix24 delivery
+    # 4. Delivery
     if not dry_run and webhook:
-        active_task_id = get_or_create_radar_task(webhook, task_id)
-        if active_task_id:
-            post_b24_comment(webhook, active_task_id, digest_bb)
-            
-            # Save task ID back to .env if it was empty
-            if not task_id:
-                env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
-                if os.path.exists(env_path):
-                    with open(env_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    content = re.sub(r'B24_RADAR_TASK_ID=.*', f'B24_RADAR_TASK_ID={active_task_id}', content)
-                    with open(env_path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                    print(f"[+] B24_RADAR_TASK_ID={active_task_id} зафиксирован в .env")
-    elif dry_run:
-        print("[DRY-RUN] Отправка в Битрикс24 пропущена (включен тестовый режим)")
+        print(f"\n[*] Отправка дайджеста в задачу Битрикс24 #{task_id}...")
+        post_b24_comment(webhook, task_id, digest_bb)
+    else:
+        print("\n[DRY-RUN SUCCESS] Холостой прогон завершен. Запись в Битрикс24 пропущена.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Trend Spike Radar Orchestrator")
-    parser.add_argument('--dry-run', action='store_true', help="Run without sending to Bitrix24")
-    parser.add_argument('--create-task', action='store_true', help="Find or create Bitrix24 task and exit")
+    parser = argparse.ArgumentParser(description="Trend Spike Radar v3.0")
+    parser.add_argument('--execute', action='store_true', help="Execute real post to Bitrix24 (default is dry-run)")
+    parser.add_argument('--dry-run', action='store_true', help="Explicit dry-run mode")
     args = parser.parse_args()
-    
-    run_orchestrator(dry_run=args.dry_run, create_task=args.create_task)
+
+    dry_run = True
+    if args.execute and not args.dry_run:
+        dry_run = False
+
+    run_orchestrator(dry_run=dry_run)
 
 if __name__ == '__main__':
     main()

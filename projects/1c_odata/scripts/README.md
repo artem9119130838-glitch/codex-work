@@ -187,10 +187,26 @@ py projects/1c_odata/scripts/audit_tender_sla_compliance.py --days 30 --dwh-sync
 
 ---
 
-## 12. Доступы и окружение
+## 12. `scripts/process_manual_lead_entry.py`
+**Назначение:** Канонический конвейер управляемой ручной/разовой обработки лидов и оффлайн-заявок (Canonical Manual Lead Entry).  
+**Что делает:**
+* Позволяет обрабатывать входящие лиды Битрикс24 с точечной калибровкой параметров (`--lead-id`, `--inn`, `--company`, `--contact`, `--brand`, `--name-ru`, `--name-cn`, `--qty`), если авто-парсер сбился на цитировании старой переписки или неверно определил юрлицо.
+* Обрабатывает оффлайн/спам-заявки без входящего лида с соблюдением всех отраслевых регламентов (стадия `PREPARATION`, общий Диск группы 14 `STORAGE_ID: 46`, отсев юр. документов РФ, задача на Азата `[USER=20]`, скоринг СБИС, лид 1С:УНФ с подбором брендовой папки).
+* Поддерживает обязательный режим предварительного аудита `--dry-run`.
+
+**Использование:**
+```bash
+py projects/1c_odata/scripts/process_manual_lead_entry.py --lead-id 18402 --inn 3442099993 --brand ABB --dry-run
+py projects/1c_odata/scripts/process_manual_lead_entry.py --lead-id 18422 --inn 7730239877 --technical-files 116320 --deadline-today
+```
+
+---
+
+## 13. Доступы и окружение
 * **1С:УНФ OData:** `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/` (`odata.user` для чтения, `odata.writer` для записи).
 * **Битрикс24 Вебхук:** `https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}/`.
 * **DaData Token:** `${DADATA_API_KEY}`.
 * **Saby / СБИС Сессия:** `${SABY_LOGIN}` / `${SABY_PASSWORD}`.
 * **PostgreSQL DWH:** `${PG_HOST}:${PG_PORT}/${PG_DBNAME}` (`marketing_db`).
+
 

@@ -386,6 +386,7 @@
 | **Базовый** | `print_items_35_36_38.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/print_items_35_36_38.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `process_b24_contact_inquiries.py` | `projects/1c_odata/scripts/process_b24_contact_inquiries.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `process_b24_inbound_leads.py` | `projects/1c_odata/scripts/process_b24_inbound_leads.py` | !/usr/bin/env python3 | 0 |
+| **Базовый** | `process_manual_lead_entry.py` | `projects/1c_odata/scripts/process_manual_lead_entry.py` | Управляемая ручная обработка лидов и оффлайн-заявок (Canonical Manual Lead Entry) | 0 |
 | **Базовый** | `process_b24_inbound_leads.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/process_b24_inbound_leads.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `process_batch_pipeline.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/process_batch_pipeline.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `process_deals_batch_azat.py` | `projects/1c_odata/scripts/process_deals_batch_azat.py` | !/usr/bin/env python3 | 0 |
