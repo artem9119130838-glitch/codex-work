@@ -584,14 +584,18 @@ def is_technical_inquiry_file(filename: str) -> bool:
     }
     return ext in allowed_exts
 
-def get_deadline_business_days(days=4, today=False):
+def get_deadline_business_days(days=4, today=False, tomorrow=False):
     """
     Рассчитывает дедлайн задачи в рабочих днях (за вычетом сб и вс) к 18:00.
     Если today=True, устанавливает дедлайн на сегодня к 18:00.
+    Если tomorrow=True, устанавливает дедлайн на завтра к 18:00 (+1 календарный день).
     """
     cur = datetime.datetime.now()
     if today:
         cur = cur.replace(hour=18, minute=0, second=0, microsecond=0)
+        return cur.strftime("%Y-%m-%dT%H:%M:%S+03:00")
+    if tomorrow:
+        cur = (cur + datetime.timedelta(days=1)).replace(hour=18, minute=0, second=0, microsecond=0)
         return cur.strftime("%Y-%m-%dT%H:%M:%S+03:00")
     added = 0
     while added < days:
@@ -674,7 +678,9 @@ def extract_phone_and_signature_details(text: str) -> dict:
     if not text:
         return {"phone": "", "contact_phone": "", "company_phone": "", "ext": "", "post": "", "website": ""}
 
-    clean_text = re.sub(r'<[^>]+>', ' ', text)
+    # Изолируем блоки цитат переписки (чтобы не парсить подписи и реквизиты нашей компании)
+    text_clean_quotes = re.sub(r'<(?:blockquote|div class=["\']mail-quote[^"\']*["\'])[^>]*>.*?</(?:blockquote|div)>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
+    clean_text = re.sub(r'<[^>]+>', ' ', text_clean_quotes)
     clean_text = unescape(clean_text)
     clean_text = clean_text.replace('\xa0', ' ')
 
@@ -684,11 +690,12 @@ def extract_phone_and_signature_details(text: str) -> dict:
     
     extracted = []
     seen = set()
+    own_phones = {'78125091245'}
     for m in matches:
         raw_p = m.group(0).strip()
         norm_p, ext = normalize_phone_number(raw_p)
         digits = re.sub(r'\D', '', norm_p)
-        if len(digits) == 11 and norm_p not in seen:
+        if len(digits) == 11 and digits not in own_phones and norm_p not in seen:
             seen.add(norm_p)
             code = digits[1:4]
             # Мобильные номера РФ начинаются на 9 (900-999)
@@ -738,7 +745,7 @@ def extract_phone_and_signature_details(text: str) -> dict:
     m_web = re.search(r'(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9\-_]{2,}\.(?:ru|com|su|рф|cn|org|net))', clean_text, flags=re.IGNORECASE)
     if m_web:
         w_val = m_web.group(0).strip()
-        if not any(dm in w_val.lower() for dm in ["yandex", "mail.ru", "gmail", "bk.ru", "inbox.ru"]):
+        if not any(dm in w_val.lower() for dm in ["yandex", "mail.ru", "gmail", "bk.ru", "inbox.ru", "longwang.ru", "longwang"]):
             website = w_val
 
     return {
@@ -861,7 +868,9 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     - Очищенный оригинальный текст запроса клиента
     - Список распарсенных позиций (items)
     """
-    clean_lines_text = sanitize_html_email_text(email_desc or "")
+    # Изолируем блоки цитирования предыдущей переписки
+    email_desc_no_quotes = re.sub(r'<(?:blockquote|div class=["\']mail-quote[^"\']*["\'])[^>]*>.*?</(?:blockquote|div)>', ' ', email_desc or '', flags=re.DOTALL | re.IGNORECASE)
+    clean_lines_text = sanitize_html_email_text(email_desc_no_quotes or email_desc or "")
     clean_text = " ".join(clean_lines_text.split())
 
     # 1. Извлечение оригинального текста запроса клиента (до подписи)
@@ -1143,7 +1152,7 @@ def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_
 # Совместимость с предыдущими вызовами
 bind_lead_activities_to_deal = bind_lead_activities_triple
 
-def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_AZAT, group_id=GROUP_CHINA_SUPPLY, deadline_days=4, deadline_today=False, file_ids=None, dry_run=False):
+def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_AZAT, group_id=GROUP_CHINA_SUPPLY, deadline_days=4, deadline_today=False, deadline_tomorrow=False, file_ids=None, dry_run=False):
     if not dry_run and deal_id:
         existing_tasks = call_b24("tasks.task.list", {
             "filter": {"UF_CRM_TASK": f"D_{deal_id}", "GROUP_ID": group_id},
@@ -1167,7 +1176,7 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
             call_b24("tasks.task.update", {"taskId": existing_id, "fields": upd_fields})
             return existing_id
 
-    deadline_str = get_deadline_business_days(days=deadline_days, today=deadline_today)
+    deadline_str = get_deadline_business_days(days=deadline_days, today=deadline_today, tomorrow=deadline_tomorrow)
     fields = {
         "TITLE": title,
         "DESCRIPTION": description,
@@ -1418,7 +1427,7 @@ def evaluate_reseller_and_ghost_signals(dadata_info: dict, saby_info: dict, cont
 # ----------------------------------------------------------------------
 # Единый универсальный обработчик любого лида (Universal Lead Pipeline)
 # ----------------------------------------------------------------------
-def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4) -> dict:
+def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, deadline_tomorrow: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4) -> dict:
     lead = call_b24("crm.lead.get", {"id": lead_id})
     if not lead:
         print(f"[ERROR] Лид #{lead_id} не найден в Битрикс24")
@@ -1514,24 +1523,46 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     clean_comments_text = sanitize_html_email_text(lead_comments or '')
     full_search_text = f"{lead_title} {clean_desc_text} {clean_comments_text}"
 
+    own_company_stopwords = {'лун-ван', 'лун ван', 'longwang', 'long wang', 'longwang.ru'}
+    def is_valid_company_cand(c_str):
+        if not c_str or len(c_str.strip()) < 3:
+            return False
+        c_low = c_str.lower()
+        if any(sw in c_low for sw in own_company_stopwords):
+            return False
+        inner = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', c_str).strip().lower()
+        if inner in placeholders or inner in stop_words_tail or len(inner) < 2:
+            return False
+        return True
+
     if not raw_company_title or raw_company_title.strip().lower() in placeholders:
         m_comp_comment = re.search(r'компания:?\s*([A-Za-zА-Яа-я0-9\-_«»""\s]+)', f"{clean_comments_text} {lead_title}", flags=re.IGNORECASE)
-        m_quoted = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]([A-Za-zА-Яа-я0-9\-_ ]{2,35})[»"\'”]', f"{clean_comments_text} {full_search_text}")
-        if m_comp_comment and len(m_comp_comment.group(1).strip()) >= 3:
+        if m_comp_comment and is_valid_company_cand(m_comp_comment.group(1).split('\n')[0].strip()):
             raw_company_title = m_comp_comment.group(1).split('\n')[0].strip()
-        elif m_quoted:
-            raw_company_title = m_quoted.group(0).strip()
-        else:
-            m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', full_search_text)
-            if m_comp:
-                cand = m_comp.group(0).strip()
-                cand_inner = m_comp.group(1).strip()
-                if cand_inner and len(cand_inner) >= 2 and cand_inner.lower() not in placeholders and cand_inner.lower() not in stop_words_tail:
-                    raw_company_title = cand
+
+        # Поиск компании в lead_title и email_subject (высший приоритет)
+        if not raw_company_title or raw_company_title.strip().lower() in placeholders:
+            for src_txt in [lead_title, email_subject]:
+                m_q = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]([A-Za-zА-Яа-я0-9\-_ ]{2,35})[»"\'”]', src_txt)
+                if m_q and is_valid_company_cand(m_q.group(0)):
+                    raw_company_title = m_q.group(0).strip()
+                    break
+                m_noq = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', src_txt)
+                if m_noq and is_valid_company_cand(m_noq.group(0)):
+                    raw_company_title = m_noq.group(0).strip()
+                    break
+
+        # Поиск в общем тексте (за вычетом собственной компании LongWang)
+        if not raw_company_title or raw_company_title.strip().lower() in placeholders:
+            m_quoted = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]([A-Za-zА-Яа-я0-9\-_ ]{2,35})[»"\'”]', f"{clean_comments_text} {full_search_text}")
+            if m_quoted and is_valid_company_cand(m_quoted.group(0)):
+                raw_company_title = m_quoted.group(0).strip()
+            else:
+                m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', full_search_text)
+                if m_comp and is_valid_company_cand(m_comp.group(0)):
+                    raw_company_title = m_comp.group(0).strip()
                 else:
                     raw_company_title = ""
-            else:
-                raw_company_title = ""
 
     # Поиск ИНН в тексте, комментариях или теле письма
     combined_text = f"{lead_title} {raw_company_title} {clean_comments_text} {email_subject} {clean_desc_text}"
@@ -1565,6 +1596,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     file_names = []
     is_huge_excel_bulk = False
     for a in acts:
+        # Исключаем файлы из исходящих писем сотрудника LongWang
+        if str(a.get("DIRECTION")) == "2":
+            continue
         act_full = call_b24("crm.activity.get", {"id": a.get("ID")})
         if act_full and act_full.get("FILES"):
             for f in act_full.get("FILES"):
@@ -1699,6 +1733,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     saby_info = {}
     classification = {}
     scoring_summary_text = ""
+    onec_comment_str = ""
     if inn:
         try:
             from check_contractor import verify_and_enrich_contractor, format_sbis_summary
@@ -1725,6 +1760,13 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                     print(f"   - Присвоенные теги СБИС: {contractor_tags}")
         except Exception as e:
             print(f"   [WARN] Ошибка модуля check_contractor: {e}")
+
+    if classification:
+        try:
+            from check_contractor import format_onec_comment
+            onec_comment_str = format_onec_comment({"classification": classification, "dadata": dadata_info, "saby": saby_info})
+        except Exception:
+            onec_comment_str = ""
 
     company_website = sig_info.get("website") or (dadata_info.get("website") if dadata_info else None) or (dadata_info.get("site") if dadata_info else None) or (saby_info.get("site") if saby_info else None)
     if not company_website and contact_email and "@" in contact_email:
@@ -1790,7 +1832,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         rfq_reason = f"Сработал Reseller, Bulk Multi-Item & Ghost RFQ Guard ({', '.join(trigger_reasons)}) -> блокировка снабжения, ручной контроль менеджера"
 
     # Принудительные пользовательские исключения (User Override Guard)
-    USER_APPROVED_RFQ_LEADS = {17838, 18188, 18108}
+    USER_APPROVED_RFQ_LEADS = {17838, 18188, 18108, 8534}
     if force or int(lead_id) in USER_APPROVED_RFQ_LEADS:
         is_rfq = True
         rfq_reason = "Принудительный допуск в Clear RFQ по прямому указанию пользователя (создание Сделки и Задачи снабжению)"
@@ -1800,7 +1842,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     task_dead_days = deadline_days if deadline_days is not None else 4
     task_resp_id = responsible_id if responsible_id else USER_AZAT
-    deadline_plan = get_deadline_business_days(days=task_dead_days, today=deadline_today)
+    deadline_plan = get_deadline_business_days(days=task_dead_days, today=deadline_today, tomorrow=deadline_tomorrow)
 
     # ---------------- ВЕТКА Б: Неоднозначное или перепродажное обращение ----------------
     if not is_rfq:
@@ -2197,6 +2239,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         group_id=GROUP_CHINA_SUPPLY,
         deadline_days=task_dead_days,
         deadline_today=deadline_today,
+        deadline_tomorrow=deadline_tomorrow,
         file_ids=supply_disk_ids
     )
     resp_name = "Мисс Ван" if task_resp_id == USER_MISS_WANG else "Азат"
@@ -2277,6 +2320,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             "СостояниеЛида_Key": "0c989b06-70c5-11ed-b990-f01898a67170",
             "Комментарий": onec_comment_str
         }
+        if tag_rows:
+            lead_payload["Теги"] = tag_rows
         if brand_folder_key:
             lead_payload["Parent_Key"] = brand_folder_key
             print(f"  [1C] Лид будет размещен в профильную папку бренда (Parent_Key: {brand_folder_key})")
@@ -2569,6 +2614,7 @@ def main():
     parser.add_argument("--inspect", action="store_true", default=False, help="Инспекция лида и его вложений без выполнения")
     parser.add_argument("--repair-lead", type=int, help="Специальный режим: перепривязать письма, обновить телефон, ТЗ задачи и проверить результат для ранее обработанного лида")
     parser.add_argument("--deadline-today", action="store_true", default=False, help="Установить дедлайн задачи на сегодня к 18:00")
+    parser.add_argument("--deadline-tomorrow", action="store_true", default=False, help="Установить дедлайн задачи на завтра к 18:00")
     parser.add_argument("--lead-id", type=int, help="ID конкретного лида для точечной обработки")
     parser.add_argument("--leads", type=int, nargs="+", help="Список ID лидов через пробел")
     parser.add_argument("--mailbox", type=str, help="Фильтрация лидов по почтовому ящику (например, sales@longwang.ru)")
@@ -2633,6 +2679,7 @@ def main():
             lead_id=lid,
             dry_run=dry_run,
             deadline_today=args.deadline_today,
+            deadline_tomorrow=args.deadline_tomorrow,
             send_reply=(not args.no_reply),
             force=args.force,
             responsible_id=resp_id,

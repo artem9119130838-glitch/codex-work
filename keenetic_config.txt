@@ -1,0 +1,252 @@
+! $$$ Model: ZyXEL Keenetic Omni II
+! $$$ Version: 2.06.1
+! $$$ Agent: http/ci
+! $$$ Last change: Thu,  1 Jan 1970 00:24:10 GMT
+! $$$ Md5 checksum: e62de03a937f47cd3f0d497dad61c07a
+
+system
+    set net.ipv4.ip_forward 1
+    set net.ipv4.tcp_fin_timeout 30
+    set net.ipv4.tcp_keepalive_time 120
+    set net.ipv4.neigh.default.gc_thresh1 256
+    set net.ipv4.neigh.default.gc_thresh2 1024
+    set net.ipv4.neigh.default.gc_thresh3 2048
+    set net.ipv6.neigh.default.gc_thresh1 256
+    set net.ipv6.neigh.default.gc_thresh2 1024
+    set net.ipv6.neigh.default.gc_thresh3 2048
+    set net.netfilter.nf_conntrack_tcp_timeout_established 1200
+    set net.netfilter.nf_conntrack_max 8192
+    set vm.swappiness 60
+    set vm.overcommit_memory 0
+    set vm.vfs_cache_pressure 1000
+    clock timezone Europe/Moscow
+    clock date 17 Oct 2026 19:23:54
+    domainname WORKGROUP
+    hostname Keenetic_Omni
+!
+ntp server 0.pool.ntp.org
+ntp server 1.pool.ntp.org
+ntp server 2.pool.ntp.org
+ntp server 3.pool.ntp.org
+isolate-private
+user admin
+    password md5 87d69f4ad5230a82d1adcf0496a84adb
+    password nt 209c6174da490caeb422f3fa5a7ae634
+    tag cli
+    tag http
+    tag ftp
+    tag cifs
+    tag printers
+    tag torrent
+!
+dyndns profile _WEBADMIN
+!
+interface FastEthernet0
+    up
+!
+interface FastEthernet0/0
+    rename 0
+    switchport mode access
+    switchport access vlan 2
+    up
+!
+interface FastEthernet0/1
+    rename 1
+    switchport mode access
+    switchport access vlan 1
+    up
+!
+interface FastEthernet0/2
+    rename 2
+    switchport mode access
+    switchport access vlan 1
+    up
+!
+interface FastEthernet0/3
+    rename 3
+    switchport mode access
+    switchport access vlan 1
+    up
+!
+interface FastEthernet0/4
+    rename 4
+    switchport mode access
+    switchport access vlan 1
+    up
+!
+interface FastEthernet0/Vlan1
+    description "Home VLAN"
+    security-level private
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    up
+!
+interface FastEthernet0/Vlan2
+    rename ISP
+    description "Broadband connection"
+    mac address 06:12:c3:d1:d6:12
+    mac address factory wan
+    security-level public
+    ip address dhcp
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    igmp upstream
+    up
+!
+interface FastEthernet0/Vlan3
+    description "Guest VLAN"
+    security-level private
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    up
+!
+interface WifiMaster0
+    country-code RU
+    compatibility BGN
+    channel width 40-below
+    power 100
+    up
+!
+interface WifiMaster0/AccessPoint0
+    rename AccessPoint
+    description "Wi-Fi access point"
+    mac access-list type none
+    security-level private
+    wps
+    wps no auto-self-pin
+    authentication wpa-psk ns3 fwP09X7u7Y5Tub2tUri0izrH
+    encryption enable
+    encryption wpa2
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    ssid ZyXEL_KEENETIC_OMNI_II_0B7472
+    wmm
+    up
+!
+interface WifiMaster0/AccessPoint1
+    rename GuestWiFi
+    description "Guest access point"
+    mac access-list type none
+    security-level private
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    ssid Guest
+    wmm
+    down
+!
+interface WifiMaster0/AccessPoint2
+    mac access-list type none
+    security-level private
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    down
+!
+interface WifiMaster0/AccessPoint3
+    mac access-list type none
+    security-level private
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    down
+!
+interface WifiMaster0/WifiStation0
+    security-level public
+    encryption disable
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    down
+!
+interface Bridge0
+    rename Home
+    description "Home network"
+    inherit FastEthernet0/Vlan1
+    include AccessPoint
+    security-level private
+    ip address 192.168.1.1 255.255.255.0
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    igmp downstream
+    up
+!
+interface Bridge1
+    rename Guest
+    description "Guest network"
+    traffic-shape rate 5120
+    inherit FastEthernet0/Vlan3
+    include GuestWiFi
+    security-level protected
+    ip address 10.1.30.1 255.255.255.0
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    up
+!
+interface PPPoE0
+    description "Internet (NetFriend)"
+    no ipv6cp
+    lcp echo 30 3
+    ipcp default-route
+    ipcp name-servers
+    ipcp dns-routes
+    no ccp
+    security-level public
+    authentication identity k-nag29k2
+    authentication password ns3 qCf1MbMqPkCCtJkE+GGw8qhn
+    authentication pap
+    authentication chap
+    authentication mschap
+    authentication mschap-v2
+    ip dhcp client dns-routes
+    ip dhcp client name-servers
+    ip mtu 1492
+    ip global 1000
+    ip tcp adjust-mss pmtu
+    connect via ISP
+    up
+!
+ip dhcp pool _WEBADMIN
+    range 192.168.1.33 192.168.1.72
+    bind Home
+    enable
+!
+ip dhcp pool _WEBADMIN_GUEST_AP
+    range 10.1.30.33 10.1.30.52
+    bind Guest
+    enable
+!
+ip http security-level private
+ip http lockout-policy 5 15 3
+ip nat Home
+ip nat Guest
+ip telnet
+    security-level private
+    lockout-policy 5 15 3
+!
+ip ftp
+    security-level private
+!
+ppe software
+ppe hardware
+upnp lan Home
+torrent
+    rpc-port 8090
+    peer-port 51413
+!
+service dhcp
+service dns-proxy
+service igmp-proxy
+service http
+service cifs
+service telnet
+service ntp-client
+service upnp
+cifs
+    automount
+    permissive
+!
+easyconfig check
+    period 15
+    max-fails 3
+    host google.com
+    host facebook.com
+    host yahoo.com
+!
+!
