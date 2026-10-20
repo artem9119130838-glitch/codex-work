@@ -332,12 +332,16 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                             clean_ci.append({
                                 "LineNumber": str(len(clean_ci) + 1),
                                 "Тип": "АдресЭлектроннойПочты",
-                                "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
+                                "Вид_Key": "5c0dc758-23c6-11ed-91a8-a068f8f3337c",  # EmailКонтрагента
                                 "Представление": primary_email,
                                 "АдресЭП": primary_email,
                                 "ДоменноеИмяСервера": primary_email.split("@")[-1],
                                 "ЗначенияПолей": f'{{"EMail":"{primary_email}"}}'
                             })
+                            # Strict CI Invariant Guard: защита от попадания видов КИ лида в контрагента
+                            for r in clean_ci:
+                                if r.get("Вид_Key") == "5c0dc769-23c6-11ed-91a8-a068f8f3337c":
+                                    r["Вид_Key"] = "5c0dc758-23c6-11ed-91a8-a068f8f3337c"
                             requests.patch(f"{ODATA_BASE}/Catalog_Контрагенты(guid'{existing_counterparty_guid}')?$format=json", json={"КонтактнаяИнформация": clean_ci}, auth=auth, headers=headers, timeout=15)
                             print(f"  [1C] Email {primary_email} добавлен в Контактную Информацию контрагента {cp_desc}")
         except Exception as e_cp:
