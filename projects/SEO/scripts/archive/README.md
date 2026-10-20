@@ -6,4 +6,7 @@
 | `apply_wp_onpage_fixes_v1.1.py` | v1.1 | 2026-10-12 | Спринт 1: Внедрение B2B Callout-блоков в статьи блога и обновление метаданных коммерческих хабов через WP REST API. |
 | `trend_spike_radar_v2.0.py` | v2.0 | 2026-10-13 | Исходная версия 5-модульного радара хайпа и B2B-трендов с выгрузкой в задачу Битрикс24. |
 | `trend_spike_radar_v2.1.py` | v2.1 | 2026-10-15 | Стабильная версия с fallback на DeepSeek-V3, дедупликацией и утренним Executive Coffee Summary. |
-| `trend_spike_radar.py` | v3.0 | 2026-10-15 | Архитектура «Широкий пылесос» (Яндекс/Google Autocomplete + Trends RSS + ТГ) + чистый ИИ-триаж на Gemini 2.5 Flash / DeepSeek. |
+| `trend_spike_radar_v3.0.py` | v3.0 | 2026-10-15 | Архитектура «Широкий пылесос» (Яндекс/Google Autocomplete + Trends RSS + ТГ) + чистый ИИ-триаж на Gemini 2.5 Flash / DeepSeek. |
+| `trend_spike_radar_v3.1.py` | v3.1 | 2026-10-20 | DeepSeek Primary с Gemini Fallback, Hard Token Guard (10k лимит + авто-алерт в B24), ТОП-20 B2B тем и полный список кандидатов под спойлером. |
+| `trend_spike_radar.py` | v4.0 | 2026-10-20 | Полный отказ от масок (Zero Masks). Прямой парсинг реальных трендов Google Trends Russia (200+ взрывов), жесткая сортировка по силе взрыва (100k+, 50k+, 20k+) и секторная раскладка ИИ. |
+| `fetch_elox_prom_emails_v1.0.py` | v1.0 | 2026-10-20 | Утилита извлечения переписки клиента из IMAP sales@longwang.ru для сбора фактуры производственных B2B-кейсов. |

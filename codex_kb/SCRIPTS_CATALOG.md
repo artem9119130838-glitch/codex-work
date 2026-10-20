@@ -1525,7 +1525,8 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
-| **Боевой канонический** | `trend_spike_radar.py` | `projects/SEO/scripts/trend_spike_radar.py` | 5-модульный радар перехвата B2B-хайпа, кризисов карго, регуляторики и трендов Google с публикацией в задачу Б24 #4972 и DWH | 0 |
+| **Боевой канонический** | `trend_spike_radar.py` | `projects/SEO/scripts/trend_spike_radar.py` | v4.0 (Zero-Mask). Чистый перехват объективных взрывных трендов Google Trends (сортировка 100k+, 50k+, 20k+), DeepSeek-V3 под Hard Token Guard (15k токенов) и автопубликация в задачу Б24 #4972 | 0 |
+| **Вспомогательный** | `fetch_elox_prom_emails.py` | `projects/SEO/scripts/fetch_elox_prom_emails.py` | IMAP-сборщик переписки заказчиков (sales@longwang.ru) для извлечения производственной фактуры B2B-кейсов | 0 |
 | **Боевой канонический** | `verify_sprint_2_indexation_and_donors.py` | `projects/SEO/scripts/verify_sprint_2_indexation_and_donors.py` | Аппаратный аудит 12 страниц Спринта 2 (HTTP, robots, canonical, GSC) и проверка донора ruselectronic.com в GoGetLinks | 0 |
 | **Боевой канонический** | `apply_wp_onpage_fixes.py` | `projects/SEO/scripts/apply_wp_onpage_fixes.py` | Автоматизированное внедрение On-Page правок, ликвидация 301-редиректов и перелинковка через WP REST API | 2 |
 | **Вспомогательный** | `analyze_gogetlinks.py` | `projects/SEO/scripts/analyze_gogetlinks.py` | Анализ ссылочного профиля биржи GoGetLinks и оценка распределения анкоров | 0 |
