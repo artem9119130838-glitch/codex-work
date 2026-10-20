@@ -39,6 +39,7 @@
 - **Subagent Context Purge Guard:** Задачи объемного поиска по каталогу скриптов, аудита истории чатов и чтения тяжелых логов (>15 КБ) выполнять СТРОГО через саб-агента `invoke_subagent`. Саб-агент считывает сырые массивы данных, возвращает в основной чат 3–5 строк чистого итога и сгорает, очищая память.
 - **Single-Source Task Registry:** Кадровые реестры задач ведутся в Markdown (`tasks_registry_<name>.md`). Таблицы `.xlsx` — строго производные витрины.
 - **Top-Level Anti-Pollution Guard:** Запрещено засорять `AGENTS.md` прикладными деталями проектов (договоры, частные шаблоны, списки полей, специфика отдельных воронок). Корневой файл — ультра-легкий маршрутизатор (< 23 КБ). Все детальные правила и отраслевые регламенты ведутся строго в локальных манифестах (`projects/...`, `codex_kb/20_domains/...`).
+- **Deal & Domain Isolation Invariant:** Контекст сделок по кастомным металлоизделиям (гидроцилиндры, трубы, штоки, чертежи, рекламации и допуски) строго изолируется внутри выделенных сессий. Запрещено подтягивать детали металлоизделий в общие задачи Price Clearing (таможня, пошлины, сборные грузы, чужие лиды), и наоборот.
 
 ---
 
@@ -98,7 +99,7 @@
 | 1С:УНФ, OData, БСП JSON, скоринг | **ERP 1С:УНФ** | [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md) |
 | Тендер, ГОЗ, АСТ ГОЗ, извещение | **Тендерный RAG** | [TENDER_RAG_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_RAG_POLICY.md) |
 | Тендер ↔ Снабжение SLA, закупки КНР | **Тендер-Снабжение SLA** | [TENDER_SUPPLY_SLA_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_SUPPLY_SLA_POLICY.md) |
-| Китай, фабрика, поставщики, снабжение | **Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md) |
+| Китай, фабрика, снабжение, металлоизделия, трубы/штоки | **Снабжение КНР** | [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md) |
 | VPS, сервер, docker, nginx, порт | **VPS & DevOps** | [INFRA_VPS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md) |
 | Victus, Xbox, роутер, техника, GPU | **Личная техника & Victus** | [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md) |
 | Metabase, дашборд, воронка, SQL | **Аналитика BI** | [METABASE_ANALYTICS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md) |
