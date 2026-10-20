@@ -3,6 +3,18 @@
 > **Статус документа:** Непререкаемый устав системного администрирования, защиты от сбоев и правил выполнения команд на сервере VPS.  
 > **Сервер:** `109.248.170.181` (Ubuntu 22.04 LTS). Авторизация строго по SSH-ключу: `C:/Users/Artem/.ssh/id_ed25519_wlisses` под root. Вход по паролю отключен.  
 > **Связанные навыки:** [linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md), [infra_management](file:///C:/Users/Артем/.gemini/config/skills/infra_management/SKILL.md).
+> **Аварийный регламент (DRP):** [VPS_DISASTER_RECOVERY_RUNBOOK.md](file:///C:/Codex/codex_kb/30_runbooks/VPS_DISASTER_RECOVERY_RUNBOOK.md).
+
+## Оглавление (TOC 1–35)
+1. [Режим Strict Change Policy & Согласование](#1-режим-strict-change-policy--согласование-l3-l5)
+2. [Группировка команд и защита от бана (Anti-Ban)](#2-группировка-команд-и-защита-от-бана-anti-ban--token-economy)
+3. [Стандарты Docker Compose и защита сетей](#3-стандарты-docker-compose-и-защита-сетей)
+4. [Защита дискового ввода-вывода и целостность n8n](#4-защита-дискового-ввода-вывода-и-целостность-n8n)
+5. [Запрет создания дублирующих скриптов](#5-запрет-создания-дублирующих-скриптов-no-duplicate-scripts-guard)
+6. [Запрет коллизий веб-серверов (Apache vs Nginx)](#6-запрет-коллизий-веб-серверов-apache-vs-nginx-collision-guard)
+7. [Проверка восстановления после сбоев](#7-проверка-восстановления-после-сбоев-post-failure-verification)
+8. [Unix LF & Tar Live-Log Invariant](#8-unix-lf--tar-live-log-invariant)
+9. [Аварийное восстановление VPS за 20–30 минут (DRP)](#9-аварийное-восстановление-vps-за-2030-минут-drp)
 
 ---
 
@@ -34,9 +46,9 @@
 
 ## 5. Запрет создания дублирующих скриптов (No-Duplicate Scripts Guard)
 - Категорически запрещено создавать новые скрипты бэкапов, дампов баз данных или мониторинга диска, если на VPS уже функционируют боевые скрипты:
-  - `/Storage/run_server_backup.sh`
-  - `/Storage/backup-sql.sh`
-  - `/Storage/monitor_disk.sh`
+  - `/Storage/run_server_backup.sh` (полный бэкап сервера)
+  - `/Storage/backup-sql.sh` (ежедневный бэкап 1С)
+  - `/Storage/monitor_disk.sh` (мониторинг диска с алертом в Б24)
   - `/usr/local/bin/n8n-sqlite-auto-vacuum.sh`
 - Перед разработкой любых скриптов инфраструктуры ассистент обязан свериться с `scripts/vps/VPS_SCRIPTS_MANIFEST.md` и каталогом `SCRIPTS_CATALOG.md` (Раздел 14).
 - Все скрипты на VPS должны быть зеркалированы в локальный каталог `scripts/vps/`.
@@ -51,3 +63,16 @@
 ## 7. Проверка восстановления после сбоев (Post-Failure Verification)
 - После ликвидации ошибок переполнения диска или перезапуска сервисов ИИ-ассистент обязан проверить статус всех связанных контейнеров Docker, портов и системных служб.
 - Категорически запрещено завершать сессию, не убедившись, что все необходимые сервисы (включая n8n, n8n-eng, Metabase, 3x-ui и API) перезапущены, успешно слушают свои порты (`ss -tulpn`) и отдают корректные HTTP-ответы.
+
+---
+
+## 8. Unix LF & Tar Live-Log Invariant
+- **Строгий Unix LF:** Все bash-скрипты на VPS (`/Storage/*.sh`, `/root/*.sh`, `/usr/local/bin/*.sh`) обязаны иметь окончания строк strictly Unix LF (`\n`). Сохранение Windows CRLF (`\r\n`) ведет к скрытому сбою в cron (`syntax error near unexpected token 'do\r'`), так как crontab глушит stderr (`>/dev/null 2>&1`). Перед сохранением любого скрипта на VPS обязательна проверка синтаксиса: `bash -n script.sh`.
+- **Tar Live-Log Rule:** При архивации каталогов с работающими службами (журналы регистрации 1С `.lgd`, базы SQLite, системные сокеты) архиватор `tar` обязан вызываться с флагом `--warning=no-file-changed`. Без этого флага изменение лога ядром 1С во время чтения возвращает код `1`, что ложно прерывает bash-скрипты, работающие под `set -e`.
+
+---
+
+## 9. Аварийное восстановление VPS за 20–30 минут (DRP)
+- Полный аварийный снимок сервера снимается каждое воскресенье в 02:00 через `/Storage/run_server_backup.sh` и выгружается на локальный диск `D:\server-backups` через `scripts/download_vps_backup.ps1`.
+- Подробный пошаговый регламент разворота (восстановление сети и VPN за 5 мин, параллельный импорт баз 1С в 4 потока за 12 мин, запуск Docker и AI-проектов за 5 мин) зафиксирован в:  
+  👉 [VPS_DISASTER_RECOVERY_RUNBOOK.md](file:///C:/Codex/codex_kb/30_runbooks/VPS_DISASTER_RECOVERY_RUNBOOK.md).

@@ -64,7 +64,9 @@ codex_kb\90_sources\SOURCE_MAP.md
 - `CHAT_DISPATCHER.md`
 - `10_assets\SERVER_VPS.md`
 - `10_assets\ROUTER_AND_VPN.md`
-- нужный runbook из `30_runbooks`
+- `20_domains\infra_vps\INFRA_VPS_POLICY.md`
+- `30_runbooks\VPS_DISASTER_RECOVERY_RUNBOOK.md`
+- `30_runbooks\SERVER_OPS_RUNBOOK.md`
 - `progress\SERVER_INFRA_PROGRESS.md`
 
 ### Bitrix задачи / календарь

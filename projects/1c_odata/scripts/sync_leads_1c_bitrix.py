@@ -1013,7 +1013,11 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
         "fomichevaiv@amz.ru",
         "d.supkareva@himkompleks.ru",
         "denis.kitaev@gfdrinks.ch",
-        "crudeoil23@yandex.ru"
+        "crudeoil23@yandex.ru",
+        "petrova_v@liman-group.ru",
+        "muntyan.pv@npolem.ru",
+        "froman@pantheon.asia",
+        "a.zaikin@gmt-pro.ru"
     ]
     for cb in confirmed_bounces:
         bounced_emails.add(cb)
@@ -1204,6 +1208,61 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             "phone": "",
             "tags": [TAG_PRODUCTION, TAG_END_BUYER],
             "city": "Тюмень"
+        },
+        "dikikh.oy@khrunichev.ru": {
+            "query": "7730239877",
+            "name": "АО «ГКНПЦ им. М.В. Хруничева»",
+            "inn": "7730239877",
+            "contact_name": "Диких Ольга Ярославовна",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Москва",
+            "onec_guid": "4821e652-13c6-11f0-9f5b-02006df8aab5"
+        },
+        "vinogradov.av@terex-group.ru": {
+            "query": "ООО Терекс-Групп",
+            "name": "ООО «ТЕРЕКС-ГРУПП»",
+            "inn": "",
+            "contact_name": "Виноградов Антон",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Москва"
+        },
+        "sales@opalubka-ekb.ru": {
+            "query": "ООО Опалубка Екатеринбург",
+            "name": "ООО «ОПАЛУБКА-ЕКАТЕРИНБУРГ»",
+            "inn": "",
+            "contact_name": "Игорь Чехомов",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Екатеринбург"
+        },
+        "vsevolod.m@chinascout.ru": {
+            "query": "China Scout",
+            "name": "ООО «ЧАЙНА СКАУТ»",
+            "inn": "",
+            "contact_name": "Всеволод",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Москва"
+        },
+        "496302135@qq.com": {
+            "query": "Enzo Cargo",
+            "name": "Enzo Cargo",
+            "inn": "",
+            "contact_name": "Enzo",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Гуанчжоу"
+        },
+        "prommarket79@bk.ru": {
+            "query": "ООО Проммаркет",
+            "name": "ООО «ПРОММАРКЕТ»",
+            "inn": "",
+            "contact_name": "Юрий Досаев",
+            "phone": "",
+            "tags": [TAG_RESELLER],
+            "city": "Москва"
         }
     }
 
@@ -1265,20 +1324,28 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
 
         # 1C Lead search (СТРОГО без пустых условий, предотвращая ложный матч Фабрика Спорт 76)
         onec_lead = None
-        filter_parts = []
-        if inn:
-            filter_parts.append(f"substringof('{inn}', Тема)")
-        if email:
-            filter_parts.append(f"substringof('{email}', Description)")
-            filter_parts.append(f"substringof('{email}', АдресЭПДляПоиска)")
-        if filter_parts:
-            f_query = " or ".join(filter_parts)
-            r_ol = requests.get(
-                f"{ODATA_BASE}/Catalog_Лиды?$top=2&$filter={f_query}",
+        if spec.get("onec_guid"):
+            r_ol_spec = requests.get(
+                f"{ODATA_BASE}/Catalog_Лиды(guid'{spec['onec_guid']}')?$format=json",
                 auth=auth_1c, headers=headers_1c, timeout=15
             )
-            if r_ol.status_code == 200 and r_ol.json().get("value"):
-                onec_lead = r_ol.json()["value"][0]
+            if r_ol_spec.status_code == 200:
+                onec_lead = r_ol_spec.json()
+        if not onec_lead:
+            filter_parts = []
+            if inn:
+                filter_parts.append(f"substringof('{inn}', Тема)")
+            if email:
+                filter_parts.append(f"substringof('{email}', Description)")
+                filter_parts.append(f"substringof('{email}', АдресЭПДляПоиска)")
+            if filter_parts:
+                f_query = " or ".join(filter_parts)
+                r_ol = requests.get(
+                    f"{ODATA_BASE}/Catalog_Лиды?$top=2&$filter={f_query}",
+                    auth=auth_1c, headers=headers_1c, timeout=15
+                )
+                if r_ol.status_code == 200 and r_ol.json().get("value"):
+                    onec_lead = r_ol.json()["value"][0]
 
 
         tag_names = [TAG_NAME_MAP.get(t, t) for t in tags]

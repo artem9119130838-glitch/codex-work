@@ -151,6 +151,8 @@ def get_dadata_info(inn: str) -> dict:
 
 
 def get_saby_tender_info(inn: str) -> dict:
+    if not SABY_LOGIN or not SABY_PASS:
+        return {"participant_count": 0, "customer_count": 0, "details": [], "counter": 0}
     session = requests.Session()
     login_url = "https://online.sbis.ru/auth/service/"
     payload = {
@@ -588,7 +590,7 @@ def sync_to_marketing_db(inn: str = None, email: str = None, sbis_result: dict =
         if dry_run:
             print(f"  [DWH] (Dry-run) Запись скоринга СБИС в marketing_db для {email or inn}")
             return True
-        conn = psycopg2.connect(db_url)
+        conn = psycopg2.connect(db_url, connect_timeout=3)
         cur = conn.cursor()
         cur.execute("""
             SELECT column_name FROM information_schema.columns 

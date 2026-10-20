@@ -101,11 +101,31 @@ def extract_extension(raw_text: str) -> Optional[str]:
             return f"доб. {clean_ext}"
     return None
 
+def format_b24_second_name(current_second_name: str, ext_str: str) -> str:
+    """
+    Безопасно форматирует отчество контакта в Битрикс24 с добавлением добавочного номера.
+    Защищает от затирания реальные отчества (напр. 'Сергеевна' -> 'Сергеевна (доб. 207)').
+    """
+    if not ext_str:
+        return current_second_name or ""
+    clean_ext = ext_str.strip()
+    if not clean_ext.startswith("доб."):
+        clean_ext = f"доб. {clean_ext}"
+    if not current_second_name:
+        return clean_ext
+    if clean_ext in current_second_name:
+        return current_second_name
+    if 'доб' in current_second_name.lower():
+        base = re.sub(r'\(?доб\.?\s*\d+[-0-9]*\)?', '', current_second_name, flags=re.IGNORECASE).strip()
+        return f"{base} ({clean_ext})".strip() if base else clean_ext
+    return f"{current_second_name} ({clean_ext})".strip()
+
 class NovofonClient:
     def __init__(self, token: str, dry_run: bool = False):
         self.token = token
         self.dry_run = dry_run
         self.req_id = 0
+        self.session = requests.Session()
 
     def _call(self, method: str, params: Dict[str, Any]) -> Tuple[bool, Any]:
         self.req_id += 1
@@ -118,7 +138,7 @@ class NovofonClient:
             "params": p
         }
         try:
-            r = requests.post(NOVOFON_URL, json=payload, timeout=10)
+            r = self.session.post(NOVOFON_URL, json=payload, timeout=15)
             data = r.json()
             if "error" in data:
                 return False, data["error"]
@@ -176,6 +196,7 @@ class BitrixClient:
     def __init__(self, webhook: str, dry_run: bool = False):
         self.webhook = webhook.rstrip('/') + '/'
         self.dry_run = dry_run
+        self.session = requests.Session()
 
     def get_companies(self) -> Dict[str, Dict[str, Any]]:
         """Выгружает все компании из Битрикс24."""
@@ -183,7 +204,7 @@ class BitrixClient:
         companies = {}
         start = 0
         while True:
-            r = requests.get(self.webhook + 'crm.company.list', params={
+            r = self.session.get(self.webhook + 'crm.company.list', params={
                 'SELECT[]': ['ID', 'TITLE', 'PHONE', 'EMAIL'],
                 'order[ID]': 'ASC',
                 'start': start
@@ -205,7 +226,7 @@ class BitrixClient:
         contacts = []
         start = 0
         while True:
-            r = requests.get(self.webhook + 'crm.contact.list', params={
+            r = self.session.get(self.webhook + 'crm.contact.list', params={
                 'SELECT[]': ['ID', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'COMPANY_ID', 'PHONE', 'EMAIL', 'POST', 'COMMENTS'],
                 f'order[ID]': order_str,
                 'start': start
@@ -225,7 +246,7 @@ class BitrixClient:
     def find_extension_in_emails(self, contact_id: str) -> Optional[str]:
         """Ищет добавочный номер в переписке контакта и связанных сделок."""
         # 1. Проверяем сделки контакта
-        deal_res = requests.get(self.webhook + 'crm.deal.list', params={
+        deal_res = self.session.get(self.webhook + 'crm.deal.list', params={
             'filter[CONTACT_ID]': contact_id,
             'select[]': ['ID']
         }).json().get('result', [])
@@ -235,7 +256,7 @@ class BitrixClient:
             owner_filters.append({'OWNER_ID': d['ID'], 'OWNER_TYPE_ID': 2})
 
         for flt in owner_filters:
-            r = requests.get(self.webhook + 'crm.activity.list', params={
+            r = self.session.get(self.webhook + 'crm.activity.list', params={
                 'filter[OWNER_ID]': flt['OWNER_ID'],
                 'filter[OWNER_TYPE_ID]': flt['OWNER_TYPE_ID'],
                 'filter[TYPE_ID]': 4,
@@ -257,31 +278,53 @@ class BitrixClient:
         if self.dry_run:
             print(f"    [DRY-RUN] Bitrix crm.contact.update (ID {contact_id}) -> SECOND_NAME='{new_second_name}'")
             return True
-        r = requests.post(self.webhook + 'crm.contact.update', json={
+        r = self.session.post(self.webhook + 'crm.contact.update', json={
             'id': contact_id,
             'fields': {'SECOND_NAME': new_second_name}
         })
         return r.status_code == 200
 
-    def add_phone_to_company(self, company_id: str, phone: str) -> bool:
-        """Добавляет недостающий номер телефона в карточку компании."""
+    def add_phone_to_company(self, company_id: str, phone: str, existing_raw_phones: Optional[List[Dict[str, Any]]] = None) -> bool:
+        """Добавляет недостающий номер телефона в карточку компании без затирания существующих."""
         if self.dry_run:
             print(f"    [DRY-RUN] Bitrix crm.company.update (ID {company_id}) -> Добавить телефон {phone}")
             return True
-        r = requests.post(self.webhook + 'crm.company.update', json={
+        phone_payload = []
+        seen = set()
+        if existing_raw_phones:
+            for item in existing_raw_phones:
+                val = (item.get('VALUE') or '').strip()
+                vtype = item.get('VALUE_TYPE', 'WORK')
+                if val and val not in seen:
+                    phone_payload.append({'VALUE_TYPE': vtype, 'VALUE': val})
+                    seen.add(val)
+        if phone not in seen:
+            phone_payload.append({'VALUE_TYPE': 'WORK', 'VALUE': phone})
+        r = self.session.post(self.webhook + 'crm.company.update', json={
             'id': company_id,
-            'fields': {'PHONE': [{'VALUE_TYPE': 'WORK', 'VALUE': phone}]}
+            'fields': {'PHONE': phone_payload}
         })
         return r.status_code == 200
 
-    def add_phone_to_contact(self, contact_id: str, phone: str) -> bool:
-        """Добавляет недостающий номер телефона в карточку контакта."""
+    def add_phone_to_contact(self, contact_id: str, phone: str, existing_raw_phones: Optional[List[Dict[str, Any]]] = None) -> bool:
+        """Добавляет недостающий номер телефона в карточку контакта без затирания существующих."""
         if self.dry_run:
             print(f"    [DRY-RUN] Bitrix crm.contact.update (ID {contact_id}) -> Добавить телефон {phone}")
             return True
-        r = requests.post(self.webhook + 'crm.contact.update', json={
+        phone_payload = []
+        seen = set()
+        if existing_raw_phones:
+            for item in existing_raw_phones:
+                val = (item.get('VALUE') or '').strip()
+                vtype = item.get('VALUE_TYPE', 'WORK')
+                if val and val not in seen:
+                    phone_payload.append({'VALUE_TYPE': vtype, 'VALUE': val})
+                    seen.add(val)
+        if phone not in seen:
+            phone_payload.append({'VALUE_TYPE': 'WORK', 'VALUE': phone})
+        r = self.session.post(self.webhook + 'crm.contact.update', json={
             'id': contact_id,
-            'fields': {'PHONE': [{'VALUE_TYPE': 'WORK', 'VALUE': phone}]}
+            'fields': {'PHONE': phone_payload}
         })
         return r.status_code == 200
 
@@ -416,7 +459,7 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
                     norm_c = normalize_phone(c_ph)
                     if norm_c:
                         print(f"  [<--] Обратное обогащение: найден телефон {norm_c} в Новофон для контакта {cid} ({novo_first_name})")
-                        bitrix.add_phone_to_contact(cid, norm_c)
+                        bitrix.add_phone_to_contact(cid, norm_c, raw_phones)
                         phones.append(norm_c)
                         stats['b24_reverse_enriched'] += 1
                         break
@@ -438,8 +481,11 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
             extension = phone_embedded_ext
             if verbose:
                 print(f"  [+] Обнаружен добавочный в номере контакта {cid}: {extension}")
-            bitrix.update_contact_second_name(cid, extension)
-            stats['b24_enriched'] += 1
+            new_sec = format_b24_second_name(second_name, extension)
+            if new_sec != second_name:
+                bitrix.update_contact_second_name(cid, new_sec)
+                second_name = new_sec
+                stats['b24_enriched'] += 1
         # Приоритет 3: поиск в подписи писем (только если у контакта есть email)
         elif c.get('HAS_EMAIL') == 'Y':
             email_ext = bitrix.find_extension_in_emails(cid)
@@ -447,8 +493,11 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
                 extension = email_ext
                 if verbose:
                     print(f"  [+] Обнаружен добавочный в Email-переписке контакта {cid} ({novo_first_name}): {extension}")
-                bitrix.update_contact_second_name(cid, extension)
-                stats['b24_enriched'] += 1
+                new_sec = format_b24_second_name(second_name, extension)
+                if new_sec != second_name:
+                    bitrix.update_contact_second_name(cid, new_sec)
+                    second_name = new_sec
+                    stats['b24_enriched'] += 1
 
         # Обратное обогащение (Правило 3): если добавочного в Битрикс нет, но в Новофон он записан
         if not extension and novo_last_name.lower() in novo_by_name:
@@ -460,31 +509,50 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
                     extension = ext_from_novo
                     if verbose:
                         print(f"  [<--] Обратное обогащение: перенос добавочного {extension} из Новофон в Битрикс контакт {cid}")
-                    bitrix.update_contact_second_name(cid, extension)
-                    stats['b24_reverse_enriched'] += 1
+                    new_sec = format_b24_second_name(second_name, extension)
+                    if new_sec != second_name:
+                        bitrix.update_contact_second_name(cid, new_sec)
+                        second_name = new_sec
+                        stats['b24_reverse_enriched'] += 1
                     break
 
         novo_patronymic = extension or ""
 
         # Проверка наличия контакта в Новофон (по номерам телефона)
         existing_novo_id = None
+        existing_novo_contact = None
         for ph in phones:
             if ph in novo_by_phone:
-                existing_novo_id = novo_by_phone[ph].get('id')
+                existing_novo_contact = novo_by_phone[ph]
+                existing_novo_id = existing_novo_contact.get('id')
                 break
 
+        # Safe Merge телефонов и добавочного
+        if existing_novo_contact:
+            existing_phones = [normalize_phone(p) for p in existing_novo_contact.get('phone_numbers', []) if normalize_phone(p)]
+            # Объединяем телефоны: сначала из B24, затем недостающие из Новофон
+            merged_phones = list(dict.fromkeys(phones + [p for p in existing_phones if p not in phones]))
+            # Защита от затирания добавочного в Новофон
+            if not novo_patronymic and existing_novo_contact.get('patronymic'):
+                novo_patronymic = existing_novo_contact.get('patronymic')
+            # Защита от ухудшения имени компании до "Частное лицо", если в Новофон компания была указана
+            if novo_last_name == "Частное лицо" and existing_novo_contact.get('last_name') and existing_novo_contact.get('last_name') != "Частное лицо":
+                novo_last_name = existing_novo_contact.get('last_name')
+        else:
+            merged_phones = phones
+
         if verbose:
-            print(f"\n[Контакт B24 #{cid}] {novo_first_name} | {novo_last_name} | {novo_patronymic} | {phones}")
+            print(f"\n[Контакт B24 #{cid}] {novo_first_name} | {novo_last_name} | {novo_patronymic} | {merged_phones}")
         recorded_id = existing_novo_id
         if existing_novo_id:
             if verbose:
-                print(f"  -> Уже существует в Новофон (ID {existing_novo_id}) -> ОБНОВЛЕНИЕ/ПЕРЕЗАПИСЬ")
+                print(f"  -> Уже существует в Новофон (ID {existing_novo_id}) -> ОБНОВЛЕНИЕ/SAFE MERGE")
             ok, res = novofon.update_contact(
                 contact_id=existing_novo_id,
                 last_name=novo_last_name,
                 first_name=novo_first_name,
                 patronymic=novo_patronymic,
-                phone_numbers=phones
+                phone_numbers=merged_phones
             )
             if ok:
                 if verbose:
@@ -499,7 +567,7 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
                 last_name=novo_last_name,
                 first_name=novo_first_name,
                 patronymic=novo_patronymic,
-                phone_numbers=phones
+                phone_numbers=merged_phones
             )
             if ok:
                 new_id = res.get('data', {}).get('id') if isinstance(res, dict) else res
@@ -510,6 +578,18 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
             else:
                 print(f"    [!] Ошибка создания контакта {cid} в Новофон: {res}")
 
+        # Регистрируем контакт во внутренней памяти для дедупликации
+        novo_record = {
+            'id': recorded_id,
+            'last_name': novo_last_name,
+            'first_name': novo_first_name,
+            'patronymic': novo_patronymic,
+            'phone_numbers': merged_phones
+        }
+        for ph in merged_phones:
+            novo_by_phone[ph] = novo_record
+            processed_phones.add(ph)
+
         if stats['contacts_processed'] % 50 == 0:
             print(f"  [*] Прогресс: обработано {stats['contacts_processed']} контактов (создано: {stats['novofon_created']}, обновлено: {stats['novofon_updated']})...")
 
@@ -519,13 +599,10 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
             'full_name': novo_first_name,
             'company': novo_last_name,
             'patronymic': novo_patronymic,
-            'phones': ', '.join(phones),
-            'action': 'Обновлен' if existing_novo_id else 'Создан',
+            'phones': ', '.join(merged_phones),
+            'action': 'Обновлен (Safe Merge)' if existing_novo_id else 'Создан',
             'novo_id': recorded_id or '-'
         })
-
-        for ph in phones:
-            processed_phones.add(ph)
 
     # 4. Обработка общих номеров компаний (где нет физлиц)
     if target_company_ids:
@@ -552,7 +629,7 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
                     if norm_c and norm_c not in processed_phones:
                         if verbose:
                             print(f"  [<--] Обратное обогащение: найден телефон {norm_c} в Новофон для компании {comp_id} ({comp_title})")
-                        bitrix.add_phone_to_company(comp_id, norm_c)
+                        bitrix.add_phone_to_company(comp_id, norm_c, raw_ph)
                         comp_phones.append(norm_c)
                         stats['b24_reverse_enriched'] += 1
                         break
@@ -568,21 +645,29 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
         
         # Проверяем в Новофон
         existing_novo_id = None
+        existing_novo_contact = None
         for ph in comp_phones:
             if ph in novo_by_phone:
-                existing_novo_id = novo_by_phone[ph].get('id')
+                existing_novo_contact = novo_by_phone[ph]
+                existing_novo_id = existing_novo_contact.get('id')
                 break
+
+        if existing_novo_contact:
+            existing_phones = [normalize_phone(p) for p in existing_novo_contact.get('phone_numbers', []) if normalize_phone(p)]
+            merged_comp_phones = list(dict.fromkeys(comp_phones + [p for p in existing_phones if p not in comp_phones]))
+        else:
+            merged_comp_phones = comp_phones
 
         recorded_id = existing_novo_id
         if existing_novo_id:
             if verbose:
-                print(f"  -> Компания уже в Новофон (ID {existing_novo_id}) -> ОБНОВЛЕНИЕ/ПЕРЕЗАПИСЬ")
+                print(f"  -> Компания уже в Новофон (ID {existing_novo_id}) -> ОБНОВЛЕНИЕ/SAFE MERGE")
             ok, res = novofon.update_contact(
                 contact_id=existing_novo_id,
                 last_name=comp_title,
                 first_name="Общий номер",
                 patronymic="",
-                phone_numbers=comp_phones
+                phone_numbers=merged_comp_phones
             )
             if ok:
                 if verbose:
@@ -597,7 +682,7 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
                 last_name=comp_title,
                 first_name="Общий номер",
                 patronymic="",
-                phone_numbers=comp_phones
+                phone_numbers=merged_comp_phones
             )
             if ok:
                 new_id = res.get('data', {}).get('id') if isinstance(res, dict) else res
@@ -608,6 +693,18 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
             else:
                 print(f"    [!] Ошибка создания компании {comp_id} в Новофон: {res}")
 
+        # Регистрируем компанию во внутренней памяти
+        comp_record = {
+            'id': recorded_id,
+            'last_name': comp_title,
+            'first_name': "Общий номер",
+            'patronymic': "",
+            'phone_numbers': merged_comp_phones
+        }
+        for ph in merged_comp_phones:
+            novo_by_phone[ph] = comp_record
+            processed_phones.add(ph)
+
         if stats['companies_processed'] % 50 == 0:
             print(f"  [*] Прогресс: обработано {stats['companies_processed']} компаний...")
 
@@ -617,13 +714,10 @@ def run_sync(dry_run: bool = True, test_batch: bool = False, limit: Optional[int
             'full_name': 'Общий номер',
             'company': comp_title,
             'patronymic': '',
-            'phones': ', '.join(comp_phones),
-            'action': 'Обновлен' if existing_novo_id else 'Создан',
+            'phones': ', '.join(merged_comp_phones),
+            'action': 'Обновлен (Safe Merge)' if existing_novo_id else 'Создан',
             'novo_id': recorded_id or '-'
         })
-
-        for ph in comp_phones:
-            processed_phones.add(ph)
 
     # 5. Сохранение файла отчета
     if report_file:
