@@ -8,6 +8,7 @@
 
 | Боевой скрипт | Назначение и регламент | Аргументы CLI |
 |---|---|---|
+| `create_barentscool_order.py` | Импорт номенклатуры, регистрация цен закупки КНР (CNY) и формирование Заказа покупателя в 1С:УНФ для ООО «БАРЕНЦКУЛ» из Excel | `--dry-run`, `--commit`, `--excel <path>` |
 | `process_deals_batch_azat.py` | Пакетная квалификация созданных сделок, перевод в стадию `PREPARATION` («Расчет КП»), постановка задач снабженцу Азату (`user/20`) со сроком на сегодня к 18:00, прикрепление Excel-спецификаций и оригинальных файлов клиента по регламенту Full RFQ Attachment Guard | `--dry-run` (дефолт), `--execute`, `--deal-id <ID>` |
 | `process_incoming_sales_leads.py` | Монолитный конвейер полной квалификации и обработки входящих лидов из почты: ветвление Clear RFQ / Ambiguous, постановка задач снабжению, автоответ по Шаблону № 66, двухфазная запись в 1С (Zero-Blank Lead Guard) | `--dry-run`, `--mailbox <email>`, `--assigned <user>`, `--limit <N>` |
 | `process_b24_inbound_leads.py` | Обработка лидов CRM: сделка в `PREPARATION`, задача снабженцу Азату (`user/20`) в группе 14, отсев реквизитов РФ, чат на китайском, Single Task Invariant | `--dry-run`, `--execute`, `--limit <N>` |

@@ -202,7 +202,40 @@ py projects/1c_odata/scripts/process_manual_lead_entry.py --lead-id 18422 --inn 
 
 ---
 
-## 13. Доступы и окружение
+## 13. `scripts/inspect_b24_task.py`
+**Назначение:** Канонический инструмент для чтения задач Битрикс24, истории сообщений и чатов задач, и автоматической выгрузки вложенных скриншотов и документов.  
+**Что делает:**
+* Опрашивает `tasks.task.get` для получения метаданных, статуса, крайнего срока и участников задачи.
+* Считывает как классические комментарии (`task.commentitem.getlist`), так и сообщения современного встроенного чата задачи (`im.chat.get` с `ENTITY_TYPE: TASKS_TASK` + `im.dialog.messages.get`).
+* Автоматически парсит прикрепленные файлы (`params.FILE_ID`, `ATTACHED_OBJECTS`, встроенные `[DISK FILE ID=n]`) и скачивает их в локальную директорию через REST API Диска (`disk.file.get` / `disk.attachedObject.get`).
+* Поддерживает фильтрацию по времени (`--days N`) и режим только чтения без скачивания (`--no-download`).
+
+**Использование:**
+```bash
+py projects/1c_odata/scripts/inspect_b24_task.py --task-id 1560 --days 7
+py projects/1c_odata/scripts/inspect_b24_task.py --task-id 1560 --no-download
+```
+
+---
+
+## 14. `scripts/create_barentscool_order.py`
+**Назначение:** Импорт номенклатуры Danfoss, регистрация цен закупки в юанях (вид цены «Закупка КНР») и формирование Заказа покупателя в 1С:УНФ для ООО «БАРЕНЦКУЛ» (ИНН 5190075177).  
+**Что делает:**
+* Считывает спецификацию из Excel (`Книга1.xlsx`).
+* Проверяет артикулы: создает недостающие карточки в системной папке `Danfoss` (с реквизитами вес, срок поставки в комментарии, ед. изм. `шт`, НДС 22%) или обновляет существующие.
+* Создает документ `Document_УстановкаЦенНоменклатуры` для цен закупки КНР (в CNY).
+* Создает документ `Document_ЗаказПокупателя` с рублевыми ценами и суммами от организации ЦИ ЛИНЬ ООО (НДС 22%).
+* **1C Draft-First Invariant:** Создает документы строго как черновики (`Posted: False`), исключая паразитные движения в регистрах накопления и сбои CRM-связок.
+
+**Использование:**
+```bash
+py projects/1c_odata/scripts/create_barentscool_order.py --dry-run
+py projects/1c_odata/scripts/create_barentscool_order.py --commit
+```
+
+---
+
+## 15. Доступы и окружение
 * **1С:УНФ OData:** `http://artem.medianasoft.spb.ru/unf/odata/standard.odata/` (`odata.user` для чтения, `odata.writer` для записи).
 * **Битрикс24 Вебхук:** `https://b24-g4wfjq.bitrix24.ru/rest/1/${BITRIX24_WEBHOOK_TOKEN}/`.
 * **DaData Token:** `${DADATA_API_KEY}`.
