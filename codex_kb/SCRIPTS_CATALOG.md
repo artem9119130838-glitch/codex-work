@@ -322,6 +322,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Боевой (CI Guard)** | `audit_unf_counterparties_ci.py` | `projects/1c_odata/scripts/audit_unf_counterparties_ci.py` | Сплошной аппаратный аудит и исправление видов КИ контрагентов 1С:УНФ (Strict CI Invariant). Флаги: Read-only аудит, `--fix` для автоисправления. | 0 |
 | **Боевой (DevOps 1C)** | `audit_1c_extensions_db.py` | `projects/1c_odata/scripts/audit_1c_extensions_db.py` | Диагностика расширений 1С в PostgreSQL на VPS, выявление неактивных модулей и снятие бинарных дампов (`_extensionsinfo`). Флаги: `--list`, `--check-inactive`, `--backup`. | 0 |
+| **Боевой (Task Inspector)** | `inspect_b24_task.py` | `projects/1c_odata/scripts/inspect_b24_task.py` | Чтение метаданных задач Битрикс24, истории комментариев и чатов (`TASKS_TASK`), автоматическая выгрузка скриншотов и вложений на диск. Флаги: `--task-id`, `--days`, `--download-dir`, `--no-download`. | 0 |
 | **Базовый** | `2026-09-29_deal_followup_pipeline_v1.py` | `projects/1c_odata/scripts/archive/2026-09-29_deal_followup_pipeline_v1.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `2026-09-30_process_today_followup_deals_v1.py` | `projects/1c_odata/scripts/archive/2026-09-30_process_today_followup_deals_v1.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `2026-10-01_process_incoming_sales_leads_v1_legacy.py` | `projects/1c_odata/scripts/archive/2026-10-01_process_incoming_sales_leads_v1_legacy.py` | Автоматизация рабочего процесса. | 0 |

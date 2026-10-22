@@ -339,6 +339,68 @@ ORDER BY "Отказов с авансом" DESC, "Всего отказов" DE
     cid_kpi = sync_card("Тендеры с авансом: взято в обработку", card_adv_kpi_payload)
     cid_losses = sync_card("Причины отказов по сделкам с авансом", card_adv_losses_payload)
 
+    # 5. Deploy/Update Card: Движение тендеров: В работе / Стадии отказов / Победы
+    sql_tender_flow = """WITH deal_flow AS (
+    SELECT 
+        deal_id,
+        title,
+        date_create,
+        date_close,
+        COALESCE(tender_amount, our_offer_amount, 0) as amount,
+        has_advance,
+        advance_percent,
+        CASE 
+            WHEN is_won = TRUE THEN '3. Победа (Контракт)'
+            WHEN is_won = FALSE AND (close_reason != 'В работе' OR raw_data->>'CLOSED' = 'Y') THEN '2. Отказ'
+            ELSE '1. В работе'
+        END AS status_category,
+        stage_id AS current_stage,
+        COALESCE(close_reason, 'В работе') AS reason_or_status
+    FROM analytics_closed_deals
+    WHERE pipeline_name = 'Тендеры'
+      [[AND {{date_range}}]]
+)
+SELECT 
+    status_category AS "Статус",
+    current_stage AS "Стадия воронки",
+    reason_or_status AS "Причина отказа / Статус",
+    COUNT(*) AS "Количество сделок",
+    SUM(amount) AS "Сумма НМЦК (руб)",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "С авансом (шт)",
+    ROUND(AVG(advance_percent) FILTER (WHERE has_advance = TRUE), 1) AS "Средний аванс (%)"
+FROM deal_flow
+GROUP BY status_category, current_stage, reason_or_status
+ORDER BY 
+    status_category ASC, 
+    COUNT(*) DESC, 
+    SUM(amount) DESC;"""
+
+    card_flow_payload = {
+        "name": "Движение тендеров: В работе / Стадии отказов / Победы",
+        "dataset_query": {
+            "type": "native",
+            "native": {
+                "query": sql_tender_flow,
+                "template-tags": {
+                    "date_range": {
+                        "id": "date_range_tag",
+                        "name": "date_range",
+                        "display-name": "Период дат",
+                        "type": "dimension",
+                        "dimension": ["field", date_create_id, None],
+                        "widget-type": "date/all-options"
+                    }
+                }
+            },
+            "database": db_id
+        },
+        "display": "table",
+        "collection_id": 4,
+        "archived": False,
+        "visualization_settings": {}
+    }
+    cid_flow = sync_card("Движение тендеров: В работе / Стадии отказов / Победы", card_flow_payload)
+
     # Attach to Dashboard 4
     if cid_kpi and cid_losses and not dry_run:
         dash4 = api_call(base_url, session_id, "GET", "/dashboard/4", dry_run=False)
@@ -348,7 +410,7 @@ ORDER BY "Отказов с авансом" DESC, "Всего отказов" DE
             max_row = max([dc.get("row", 0) + dc.get("size_y", 6) for dc in dashcards] or [0])
             
             new_cards = []
-            for idx, cid in enumerate([cid_kpi, cid_losses]):
+            for idx, cid in enumerate([cid_kpi, cid_losses, cid_flow]):
                 if cid not in attached_ids:
                     new_cards.append({
                         "id": -(idx + 50),
@@ -365,6 +427,325 @@ ORDER BY "Отказов с авансом" DESC, "Всего отказов" DE
                 api_call(base_url, session_id, "PUT", "/dashboard/4/cards", {"cards": all_dashcards}, dry_run)
 
     print("[SUCCESS] All sales and advance analytics cards processed.")
+
+
+def deploy_tender_ops_dashboard(base_url, session_id, dry_run=False):
+    """
+    Deploys the dedicated operational dashboard:
+    'Оперативная аналитика: Активность тендерного отдела и движение сделок'
+    with interactive date range, employee filter, deal id search, and clickable links to Bitrix24.
+    """
+    print("=== Deploying Dedicated Tender Operations & Movement Dashboard ===")
+    db_id = get_database_id(base_url, session_id, "marketing_db", dry_run) or 2
+    
+    date_create_id = get_field_id(base_url, session_id, db_id, "analytics_closed_deals", "date_create", dry_run, 76)
+    responsible_name_id = get_field_id(base_url, session_id, db_id, "analytics_closed_deals", "responsible_name", dry_run, 80)
+    deal_id_field_id = get_field_id(base_url, session_id, db_id, "analytics_closed_deals", "deal_id", dry_run, 73)
+    
+    print(f"[OK] Resolved Field IDs: date_create={date_create_id}, responsible_name={responsible_name_id}, deal_id={deal_id_field_id}")
+
+    tag_date_range = {
+        "id": "tag_date_range",
+        "name": "date_range",
+        "display-name": "Период дат",
+        "type": "dimension",
+        "dimension": ["field", date_create_id, None],
+        "widget-type": "date/all-options"
+    }
+    tag_responsible = {
+        "id": "tag_responsible",
+        "name": "responsible",
+        "display-name": "Сотрудник",
+        "type": "dimension",
+        "dimension": ["field", responsible_name_id, None],
+        "widget-type": "string/="
+    }
+    tag_deal_id = {
+        "id": "tag_deal_id",
+        "name": "deal_id",
+        "display-name": "ID сделки",
+        "type": "dimension",
+        "dimension": ["field", deal_id_field_id, None],
+        "widget-type": "string/="
+    }
+
+    sql_kpi = """SELECT 
+    COUNT(*) AS "Всего скачано (шт)",
+    COALESCE(SUM(COALESCE(tender_amount, our_offer_amount, 0)), 0) AS "Объем НМЦК (руб)",
+    COUNT(*) FILTER (WHERE stage_id != 'Не взяли в работу' OR is_won = TRUE OR (close_reason != 'Не взяли в работу' AND close_reason != 'В работе')) AS "Рассмотрено (шт)",
+    COUNT(*) FILTER (WHERE (close_reason = 'В работе' OR raw_data->>'CLOSED' = 'N') AND stage_id NOT IN ('Не взяли в работу')) AS "Взято в работу (шт)",
+    COALESCE(SUM(tender_amount) FILTER (WHERE (close_reason = 'В работе' OR raw_data->>'CLOSED' = 'N') AND stage_id NOT IN ('Не взяли в работу')), 0) AS "НМЦК в работе (руб)",
+    COUNT(*) FILTER (WHERE is_won = FALSE AND (close_reason = 'Не взяли в работу' OR stage_id = 'Не взяли в работу')) AS "Отсеяно на входе (шт)",
+    COUNT(*) FILTER (WHERE is_won = FALSE AND close_reason != 'В работе' AND close_reason != 'Не взяли в работу' AND stage_id != 'Не взяли в работу') AS "Отсеяно в процессе (шт)",
+    COUNT(*) FILTER (WHERE is_won = TRUE) AS "Победы (шт)",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "С авансом (шт)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]];"""
+
+    sql_losses = """SELECT 
+    CASE 
+        WHEN stage_id = 'Не взяли в работу' THEN '1. Отсеяно на входе (Скоринг)'
+        WHEN stage_id = 'Не смогли отработать' THEN '2. Отсеяно при проработке (Снабжение)'
+        WHEN stage_id = 'Проигрыш' THEN '3. Проигрыш на торгах (ЭТП)'
+        ELSE '4. Прочее закрытие'
+    END AS "Этап отсева",
+    COALESCE(close_reason, 'Не указана') AS "Причина отсева",
+    COUNT(*) AS "Количество сделок",
+    COALESCE(SUM(tender_amount), 0) AS "Сумма НМЦК (руб)",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "С авансом (шт)",
+    ROUND(AVG(advance_percent) FILTER (WHERE has_advance = TRUE), 1) AS "Средний аванс (%)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  AND is_won = FALSE 
+  AND (close_reason != 'В работе' OR raw_data->>'CLOSED' = 'Y')
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+GROUP BY 1, 2
+ORDER BY 1 ASC, COUNT(*) DESC;"""
+
+    sql_active = """SELECT 
+    stage_id AS "Текущая стадия",
+    responsible_name AS "Ответственный",
+    COUNT(*) AS "В работе (шт)",
+    COALESCE(SUM(tender_amount), 0) AS "Сумма НМЦК (руб)",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "С авансом (шт)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  AND (close_reason = 'В работе' OR raw_data->>'CLOSED' = 'N')
+  AND is_won = FALSE
+  AND stage_id NOT IN ('Не взяли в работу')
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+GROUP BY stage_id, responsible_name
+ORDER BY COUNT(*) DESC, SUM(tender_amount) DESC;"""
+
+    sql_register = """SELECT 
+    deal_id AS "ID сделки",
+    'https://b24-g4wfjq.bitrix24.ru/crm/deal/details/' || deal_id || '/' AS "Ссылка в CRM",
+    date_create::date AS "Дата скачивания",
+    title AS "Наименование закупки",
+    tender_number AS "Номер закупки",
+    responsible_name AS "Ответственный",
+    CASE 
+        WHEN is_won = TRUE THEN 'Победа'
+        WHEN is_won = FALSE AND (close_reason != 'В работе' OR raw_data->>'CLOSED' = 'Y') THEN 'Отказ'
+        ELSE 'В работе'
+    END AS "Статус",
+    stage_id AS "Текущая стадия",
+    COALESCE(close_reason, 'В работе') AS "Причина отказа / Результат",
+    COALESCE(tender_amount, our_offer_amount, 0) AS "НМЦК (руб)",
+    CASE WHEN has_advance = TRUE THEN 'Да (' || advance_percent || '%)' ELSE 'Нет' END AS "Аванс",
+    date_close::date AS "Дата закрытия"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+  [[AND {{deal_id}}]]
+ORDER BY date_create DESC, deal_id DESC;"""
+
+    sql_history = """SELECT 
+    h.deal_id AS "ID сделки",
+    'https://b24-g4wfjq.bitrix24.ru/crm/deal/details/' || h.deal_id || '/' AS "Ссылка в CRM",
+    d.title AS "Наименование закупки",
+    d.responsible_name AS "Ответственный",
+    CASE h.stage_id
+        WHEN 'C4:NEW' THEN '1. Новый тендер / Скоринг'
+        WHEN 'C4:PREPARATION' THEN '2. Расчет КП'
+        WHEN 'C4:UC_8F7MST' THEN '3. Поиск товара, анализ ВЭД'
+        WHEN 'C4:UC_X1NI23' THEN '4. Подготовка документов'
+        WHEN 'C4:PREPAYMENT_INVOICE' THEN '5. Согласование КП'
+        WHEN 'C4:EXECUTING' THEN '6. Заявка подана / Ожидание'
+        WHEN 'C4:FINAL_INVOICE' THEN '7. Торги на ЭТП'
+        WHEN 'C4:WON' THEN '★ Победа / Заключение договора'
+        WHEN 'C4:LOSE' THEN '✗ Проигрыш'
+        WHEN 'C4:APOLOGY' THEN '✗ Не смогли отработать'
+        WHEN 'C4:UC_VSDEUH' THEN '✗ Закупки отменены заказчиком'
+        WHEN 'C4:UC_5Y3KYZ' THEN '✗ Не взяли в работу'
+        ELSE h.stage_id
+    END AS "Стадия воронки",
+    h.date_entered AS "Дата перехода на этап"
+FROM analytics_deal_stage_history h
+JOIN analytics_closed_deals d ON d.deal_id = h.deal_id
+WHERE d.pipeline_name = 'Тендеры'
+  [[AND {{deal_id}}]]
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+ORDER BY h.date_entered DESC, h.deal_id DESC;"""
+
+    link_settings = {
+        "column_settings": {
+            '["name", "Ссылка в CRM"]': {
+                "link_url": "https://b24-g4wfjq.bitrix24.ru/crm/deal/details/{{ID сделки}}/",
+                "link_text": "Открыть в CRM ↗",
+                "view_as": "link"
+            }
+        }
+    }
+
+    cards_def = [
+        {
+            "name": "Оперативная воронка: Скачано ➤ Рассмотрено ➤ В работе ➤ Отсеяно",
+            "sql": sql_kpi,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible},
+            "vis": {},
+            "pos": {"row": 0, "col": 0, "size_x": 24, "size_y": 5}
+        },
+        {
+            "name": "Отсеяно: Причины отказа по этапам воронки",
+            "sql": sql_losses,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible},
+            "vis": {},
+            "pos": {"row": 5, "col": 0, "size_x": 24, "size_y": 8}
+        },
+        {
+            "name": "В работе: Распределение по этапам проработки",
+            "sql": sql_active,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible},
+            "vis": {},
+            "pos": {"row": 13, "col": 0, "size_x": 24, "size_y": 6}
+        },
+        {
+            "name": "Реестр сделок: Движение и прямой переход в CRM",
+            "sql": sql_register,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "deal_id": tag_deal_id},
+            "vis": link_settings,
+            "pos": {"row": 19, "col": 0, "size_x": 24, "size_y": 12}
+        },
+        {
+            "name": "Хронология движения: История этапов сделки",
+            "sql": sql_history,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "deal_id": tag_deal_id},
+            "vis": link_settings,
+            "pos": {"row": 31, "col": 0, "size_x": 24, "size_y": 10}
+        }
+    ]
+
+    def sync_card(name, payload):
+        cards = api_call(base_url, session_id, "GET", "/card", dry_run=False) or []
+        target = next((c for c in cards if c.get("name") == name and not c.get("archived")), None)
+        if target:
+            cid = target["id"]
+            print(f"Updating existing Card {cid}: '{name}'...")
+            api_call(base_url, session_id, "PUT", f"/card/{cid}", payload, dry_run)
+            return cid
+        else:
+            print(f"Creating new Card: '{name}'...")
+            res = api_call(base_url, session_id, "POST", "/card", payload, dry_run)
+            return res.get("id") if res else None
+
+    deployed_cards = []
+    for cdef in cards_def:
+        card_payload = {
+            "name": cdef["name"],
+            "dataset_query": {
+                "type": "native",
+                "native": {
+                    "query": cdef["sql"],
+                    "template-tags": cdef["tags"]
+                },
+                "database": db_id
+            },
+            "display": cdef["display"],
+            "collection_id": 5,
+            "archived": False,
+            "visualization_settings": cdef["vis"]
+        }
+        cid = sync_card(cdef["name"], card_payload)
+        cdef["cid"] = cid
+        deployed_cards.append(cdef)
+
+    dashboards = api_call(base_url, session_id, "GET", "/dashboard", dry_run=False) or []
+    dash_name = "Оперативная аналитика: Активность тендерного отдела и движение сделок"
+    target_dash = next((d for d in dashboards if d.get("name") == dash_name and not d.get("archived")), None)
+
+    dash_params = [
+        {
+            "id": "param_period",
+            "name": "Период дат (скачивание)",
+            "slug": "period",
+            "type": "date/all-options",
+            "sectionId": "date"
+        },
+        {
+            "id": "param_responsible",
+            "name": "Сотрудник",
+            "slug": "responsible",
+            "type": "string/=",
+            "sectionId": "string"
+        },
+        {
+            "id": "param_deal_id",
+            "name": "ID сделки",
+            "slug": "deal_id",
+            "type": "string/=",
+            "sectionId": "string"
+        }
+    ]
+
+    dash_payload = {
+        "name": dash_name,
+        "description": "Оперативный онлайн-мониторинг работы тендерных специалистов: скачивание, скоринг, воронка отсева и реестр сделок с прямым переходом в CRM",
+        "parameters": dash_params
+    }
+
+    if target_dash:
+        dash_id = target_dash["id"]
+        print(f"[OK] Updating existing Dashboard {dash_id}: '{dash_name}'...")
+        api_call(base_url, session_id, "PUT", f"/dashboard/{dash_id}", dash_payload, dry_run)
+    else:
+        print(f"Creating new Dashboard: '{dash_name}' in Collection 5...")
+        dash_payload["collection_id"] = 5
+        res = api_call(base_url, session_id, "POST", "/dashboard", dash_payload, dry_run)
+        dash_id = res.get("id") if res else None
+
+    print(f"[OK] Dashboard ID: {dash_id}")
+
+    dashcards_payload = []
+    for idx, cdef in enumerate(deployed_cards):
+        cid = cdef["cid"]
+        pos = cdef["pos"]
+        tags = cdef["tags"]
+        
+        mappings = [
+            {
+                "parameter_id": "param_period",
+                "card_id": cid,
+                "target": ["dimension", ["template-tag", "date_range"]]
+            },
+            {
+                "parameter_id": "param_responsible",
+                "card_id": cid,
+                "target": ["dimension", ["template-tag", "responsible"]]
+            }
+        ]
+        if "deal_id" in tags:
+            mappings.append({
+                "parameter_id": "param_deal_id",
+                "card_id": cid,
+                "target": ["dimension", ["template-tag", "deal_id"]]
+            })
+            
+        dashcards_payload.append({
+            "id": -(idx + 100),
+            "card_id": cid,
+            "row": pos["row"],
+            "col": pos["col"],
+            "size_x": pos["size_x"],
+            "size_y": pos["size_y"],
+            "parameter_mappings": mappings,
+            "visualization_settings": cdef.get("vis", {})
+        })
+
+    api_call(base_url, session_id, "PUT", f"/dashboard/{dash_id}/cards", {"cards": dashcards_payload}, dry_run)
+    print(f"[SUCCESS] Dashboard {dash_id} deployed with {len(dashcards_payload)} cards and interactive filters.")
+    print(f"URL: {base_url}/dashboard/{dash_id}")
 
 def deploy_token_analytics(base_url, session_id, dry_run=False):
     """Deploys or updates the LLM Token Economics & Key Health Dashboard and Cards."""
@@ -611,10 +992,179 @@ def db_stats(base_url, session_id, dry_run=False):
         if rows:
             print(f"[OK] DWH LLM Logs: {rows[0][0]:,} total records | {rows[0][1]:,} total tokens | {rows[0][2]} task types | {rows[0][3]} key masks")
 
+
+def parse_date_range(period_str):
+    """
+    Parses period descriptor into (start_date_str, end_date_str).
+    Supported: 'month', 'prev-month', 'week', 'today', or 'YYYY-MM-DD..YYYY-MM-DD'
+    """
+    import datetime
+    now = datetime.datetime.now()
+    if period_str == "month":
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_date = now
+    elif period_str == "prev-month":
+        first_this_month = now.replace(day=1)
+        prev_month_end = first_this_month - datetime.timedelta(days=1)
+        start_date = prev_month_end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_date = prev_month_end.replace(hour=23, minute=59, second=59)
+    elif period_str == "week":
+        start_date = (now - datetime.timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = now
+    elif period_str == "today":
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = now
+    elif ".." in period_str:
+        parts = period_str.split("..")
+        start_date = datetime.datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+        end_date = datetime.datetime.strptime(parts[1].strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+    else:
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_date = now
+    return start_date.strftime("%Y-%m-%d %H:%M:%S"), end_date.strftime("%Y-%m-%d %H:%M:%S")
+
+def run_dwh_query(base_url, session_id, db_id, sql_query):
+    """Executes SQL query via Metabase dataset API or direct psycopg2."""
+    if session_id and session_id != "dry-run-token":
+        payload = {
+            "database": db_id,
+            "type": "native",
+            "native": {"query": sql_query}
+        }
+        res = api_call(base_url, session_id, "POST", "/dataset", payload)
+        if res and "data" in res:
+            cols = [c["name"] for c in res["data"].get("cols", [])]
+            rows = res["data"].get("rows", [])
+            return cols, rows
+
+    try:
+        import psycopg2
+        pg_pass = os.environ.get("PG_PASS", "")
+        conn = psycopg2.connect(
+            host=os.environ.get("PG_HOST", "10.10.0.1"),
+            port=int(os.environ.get("PG_PORT", 5433)),
+            dbname=os.environ.get("PG_DBNAME", "marketing_db"),
+            user=os.environ.get("PG_USER", "vector_user"),
+            password=pg_pass
+        )
+        cur = conn.cursor()
+        cur.execute(sql_query)
+        rows = cur.fetchall()
+        cols = [desc[0] for desc in cur.description] if cur.description else []
+        cur.close()
+        conn.close()
+        return cols, rows
+    except Exception as e:
+        print(f"[ERROR] Could not query database: {e}")
+        return [], []
+
+def fmt_rub(val):
+    if not val:
+        return "0.00 ₽"
+    return f"{val:,.2f}".replace(",", " ") + " ₽"
+
+def tender_report(base_url, session_id, period="month", filter_by="create", dry_run=False):
+    print(f"=== Generating Tender Analytics Operational Report (Period: {period}, Filter: {filter_by}) ===")
+    db_id = get_database_id(base_url, session_id, "marketing_db", dry_run) or 2
+    start_dt, end_dt = parse_date_range(period)
+    date_col = "date_close" if filter_by == "close" else "date_create"
+    filter_label = "Дата закрытия (результат)" if filter_by == "close" else "Дата создания (поступление)"
+
+    # 1. Summary query
+    sql_summary = f"""
+    SELECT 
+        COUNT(*) as total_deals,
+        COALESCE(SUM(tender_amount), 0) as total_amount,
+        COUNT(*) FILTER (WHERE is_won = TRUE) as won_count,
+        COALESCE(SUM(our_offer_amount) FILTER (WHERE is_won = TRUE), 0) as won_amount,
+        COUNT(*) FILTER (WHERE is_won = FALSE AND (close_reason != 'В работе' OR raw_data->>'CLOSED' = 'Y')) as lost_count,
+        COALESCE(SUM(tender_amount) FILTER (WHERE is_won = FALSE AND (close_reason != 'В работе' OR raw_data->>'CLOSED' = 'Y')), 0) as lost_amount,
+        COUNT(*) FILTER (WHERE (close_reason = 'В работе' OR close_reason IS NULL) AND raw_data->>'CLOSED' != 'Y') as active_count,
+        COALESCE(SUM(tender_amount) FILTER (WHERE (close_reason = 'В работе' OR close_reason IS NULL) AND raw_data->>'CLOSED' != 'Y'), 0) as active_amount,
+        COUNT(*) FILTER (WHERE has_advance = TRUE) as advance_count,
+        ROUND(AVG(advance_percent) FILTER (WHERE has_advance = TRUE), 1) as avg_advance_pct
+    FROM analytics_closed_deals
+    WHERE pipeline_name = 'Тендеры'
+      AND {date_col} >= '{start_dt}' AND {date_col} <= '{end_dt}';
+    """
+    _, summary_rows = run_dwh_query(base_url, session_id, db_id, sql_summary)
+
+    # 2. Active stages query
+    sql_active = f"""
+    SELECT 
+        stage_id,
+        COUNT(*) as count,
+        COALESCE(SUM(tender_amount), 0) as amount,
+        COUNT(*) FILTER (WHERE has_advance = TRUE) as adv_count
+    FROM analytics_closed_deals
+    WHERE pipeline_name = 'Тендеры'
+      AND {date_col} >= '{start_dt}' AND {date_col} <= '{end_dt}'
+      AND (raw_data->>'CLOSED' != 'Y' AND (close_reason = 'В работе' OR close_reason IS NULL))
+    GROUP BY stage_id
+    ORDER BY count DESC, amount DESC;
+    """
+    _, active_rows = run_dwh_query(base_url, session_id, db_id, sql_active)
+
+    # 3. Rejections query
+    sql_rejections = f"""
+    SELECT 
+        stage_id,
+        COALESCE(close_reason, 'Не указано') as reason,
+        COUNT(*) as count,
+        COALESCE(SUM(tender_amount), 0) as amount,
+        COUNT(*) FILTER (WHERE has_advance = TRUE) as adv_count
+    FROM analytics_closed_deals
+    WHERE pipeline_name = 'Тендеры'
+      AND {date_col} >= '{start_dt}' AND {date_col} <= '{end_dt}'
+      AND (raw_data->>'CLOSED' = 'Y' OR (close_reason != 'В работе' AND close_reason IS NOT NULL AND is_won = FALSE))
+    GROUP BY stage_id, reason
+    ORDER BY stage_id, count DESC;
+    """
+    _, rej_rows = run_dwh_query(base_url, session_id, db_id, sql_rejections)
+
+    s = summary_rows[0] if summary_rows else [0]*10
+    total, total_amt, won, won_amt, lost, lost_amt, active, active_amt, adv, adv_pct = (
+        s[0] or 0, float(s[1] or 0), s[2] or 0, float(s[3] or 0),
+        s[4] or 0, float(s[5] or 0), s[6] or 0, float(s[7] or 0),
+        s[8] or 0, float(s[9] or 0)
+    )
+
+    print("\n" + "=" * 80)
+    print(f"📊 ОПЕРАТИВНЫЙ ОТЧЕТ ПО ТЕНДЕРНЫМ СДЕЛКАМ")
+    print(f"Период: {start_dt[:10]} — {end_dt[:10]} | Фильтр: {filter_label}")
+    print("=" * 80)
+    print("\n1. СВОДНЫЕ ПОКАЗАТЕЛИ:")
+    print(f"   • Всего сделок в выборке:      {total} (НМЦК: {fmt_rub(total_amt)})")
+    print(f"   • Сейчас в активной работе:    {active} ({round(active/total*100, 1) if total else 0}%) | НМЦК: {fmt_rub(active_amt)}")
+    print(f"   • Завершено отказом:           {lost} ({round(lost/total*100, 1) if total else 0}%) | Потеряно НМЦК: {fmt_rub(lost_amt)}")
+    print(f"   • Выиграно (контракт):         {won} ({round(won/total*100, 1) if total else 0}%) | Контракты: {fmt_rub(won_amt)}")
+    print(f"   • С предусмотренным авансом:   {adv} ({round(adv/total*100, 1) if total else 0}%) | Средний размер: {adv_pct}%")
+
+    print("\n2. СЕЙЧАС В АКТИВНОЙ РАБОТЕ ПО СТАДИЯМ:")
+    if active_rows:
+        for r in active_rows:
+            stg, cnt, amt, a_cnt = r[0], r[1], float(r[2] or 0), r[3]
+            print(f"   • {stg}: {cnt} сделок | НМЦК: {fmt_rub(amt)} (с авансом: {a_cnt})")
+    else:
+        print("   (нет активных сделок за указанный период)")
+
+    print("\n3. ОТКАЗЫ: НА КАКОЙ СТАДИИ И ПО КАКИМ ПРИЧИНАМ:")
+    if rej_rows:
+        current_stg = None
+        for r in rej_rows:
+            stg, reason, cnt, amt, a_cnt = r[0], r[1], r[2], float(r[3] or 0), r[4]
+            if stg != current_stg:
+                current_stg = stg
+                print(f"\n   ▼ Стадия «{stg}»:")
+            print(f"     - {reason}: {cnt} сделок | НМЦК: {fmt_rub(amt)} (с авансом: {a_cnt})")
+    else:
+        print("   (нет отказов за указанный период)")
+    print("\n" + "=" * 80 + "\n")
+
 def main():
     parser = argparse.ArgumentParser(description="Metabase BI Management and Dashboard Pipeline")
     parser.add_argument("--action", required=True, 
-                        choices=["update-cards", "token-analytics", "setup-all", "patch-locale", "create-user", "test-queries", "db-stats"],
+                        choices=["update-cards", "tender-report", "deploy-tender-ops", "token-analytics", "setup-all", "patch-locale", "create-user", "test-queries", "db-stats"],
                         help="Action to perform on Metabase")
     parser.add_argument("--dry-run", action="store_true", help="Simulate API calls without modifying state")
     parser.add_argument("--url", default=DEFAULT_METABASE_URL, help="Metabase instance URL")
@@ -622,6 +1172,8 @@ def main():
     parser.add_argument("--password", default=DEFAULT_ADMIN_PASSWORD, help="Metabase admin password")
     parser.add_argument("--manager-email", default="manager@tender-rag.local", help="Manager user email")
     parser.add_argument("--manager-password", default="TenderManager2026!", help="Manager user password")
+    parser.add_argument("--period", default="month", help="Reporting period: 'month', 'prev-month', 'week', 'today', or 'YYYY-MM-DD..YYYY-MM-DD'")
+    parser.add_argument("--filter-by", default="create", choices=["create", "close"], help="Filter by 'create' (creation date) or 'close' (outcome date)")
 
     args = parser.parse_args()
 
@@ -648,6 +1200,10 @@ def main():
         test_queries(args.url, session_id, args.dry_run)
     elif args.action == "db-stats":
         db_stats(args.url, session_id, args.dry_run)
+    elif args.action == "tender-report":
+        tender_report(args.url, session_id, args.period, args.filter_by, args.dry_run)
+    elif args.action == "deploy-tender-ops":
+        deploy_tender_ops_dashboard(args.url, session_id, args.dry_run)
     elif args.action == "setup-all":
         patch_locale_and_formatting(args.url, session_id, args.dry_run)
         create_manager_user(args.url, session_id, args.manager_email, args.manager_password, args.dry_run)

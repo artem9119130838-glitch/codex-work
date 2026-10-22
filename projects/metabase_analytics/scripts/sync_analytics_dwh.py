@@ -79,6 +79,16 @@ CLOSE_REASON_MAP = {
     "336": "Недостаточный срок поставки"
 }
 
+USER_MAP = {
+    "14": "Сауле Бестова",
+    "38": "Александра Пономарева",
+    "20": "Азат Денишов",
+    "16": "Анжелика Павлова",
+    "36": "Чулпан Хузина",
+    "1": "Артем",
+    "26": "Салман"
+}
+
 STAGE_NAMES = {
     "NEW": "Заявка на расчет",
     "PREPARATION": "Расчет КП",
@@ -351,7 +361,7 @@ def main():
 
         deals_rows.append((
             deal_id, title, tender_number, date_create, date_close, stage_display,
-            close_reason, d.get("ASSIGNED_BY_ID"), d.get("COMPANY_ID"), tender_amount,
+            close_reason, USER_MAP.get(str(d.get("ASSIGNED_BY_ID")), f"ID {d.get('ASSIGNED_BY_ID')}"), d.get("COMPANY_ID"), tender_amount,
             our_offer, delivery_time, payment_terms, raw_data, pipeline_name, is_won,
             has_advance, advance_pct, advance_details
         ))
