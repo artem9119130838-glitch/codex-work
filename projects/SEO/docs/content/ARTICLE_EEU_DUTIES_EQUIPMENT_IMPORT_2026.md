@@ -11,7 +11,7 @@ AI-SNIPPET & GEO OPTIMIZATION HEADER:
 <meta name="robots" content="max-snippet:150, max-image-preview:large, max-video-preview:-1">
 -->
 
-# Повышение пошлин ЕЭК до уровня связывания ВТО: на какое оборудование выросли ставки и как рассчитать белый импорт из Китая с НДС 22%
+# Повышение пошлин ЕЭК: новые ставки и расчет импорта с НДС 22%
 
 ---
 
