@@ -2,7 +2,20 @@
 
 > **Статус документа:** Официальный корпоративный регламент проекта `projects/lead_reactivation`.  
 > **Область действия:** Автономный конвейер возврата спящих контактов 1С:УНФ через создание черновиков писем в Roundcube IMAP (`sales@longwang.ru`).  
-> **Связанные системы:** 1С:УНФ OData, DWH `marketing_db` (PostgreSQL 14 / pgvector), Roundcube IMAP Hostland, CRM Битрикс24.
+> **Связанные системы:** 1С:УНФ OData, DWH `marketing_db` (PostgreSQL 14 / pgvector), Roundcube IMAP Hostland, CRM Битрикс24.  
+> **Правило чтения (Slice Reading Guard):** Читать строго строки 1–35 (TOC), затем целевой диапазон через view_file с StartLine и EndLine.
+
+---
+
+## 🧭 Оглавление регламента (TOC & Slice Navigator)
+
+| Раздел | Тема / Назначение |
+|---|---|
+| **1. Фундаментальные инварианты** | Drafts Only, презентация/КП во вложении, HR Guard, кулдауны 21/90 дн |
+| **2. Архитектура и протокол** | OData 1С, IMAP Drafts, дедупликация, скрипт reactivate_leads_pipeline.py |
+| **3. Стандарты текстов и писем** | B2B-тональность, персональные триггеры, запрет спама |
+| **4. Контроль расхода токенов** | DWH marketing_db, task_type lead_reactivation, лимиты |
+| **5. Корпоративная RAG-база** | База знаний kb_leads_v1, векторный поиск pgvector |
 
 ---
 

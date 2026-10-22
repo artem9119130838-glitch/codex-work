@@ -23,6 +23,7 @@
 - [13. Тендеры, АСТ ГОЗ и RAG-пайплайн спецификаций](#tenders_goz)
 - [14. Инфраструктура, VPS-сервер, Docker и Бэкапы](#infra_vps)
 - [15. SEO Longwang.ru, поисковые краулеры и Trend Spike Radar](#seo_longwang)
+- [16. Медицинская диагностика и анализ томографии (DICOM / КЛКТ / ОПТГ)](#medical_imaging)
 
 ---
 
@@ -1139,7 +1140,7 @@
 | **Базовый** | `main.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/app/main.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `make_snapshot.ps1` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/local_inventory/inventory/make_snapshot.ps1` | Автоматизация рабочего процесса. | 2 |
 | **Базовый** | `make_snapshot.ps1` | `ARCHIVE/bootstrap_snapshot_2026-05-30/projects/local_inventory/inventory/make_snapshot.ps1` | Автоматизация рабочего процесса. | 3 |
-| **Базовый** | `manage_metabase_dashboards.py` | `projects/metabase_analytics/scripts/manage_metabase_dashboards.py` | !/usr/bin/env python3 | 0 |
+| **Канонический** | manage_metabase_dashboards.py | projects/metabase_analytics/scripts/manage_metabase_dashboards.py | Единый CLI-конвейер v2.7: деплой Главного дашборда еженедельной планерки директоров (Executive Sync), антирейтинг закупщиков Дечжоу, оперативный дашборд тендеров, мониторинг LLM-токенов, управление правами коллекций (Group 1 All Users), валидация SQL-карточек и проверка пользовательского доступа. | 0 |
 | **Базовый** | `manage_metabase_dashboards_v2_0_before_field_id_fix.py` | `projects/metabase_analytics/scripts/archive/manage_metabase_dashboards_v2_0_before_field_id_fix.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `manage_metabase_dashboards_v2_2_before_3level_grouping.py` | `projects/metabase_analytics/scripts/archive/manage_metabase_dashboards_v2_2_before_3level_grouping.py` | !/usr/bin/env python3 | 0 |
 | **Базовый** | `map_locus_to_gene.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/life-science-research/skills/locus-to-gene-mapper-skill/scripts/map_locus_to_gene.py` | !/usr/bin/env python3 | 0 |
@@ -1416,7 +1417,7 @@
 | **Расширенный** | `search_raw_system.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/search_raw_system.py` | Check if it's a RUN_COMMAND tool call | 9 |
 | **Расширенный** | `simready_package_check_dependencies.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/nvidia/skills/omniverse-cad-to-simready/shared/simready_package_check_dependencies.py` | !/usr/bin/env python3 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. | 0 |
 | **Расширенный** | `sync-skills.sh` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/render/scripts/sync-skills.sh` | !/usr/bin/env bash | 0 |
-| **Расширенный** | `sync_analytics_dwh.py` | `projects/metabase_analytics/scripts/sync_analytics_dwh.py` | !/usr/bin/env python3 | 0 |
+| **Канонический** | `sync_analytics_dwh.py` | `projects/metabase_analytics/scripts/sync_analytics_dwh.py` | Боевой ETL-конвейер DWH v2.2: синхронизация сделок CRM и стадий в PostgreSQL, парсинг авансов, сквозной сбор и привязка задач снабжения Группы 14 к закупщикам офиса Дечжоу (Miss Wang, Cindy Qian, Юйнань Ли, Liyan Wang, Азат Денишов), флаги --inspect-supply и --check-db. | 0 |
 | **Расширенный** | `sync_projects_kb.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai/scripts/sync_projects_kb.py` | Автоматизация рабочего процесса. | 0 |
 | **Интеграционный** | `aggregate_salmon_quant.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/codex_home/.tmp/plugins/plugins/ngs-analysis/workflows/bulk_rnaseq_counts_qc/aggregate_salmon_quant.py` | !/usr/bin/env python3 Aggregate Salmon quant.sf files into transcript- and gene-level matrices. | 0 |
 | **Интеграционный** | `mass_replace.py` | `config/infra_management/scripts/mass_replace.py` | Configuration | 0 |
@@ -1534,3 +1535,12 @@
 | **Боевой канонический** | `apply_wp_onpage_fixes.py` | `projects/SEO/scripts/apply_wp_onpage_fixes.py` | Автоматизированное внедрение On-Page правок, ликвидация 301-редиректов и перелинковка через WP REST API | 2 |
 | **Вспомогательный** | `analyze_gogetlinks.py` | `projects/SEO/scripts/analyze_gogetlinks.py` | Анализ ссылочного профиля биржи GoGetLinks и оценка распределения анкоров | 0 |
 | **Диагностический** | `verify_live_urls.py` | `projects/SEO/scripts/verify_live_urls.py` | Диагностическая проверка статус-кодов ключевых хабов и разделов сайта longwang.ru | 0 |
+
+---
+
+<a id='medical_imaging'></a>
+## 16. Медицинская диагностика и анализ томографии (DICOM / КЛКТ / ОПТГ)
+
+| Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
+| :--- | :--- | :--- | :--- | :--- |
+| **Базовый** | `analyze_dental_cbct.py` | `scripts/analyze_dental_cbct.py` | Автономный анализ 3D КЛКТ томографии (Planmeca, Vatech и др.) в формате DICOM: парсинг метаданных вокселя, memmap-загрузка объема, экспорт ортогональных MPR-срезов (аксиальный, корональный, сагиттальный), морфометрия кист пазух и костных дефектов в мм и см³ без тяжелых внешних библиотек | 0 |

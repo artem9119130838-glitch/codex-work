@@ -4,7 +4,24 @@
 > **Хост BI:** `http://109.248.170.181:3000` (Docker `metabase`).  
 > **База DWH:** PostgreSQL `marketing_db` (порт `5433`, хост `10.10.0.1`, изолированный пользователь `vector_user`).  
 > **Связанный проект:** [metabase_analytics](file:///C:/Codex/projects/metabase_analytics/README.md)  
-> **Связанные навыки:** [metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md), [linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md).
+> **Связанные навыки:** [metabase_analytics_ops](file:///C:/Users/Артем/.gemini/config/skills/metabase_analytics_ops/SKILL.md), [linux](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md).  
+> **Правило чтения (Slice Reading Guard):** Читать строго строки 1–35 (TOC), затем целевой диапазон через view_file с StartLine и EndLine.
+
+---
+
+## 🧭 Оглавление регламента (TOC & Slice Navigator)
+
+| Раздел | Тема / Назначение |
+|---|---|
+| **1. Модель данных DWH** | PostgreSQL marketing_db, витрины closed_deals, stage_history |
+| **2. Стандарты SQL-карточек** | 4 финансовых поля побед, кодировки, форматирование пробелом |
+| **3. Разграничение прав** | Права All Users (ID 1), PUT /api/collection/graph, manager test-access |
+| **4. Ресурсная дисциплина** | OOM Guard, Docker stop metabase при тяжелых билдах, запрет down |
+| **5. Бэкапы и пароли H2** | metabase.db.mv.db, сброс паролей через jar CLI |
+| **6. Боевые скрипты & Dry-Run** | manage_metabase_dashboards.py, sync_analytics_dwh.py |
+| **7. Учет токенов LLM** | llm_usage_logs, Дашборд 8, Integer Field ID Invariant |
+| **8. Ночной cron DWH** | Реконсилиация за 3 дня (03:00 ночи на VPS) |
+| **9. Планерки директоров** | Dashboard 10, карточки 81–86, Group 14 Supply Attribution Invariant |
 
 ---
 
@@ -42,8 +59,13 @@
    * `"view-data": "legacy-no-self-service"`
    * `"create-queries": "no"`
    * Это скрывает раздел «Данные» и SQL-редактор, защищая базу от неоптимальных или несанкционированных запросов.
-2. **Коллекция менеджеров:**
-   * Менеджеры имеют права `read` только на свою коллекцию (например, «Аналитика продаж»). На корневые и системные коллекции устанавливается `none`.
+2. **Коллекция менеджеров и автоматизация прав:**
+   * Менеджеры имеют права `read` строго на свои рабочие коллекции (Коллекция 8 «Тендеры и Снабжение», Коллекция 4 «Продажи», Коллекция 5 «Тендерный отдел»).
+   * Автоматическая выдача прав и валидация через Metabase API `PUT /api/collection/graph` выполняется канонической командой:
+     `py projects/metabase_analytics/scripts/manage_metabase_dashboards.py --action grant-permissions --collection-ids 4,5,8`
+   * Проверка доступа пользователя:
+     `py projects/metabase_analytics/scripts/manage_metabase_dashboards.py --action test-access --manager-email manager@tender-rag.local --dashboard-id 10`
+   * Административная группа 2 (Administrators) при обновлении графа прав обязана сохраняться в неизменном виде (`"groups": {"2": {"root": "write"}}`), иначе API возвращает ошибку HTTP 400.
 
 ---
 
@@ -137,3 +159,25 @@
    # Выполняется ежедневно в 03:00 ночи
    0 3 * * * /usr/bin/python3 /Storage/scripts/sync_analytics_dwh.py --days 3 >> /var/log/sync_analytics_dwh.log 2>&1
    ```
+---
+
+## 9. Дашборды совместных планерок (Executive Weekly Sync)
+
+1. **Назначение:** Единый минимально необходимый интерфейс для 25-минутных планерок руководителей (Александра Пономарева и Азат Денишов).
+2. **Канонический дашборд:** **[Dashboard ID 10 — «Еженедельный синк директоров: Тендеры ↔ Снабжение КНР»](http://109.248.170.181:3000/dashboard/10)** (Коллекция ID 8 «Тендеры и Снабжение: Управление и Синхронизация»).
+3. **Состав карточек:**
+   - Карточка 1: Светофор недели и скорость за 7 дней (пайплайн, взято в работу, победы, Limbo);
+   - Карточка 2: Горящие торги на ближайшие 72 часа (дедлайны ЭТП, прямые ссылки в CRM);
+   - Карточка 3: Детектор зависших сделок STUCK_LIMBO (просрочки без результата с первичной атрибуцией вины Снабжение vs Тендеры);
+   - Карточка 4: Анализ срывов недели и причин отказов (коды 311–315, 322, 332);
+   - Карточка 4b: Эффективность и загрузка специалистов снабжения КНР (антирейтинг задержек по сотрудникам офиса Дечжоу);
+   - Карточка 5: Победы недели и экономика контрактов (4 финансовых поля: НМЦК, контракт, маржа, снижение %).
+4. **Интерактивные фильтры:** Период дат, Тендерный специалист (Александра Пономарева), Закупщик КНР (Азат, Miss Wang, Cindy Qian, Юйнань Ли, Liyan Wang). *(Примечание: Сауле Бестова более в компании не работает).*
+5. **Мастер-руководство и сценарий совещания:** См. [TENDER_SUPPLY_MEETING_AND_ANALYTICS_GUIDE.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_SUPPLY_MEETING_AND_ANALYTICS_GUIDE.md).
+6. **Group 14 Supply Attribution Invariant:**
+   - В сделках Битрикс24 отсутствует отдельное поле ответственного закупщика КНР.
+   - Закупщик назначается как исполнитель (`RESPONSIBLE_ID`) в задаче Группы 14 («Снабжение КНР»), привязанной к сделке через `UF_CRM_TASK = ['D_<deal_id>']`.
+   - Аналитика эффективности снабжения обязана агрегироваться по связке с задачами Группы 14 (`supply_responsible_name`). Прямой расчет эффективности снабжения по сделке без сопоставления с Группой 14 категорически запрещен.
+7. **Деплой и инспекция:**
+   - Деплой дашборда: `py projects/metabase_analytics/scripts/manage_metabase_dashboards.py --action deploy-weekly-sync`.
+   - Инспекция привязки задач закупщиков: `py projects/metabase_analytics/scripts/sync_analytics_dwh.py --inspect-supply`.

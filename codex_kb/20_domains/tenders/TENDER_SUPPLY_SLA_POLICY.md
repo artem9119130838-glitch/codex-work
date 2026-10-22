@@ -2,7 +2,7 @@
 
 > **Статус документа:** Двусторонний межведомственный контракт (SLA) прямого действия. Определяет границы ответственности, форматы передачи данных, сроки реакции и санкции за срыв дедлайнов между Тендерным отделом (Заказчик) и Отделом снабжения КНР (Подрядчик).  
 > **Связанные задачи Битрикс24:** Задача №780 (Тендерная аналитика), Задача №4878 (Дисциплина снабжения Дечжоу).  
-> **Мастер-политики:** [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md), [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md).  
+> **Мастер-политики:** [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md), [CHINA_SUPPLY_POLICY.md](file:///C:/Codex/codex_kb/20_domains/china_supply/CHINA_SUPPLY_POLICY.md).  \n> **Практическое руководство и сценарий планерок:** [TENDER_SUPPLY_MEETING_AND_ANALYTICS_GUIDE.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_SUPPLY_MEETING_AND_ANALYTICS_GUIDE.md).  
 > **Правило чтения (Slice Reading Guard):** Читать строго строки 1–35 (TOC), затем целевой диапазон через view_file.
 
 ---

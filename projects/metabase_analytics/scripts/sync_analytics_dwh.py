@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Canonical DWH Sync Pipeline: sync_analytics_dwh.py
-Version: 2.0 (2026-10-12)
+Version: 2.2 (2026-10-22)
 
 Synchronizes closed deals and stage transition history from Bitrix24 CRM
 into PostgreSQL DWH (marketing_db) for Metabase BI dashboards.
@@ -80,13 +80,23 @@ CLOSE_REASON_MAP = {
 }
 
 USER_MAP = {
-    "14": "Сауле Бестова",
+    "14": "Сауле Бестова (экс-сотрудник)",
     "38": "Александра Пономарева",
     "20": "Азат Денишов",
     "16": "Анжелика Павлова",
     "36": "Чулпан Хузина",
     "1": "Артем",
     "26": "Салман"
+}
+
+SUPPLY_USER_MAP = {
+    "20": "Азат Денишов",
+    "30": "Miss Wang (Дечжоу)",
+    "86": "Cindy Qian (Дечжоу)",
+    "84": "Юйнань Ли (Дечжоу)",
+    "44": "Liyan Wang (Дечжоу)",
+    "38": "Александра Пономарева",
+    "14": "Сауле Бестова (экс-сотрудник)"
 }
 
 STAGE_NAMES = {
@@ -252,19 +262,92 @@ def fetch_all_items(method, select_fields=None, filter_params=None):
         time.sleep(0.15)
     return items
 
+def fetch_group14_supply_tasks(b24_url):
+    """
+    Fetches all tasks from Bitrix24 Group 14 (Снабжение КНР) and maps deals
+    via UF_CRM_TASK (e.g. 'D_1234') to the responsible supply specialist.
+    Returns dict: {deal_id_str: (resp_name, task_id)}
+    """
+    url = f"{b24_url.rstrip('/')}/tasks.task.list.json"
+    deal_to_supply = {}
+    start = 0
+
+    while True:
+        payload = {
+            "filter": {"GROUP_ID": 14},
+            "select": ["ID", "TITLE", "RESPONSIBLE_ID", "UF_CRM_TASK", "CREATED_DATE"],
+            "order": {"ID": "DESC"},
+            "start": start
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                tasks = res.get("result", {}).get("tasks", [])
+                if not tasks:
+                    break
+                for t in tasks:
+                    crm_list = t.get("ufCrmTask") or []
+                    resp_id = str(t.get("responsibleId") or "")
+                    resp_name = SUPPLY_USER_MAP.get(resp_id, USER_MAP.get(resp_id, f"Закупщик ID {resp_id}"))
+                    task_id = t.get("id")
+                    for crm_item in crm_list:
+                        if isinstance(crm_item, str) and crm_item.startswith("D_"):
+                            d_id = crm_item[2:]
+                            if d_id not in deal_to_supply:
+                                deal_to_supply[d_id] = (resp_name, task_id)
+                if len(tasks) < 50:
+                    break
+                start += len(tasks)
+                time.sleep(0.1)
+        except Exception as e:
+            print(f"[WARNING] Failed to fetch chunk at start={start} for Group 14: {e}")
+            break
+
+    return deal_to_supply
+
 def main():
     parser = argparse.ArgumentParser(description="Bitrix24 CRM to PostgreSQL DWH Sync Pipeline (v2.0 with Advance Analysis)")
     parser.add_argument("--days", type=int, default=0, help="Days to look back for incremental sync")
     parser.add_argument("--since-date", type=str, default="", help="Sync deals created/modified since date (YYYY-MM-DD)")
     parser.add_argument("--full", action="store_true", help="Perform full historical backfill")
     parser.add_argument("--dry-run", action="store_true", help="Fetch from CRM, parse and display audit without DB write")
+    parser.add_argument("--inspect-supply", action="store_true", help="Inspect Group 14 supply tasks and assignee breakdown without sync")
+    parser.add_argument("--check-db", action="store_true", help="Test direct PostgreSQL connectivity and display table stats")
     args = parser.parse_args()
 
     print(f"=== Starting CRM to DWH Sync Pipeline v2.0 (Dry-Run: {args.dry_run}) ===")
 
+    if args.check_db:
+        print("=== Checking PostgreSQL DWH Connection ===")
+        try:
+            import psycopg2
+            conn = psycopg2.connect(host=PG_HOST, port=PG_PORT, dbname=PG_DBNAME, user=PG_USER, password=PG_PASS, connect_timeout=5)
+            cur = conn.cursor()
+            cur.execute("SELECT count(*), count(supply_responsible_name), count(CASE WHEN has_advance THEN 1 END) FROM analytics_closed_deals;")
+            row = cur.fetchone()
+            print(f"[SUCCESS] PostgreSQL Connected! Total deals: {row[0]} | With Supply Assignee: {row[1]} | With Advance: {row[2]}")
+            conn.close()
+        except Exception as e:
+            print(f"[FAIL] PostgreSQL Connection Error: {e}")
+        sys.exit(0)
+
     if not B24_URL:
         print("[ERROR] B24_WEBHOOK_URL / BITRIX24_WEBHOOK_URL is not defined.")
         sys.exit(1)
+
+    if args.inspect_supply:
+        print("=== Inspecting Group 14 Supply Tasks & Dezhou Assignees ===")
+        deal_to_supply = fetch_group14_supply_tasks(B24_URL)
+        resp_counts = {}
+        for d_id, (resp_name, t_id) in deal_to_supply.items():
+            resp_counts[resp_name] = resp_counts.get(resp_name, 0) + 1
+        print(f"Total Linked Deals from Group 14: {len(deal_to_supply)}")
+        print("Distribution by Dezhou Supply Assignees:")
+        for r_name, cnt in sorted(resp_counts.items(), key=lambda x: x[1], reverse=True):
+            print(f"  • {r_name:<25}: {cnt} deals")
+        sys.exit(0)
 
     filter_params = {}
     if args.since_date:
@@ -280,6 +363,10 @@ def main():
     print("Fetching deals from Bitrix24 CRM...")
     deals = fetch_all_items("crm.deal.list", ["*", "UF_*"], filter_params)
     print(f"[OK] Fetched {len(deals)} deals from CRM.")
+
+    print("Fetching supply tasks from Group 14...")
+    deal_to_supply = fetch_group14_supply_tasks(B24_URL)
+    print(f"[OK] Mapped supply tasks for {len(deal_to_supply)} deals.")
 
     deals_rows = []
     stages_rows = []
@@ -359,11 +446,15 @@ def main():
 
         raw_data = json.dumps(d, ensure_ascii=False)
 
+        supply_info = deal_to_supply.get(str(deal_id), (None, None))
+        supply_resp_name = supply_info[0]
+        supply_t_id = supply_info[1]
+
         deals_rows.append((
             deal_id, title, tender_number, date_create, date_close, stage_display,
             close_reason, USER_MAP.get(str(d.get("ASSIGNED_BY_ID")), f"ID {d.get('ASSIGNED_BY_ID')}"), d.get("COMPANY_ID"), tender_amount,
             our_offer, delivery_time, payment_terms, raw_data, pipeline_name, is_won,
-            has_advance, advance_pct, advance_details
+            has_advance, advance_pct, advance_details, supply_resp_name, supply_t_id
         ))
         stages_rows.append((deal_id, stage_raw, date_close or date_create))
 
@@ -408,7 +499,10 @@ def main():
         ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS has_advance BOOLEAN DEFAULT FALSE;
         ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_percent NUMERIC DEFAULT 0;
         ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS advance_details TEXT;
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS supply_responsible_name VARCHAR(128);
+        ALTER TABLE analytics_closed_deals ADD COLUMN IF NOT EXISTS supply_task_id BIGINT;
         CREATE INDEX IF NOT EXISTS idx_closed_deals_has_advance ON analytics_closed_deals(has_advance);
+        CREATE INDEX IF NOT EXISTS idx_closed_deals_supply_responsible ON analytics_closed_deals(supply_responsible_name);
     """
     cursor.execute(migration_sql)
     conn.commit()
@@ -418,7 +512,7 @@ def main():
             deal_id, title, tender_number, date_create, date_close, stage_id,
             close_reason, responsible_name, customer_name, tender_amount,
             our_offer_amount, delivery_time, payment_terms, raw_data, pipeline_name, is_won,
-            has_advance, advance_percent, advance_details
+            has_advance, advance_percent, advance_details, supply_responsible_name, supply_task_id
         ) VALUES %s
         ON CONFLICT (deal_id) DO UPDATE SET
             title = EXCLUDED.title,
@@ -438,7 +532,9 @@ def main():
             is_won = EXCLUDED.is_won,
             has_advance = EXCLUDED.has_advance,
             advance_percent = EXCLUDED.advance_percent,
-            advance_details = EXCLUDED.advance_details;
+            advance_details = EXCLUDED.advance_details,
+            supply_responsible_name = EXCLUDED.supply_responsible_name,
+            supply_task_id = EXCLUDED.supply_task_id;
     """
     execute_values(cursor, upsert_deal_sql, deals_rows, page_size=200)
 

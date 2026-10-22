@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Canonical Metabase BI Management Pipeline: manage_metabase_dashboards.py
-Version: 2.4 (2026-10-05)
+Version: 2.7 (2026-10-22)
 
 Single canonical script for managing Metabase dashboards, analytical cards,
 global formatting/localization, user permissions, and LLM Token Analytics.
@@ -747,6 +747,374 @@ ORDER BY h.date_entered DESC, h.deal_id DESC;"""
     print(f"[SUCCESS] Dashboard {dash_id} deployed with {len(dashcards_payload)} cards and interactive filters.")
     print(f"URL: {base_url}/dashboard/{dash_id}")
 
+
+def get_or_create_collection(base_url, session_id, name, color="#509EE3", dry_run=False):
+    if dry_run:
+        return 8
+    cols = api_call(base_url, session_id, "GET", "/collection", dry_run=False) or []
+    target = next((c for c in cols if c.get("name") == name and not c.get("archived")), None)
+    if target:
+        return target["id"]
+    payload = {"name": name, "color": color}
+    res = api_call(base_url, session_id, "POST", "/collection", payload, dry_run=False)
+    return res.get("id") if res else 5
+
+
+def deploy_weekly_sync_dashboard(base_url, session_id, dry_run=False):
+    """
+    Deploys the Master Executive Sync Dashboard:
+    'Еженедельный синк директоров: Тендеры ↔ Снабжение КНР'
+    for weekly meetings between Alexandra Ponomareva and Azat Denishov.
+    Features:
+    - SLA Health & Weekly Velocity Traffic Light
+    - Hot Tenders in next 72 Hours (Pulse)
+    - Stuck Limbo Detector (Deadline expired without CRM closure)
+    - Root-cause Analysis of Weekly Losses
+    - Chinese Supply Specialists Performance & Delay Ranking (Group 14)
+    - Won Contracts Economics (4 Financial Fields per Metabase Policy)
+    - Interactive Filters: Date Range, Tender Specialist, Supply Assignee
+    - Direct Clickable Links to Bitrix24 Deals
+    """
+    print("=== Deploying Executive Master Sync Dashboard (Tenders ↔ Supply) ===")
+    db_id = get_database_id(base_url, session_id, "marketing_db", dry_run) or 2
+    collection_id = get_or_create_collection(base_url, session_id, "Тендеры и Снабжение: Управление и Синхронизация", "#509EE3", dry_run)
+    print(f"[OK] Target Collection ID: {collection_id}")
+
+    date_create_id = get_field_id(base_url, session_id, db_id, "analytics_closed_deals", "date_create", dry_run, 76)
+    responsible_name_id = get_field_id(base_url, session_id, db_id, "analytics_closed_deals", "responsible_name", dry_run, 80)
+    deal_id_field_id = get_field_id(base_url, session_id, db_id, "analytics_closed_deals", "deal_id", dry_run, 73)
+
+    print(f"[OK] Resolved Field IDs: date_create={date_create_id}, responsible_name={responsible_name_id}, deal_id={deal_id_field_id}")
+
+    tag_date_range = {
+        "id": "tag_date_range",
+        "name": "date_range",
+        "display-name": "Период дат",
+        "type": "dimension",
+        "dimension": ["field", date_create_id, None],
+        "widget-type": "date/all-options"
+    }
+    tag_responsible = {
+        "id": "tag_responsible",
+        "name": "responsible",
+        "display-name": "Тендерный специалист",
+        "type": "dimension",
+        "dimension": ["field", responsible_name_id, None],
+        "widget-type": "string/="
+    }
+    tag_supply = {
+        "id": "tag_supply",
+        "name": "supply_responsible",
+        "display-name": "Закупщик КНР",
+        "type": "text"
+    }
+
+    sql_kpi_sync = """SELECT 
+    COUNT(*) AS "Всего в пайплайне (шт)",
+    COALESCE(SUM(COALESCE(tender_amount, our_offer_amount, 0)), 0) AS "Объем НМЦК (руб)",
+    COUNT(*) FILTER (WHERE (raw_data->>'CLOSED' != 'Y' OR raw_data->>'CLOSED' IS NULL) AND (close_reason = 'В работе' OR close_reason IS NULL) AND stage_id NOT IN ('Не взяли в работу')) AS "В активной работе (шт)",
+    COALESCE(SUM(tender_amount) FILTER (WHERE (raw_data->>'CLOSED' != 'Y' OR raw_data->>'CLOSED' IS NULL) AND (close_reason = 'В работе' OR close_reason IS NULL) AND stage_id NOT IN ('Не взяли в работу')), 0) AS "НМЦК в работе (руб)",
+    COUNT(*) FILTER (WHERE is_won = TRUE) AS "Победы (шт)",
+    COALESCE(SUM(our_offer_amount) FILTER (WHERE is_won = TRUE), 0) AS "Выиграно контрактов (руб)",
+    COUNT(*) FILTER (WHERE is_won = FALSE AND (close_reason != 'В работе' OR raw_data->>'CLOSED' = 'Y')) AS "Отказы (шт)",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "С авансом (шт)",
+    COUNT(*) FILTER (WHERE (raw_data->>'CLOSEDATE')::timestamp < NOW() AND (raw_data->>'CLOSED' != 'Y' OR raw_data->>'CLOSED' IS NULL) AND is_won = FALSE AND stage_id NOT IN ('Не взяли в работу')) AS "Зависшие (STUCK_LIMBO)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+  [[AND (supply_responsible_name ILIKE '%' || {{supply_responsible}} || '%')]];"""
+
+    sql_hot_72h = """SELECT 
+    deal_id AS "ID сделки",
+    'https://b24-g4wfjq.bitrix24.ru/crm/deal/details/' || deal_id || '/' AS "Ссылка в CRM",
+    (raw_data->>'CLOSEDATE')::date AS "Дедлайн на ЭТП",
+    ROUND(EXTRACT(EPOCH FROM ((raw_data->>'CLOSEDATE')::timestamp - NOW())) / 3600.0, 1) AS "Осталось часов",
+    title AS "Наименование закупки",
+    tender_number AS "Номер закупки",
+    responsible_name AS "Тендерный специалист",
+    COALESCE(supply_responsible_name, 'Не назначен в CRM') AS "Закупщик КНР",
+    stage_id AS "Текущий этап",
+    COALESCE(tender_amount, our_offer_amount, 0) AS "НМЦК (руб)",
+    CASE WHEN has_advance = TRUE THEN 'Да (' || advance_percent || '%)' ELSE 'Нет' END AS "Аванс"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  AND (raw_data->>'CLOSED' != 'Y' OR raw_data->>'CLOSED' IS NULL)
+  AND (close_reason = 'В работе' OR close_reason IS NULL)
+  AND stage_id NOT IN ('Не взяли в работу')
+  AND (raw_data->>'CLOSEDATE')::timestamp >= NOW() - INTERVAL '1 day'
+  AND (raw_data->>'CLOSEDATE')::timestamp <= NOW() + INTERVAL '4 days'
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+  [[AND (supply_responsible_name ILIKE '%' || {{supply_responsible}} || '%')]]
+ORDER BY (raw_data->>'CLOSEDATE')::timestamp ASC;"""
+
+    sql_stuck_limbo = """SELECT 
+    deal_id AS "ID сделки",
+    'https://b24-g4wfjq.bitrix24.ru/crm/deal/details/' || deal_id || '/' AS "Ссылка в CRM",
+    (raw_data->>'CLOSEDATE')::date AS "Просроченный дедлайн",
+    ROUND(EXTRACT(EPOCH FROM (NOW() - (raw_data->>'CLOSEDATE')::timestamp)) / 86400.0, 1) AS "Дней просрочки",
+    title AS "Наименование закупки",
+    responsible_name AS "Тендерный специалист",
+    COALESCE(supply_responsible_name, 'Не назначен в CRM') AS "Закупщик КНР",
+    stage_id AS "Зависшая стадия",
+    CASE 
+        WHEN stage_id IN ('Поиск товара, анализ ВЭД', 'C4:UC_8F7MST', 'C4:PREPARATION', 'Расчет КП') THEN '🔴 Срыв снабжения (нет расчета КП)'
+        WHEN stage_id IN ('Подготовка документов', 'C4:UC_X1NI23', 'Загрузить на ЭТП', 'C4:UC_5Y3KYZ') THEN '🔴 Срыв тендеров (не подали на ЭТП)'
+        ELSE '⚠️ Требует разбора'
+    END AS "Первичная атрибуция вины",
+    COALESCE(tender_amount, 0) AS "НМЦК (руб)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  AND (raw_data->>'CLOSED' != 'Y' OR raw_data->>'CLOSED' IS NULL)
+  AND (close_reason = 'В работе' OR close_reason IS NULL)
+  AND stage_id NOT IN ('Не взяли в работу')
+  AND (raw_data->>'CLOSEDATE')::timestamp < NOW()
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+  [[AND (supply_responsible_name ILIKE '%' || {{supply_responsible}} || '%')]]
+ORDER BY (raw_data->>'CLOSEDATE')::timestamp DESC;"""
+
+    sql_losses = """SELECT 
+    CASE 
+        WHEN stage_id = 'Не взяли в работу' THEN '1. Отсеяно на входе (Скоринг)'
+        WHEN stage_id IN ('Не смогли отработать', 'C4:APOLOGY') THEN '2. Отсеяно при подборе (Снабжение КНР)'
+        WHEN stage_id IN ('Проигрыш', 'C4:LOSE') THEN '3. Проигрыш на торгах (ЭТП)'
+        ELSE '4. Прочее закрытие'
+    END AS "Группа отсева",
+    COALESCE(close_reason, 'Не указана') AS "Причина отказа (Код CRM)",
+    COUNT(*) AS "Количество сделок",
+    COALESCE(SUM(tender_amount), 0) AS "Сумма потерь НМЦК (руб)",
+    COUNT(*) FILTER (WHERE has_advance = TRUE) AS "С авансом (шт)",
+    ROUND(AVG(advance_percent) FILTER (WHERE has_advance = TRUE), 1) AS "Средний аванс (%)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  AND is_won = FALSE
+  AND (close_reason != 'В работе' OR raw_data->>'CLOSED' = 'Y')
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+  [[AND (supply_responsible_name ILIKE '%' || {{supply_responsible}} || '%')]]
+GROUP BY 1, 2
+ORDER BY 1 ASC, COUNT(*) DESC;"""
+
+    sql_supply_ranking = """SELECT 
+    COALESCE(supply_responsible_name, 'Не назначен в CRM') AS "Специалист снабжения",
+    COUNT(*) AS "Всего процедур в работе",
+    COALESCE(SUM(tender_amount), 0) AS "Общая сумма НМЦК (руб)",
+    COUNT(*) FILTER (WHERE stage_id IN ('Поиск товара, анализ ВЭД', 'Расчет КП', 'C4:UC_8F7MST', 'C4:PREPARATION')) AS "Сейчас на подборе (шт)",
+    COUNT(*) FILTER (WHERE is_won = TRUE) AS "Победы (шт)",
+    COUNT(*) FILTER (WHERE is_won = FALSE AND close_reason IN ('Не получили коммерческое предложение', 'Получили коммерческое предложение слишком поздно', 'Не успели подготовить заявку')) AS "Срывы по срокам (код 316/318/322)",
+    COUNT(*) FILTER (WHERE is_won = FALSE AND close_reason IN ('Не нашли поставщика', 'Коммерческое предложение не соответствует требованиям')) AS "Не подобрали фабрику (код 314/320)",
+    COUNT(*) FILTER (WHERE (raw_data->>'CLOSEDATE')::timestamp < NOW() AND (raw_data->>'CLOSED' != 'Y' OR raw_data->>'CLOSED' IS NULL)) AS "Зависло в просрочке (Limbo)"
+FROM analytics_closed_deals
+WHERE pipeline_name = 'Тендеры'
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+  [[AND (supply_responsible_name ILIKE '%' || {{supply_responsible}} || '%')]]
+GROUP BY 1
+ORDER BY COUNT(*) DESC;"""
+
+    sql_won_deals = """SELECT 
+    deal_id AS "ID сделки",
+    'https://b24-g4wfjq.bitrix24.ru/crm/deal/details/' || deal_id || '/' AS "Ссылка в CRM",
+    date_close::date AS "Дата победы",
+    title AS "Наименование контракта",
+    tender_number AS "Номер закупки",
+    responsible_name AS "Тендерный менеджер",
+    COALESCE(supply_responsible_name, 'Не назначен в CRM') AS "Закупщик КНР",
+    COALESCE(tender_amount, 0) AS "НМЦК (руб)",
+    COALESCE(our_offer_amount, 0) AS "Сумма контракта (руб)",
+    (COALESCE(tender_amount, 0) - COALESCE(our_offer_amount, 0)) AS "Разница (руб)",
+    ROUND(((COALESCE(tender_amount, 0) - COALESCE(our_offer_amount, 0)) / NULLIF(COALESCE(tender_amount, 0), 0)) * 100, 2) AS "Снижение (%)",
+    CASE WHEN has_advance = TRUE THEN 'Да (' || advance_percent || '%)' ELSE 'Нет' END AS "Аванс"
+FROM analytics_closed_deals
+WHERE (pipeline_name = 'Тендеры' OR pipeline_name = 'Заказчики')
+  AND is_won = TRUE
+  [[AND {{date_range}}]]
+  [[AND {{responsible}}]]
+  [[AND (supply_responsible_name ILIKE '%' || {{supply_responsible}} || '%')]]
+ORDER BY date_close DESC, deal_id DESC;"""
+
+    link_settings = {
+        "column_settings": {
+            '["name", "Ссылка в CRM"]': {
+                "link_url": "https://b24-g4wfjq.bitrix24.ru/crm/deal/details/{{ID сделки}}/",
+                "link_text": "Открыть в CRM ↗",
+                "view_as": "link"
+            }
+        }
+    }
+
+    cards_def = [
+        {
+            "name": "1. Светофор недели: Пульс пайплайна и дисциплина SLA",
+            "sql": sql_kpi_sync,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "supply_responsible": tag_supply},
+            "vis": {},
+            "pos": {"row": 0, "col": 0, "size_x": 24, "size_y": 4}
+        },
+        {
+            "name": "2. Горящие торги на ближайшие 72 часа (Пульс недели)",
+            "sql": sql_hot_72h,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "supply_responsible": tag_supply},
+            "vis": link_settings,
+            "pos": {"row": 4, "col": 0, "size_x": 12, "size_y": 8}
+        },
+        {
+            "name": "3. Детектор зависших сделок (STUCK_LIMBO — просрочки без результата)",
+            "sql": sql_stuck_limbo,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "supply_responsible": tag_supply},
+            "vis": link_settings,
+            "pos": {"row": 4, "col": 12, "size_x": 12, "size_y": 8}
+        },
+        {
+            "name": "4. Анализ причин отказов и срывов недели (Root Cause)",
+            "sql": sql_losses,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "supply_responsible": tag_supply},
+            "vis": {},
+            "pos": {"row": 12, "col": 0, "size_x": 12, "size_y": 8}
+        },
+        {
+            "name": "4b. Эффективность закупщиков КНР (Антирейтинг задержек снабжения)",
+            "sql": sql_supply_ranking,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "supply_responsible": tag_supply},
+            "vis": {},
+            "pos": {"row": 12, "col": 12, "size_x": 12, "size_y": 8}
+        },
+        {
+            "name": "5. Победы недели и экономика контрактов (4 финансовых поля)",
+            "sql": sql_won_deals,
+            "display": "table",
+            "tags": {"date_range": tag_date_range, "responsible": tag_responsible, "supply_responsible": tag_supply},
+            "vis": link_settings,
+            "pos": {"row": 20, "col": 0, "size_x": 24, "size_y": 8}
+        }
+    ]
+
+    def sync_card(name, payload):
+        cards = api_call(base_url, session_id, "GET", "/card", dry_run=False) or []
+        target = next((c for c in cards if c.get("name") == name and not c.get("archived")), None)
+        if target:
+            cid = target["id"]
+            print(f"Updating existing Card {cid}: '{name}'...")
+            api_call(base_url, session_id, "PUT", f"/card/{cid}", payload, dry_run)
+            return cid
+        else:
+            print(f"Creating new Card: '{name}'...")
+            res = api_call(base_url, session_id, "POST", "/card", payload, dry_run)
+            return res.get("id") if res else None
+
+    deployed_cards = []
+    for cdef in cards_def:
+        card_payload = {
+            "name": cdef["name"],
+            "dataset_query": {
+                "type": "native",
+                "native": {
+                    "query": cdef["sql"],
+                    "template-tags": cdef["tags"]
+                },
+                "database": db_id
+            },
+            "display": cdef["display"],
+            "collection_id": collection_id,
+            "archived": False,
+            "visualization_settings": cdef["vis"]
+        }
+        cid = sync_card(cdef["name"], card_payload)
+        cdef["cid"] = cid
+        deployed_cards.append(cdef)
+
+    dashboards = api_call(base_url, session_id, "GET", "/dashboard", dry_run=False) or []
+    dash_name = "Еженедельный синк директоров: Тендеры ↔ Снабжение КНР"
+    target_dash = next((d for d in dashboards if d.get("name") == dash_name and not d.get("archived")), None)
+
+    dash_params = [
+        {
+            "id": "param_period",
+            "name": "Период дат",
+            "slug": "period",
+            "type": "date/all-options",
+            "sectionId": "date"
+        },
+        {
+            "id": "param_responsible",
+            "name": "Тендерный специалист",
+            "slug": "responsible",
+            "type": "string/=",
+            "sectionId": "string"
+        },
+        {
+            "id": "param_supply",
+            "name": "Закупщик КНР",
+            "slug": "supply_responsible",
+            "type": "string/=",
+            "sectionId": "string"
+        }
+    ]
+
+    dash_payload = {
+        "name": dash_name,
+        "description": "Минимально необходимый дашборд для 25-минутных совместных планерок директоров Тендерного отдела и Снабжения КНР (Александра Пономарева & Азат Денишов). Включает светофор SLA, горящие дедлайны на 72ч, детектор Limbo, антирейтинг задержек закупщиков и выигранные контракты.",
+        "parameters": dash_params
+    }
+
+    if target_dash:
+        dash_id = target_dash["id"]
+        print(f"[OK] Updating existing Dashboard {dash_id}: '{dash_name}'...")
+        api_call(base_url, session_id, "PUT", f"/dashboard/{dash_id}", dash_payload, dry_run)
+    else:
+        print(f"Creating new Dashboard: '{dash_name}' in Collection {collection_id}...")
+        dash_payload["collection_id"] = collection_id
+        res = api_call(base_url, session_id, "POST", "/dashboard", dash_payload, dry_run)
+        dash_id = res.get("id") if res else None
+
+    print(f"[OK] Dashboard ID: {dash_id}")
+
+    dashcards_payload = []
+    for idx, cdef in enumerate(deployed_cards):
+        cid = cdef["cid"]
+        pos = cdef["pos"]
+        
+        mappings = [
+            {
+                "parameter_id": "param_period",
+                "card_id": cid,
+                "target": ["dimension", ["template-tag", "date_range"]]
+            },
+            {
+                "parameter_id": "param_responsible",
+                "card_id": cid,
+                "target": ["dimension", ["template-tag", "responsible"]]
+            },
+            {
+                "parameter_id": "param_supply",
+                "card_id": cid,
+                "target": ["variable", ["template-tag", "supply_responsible"]]
+            }
+        ]
+            
+        dashcards_payload.append({
+            "id": -(idx + 300),
+            "card_id": cid,
+            "row": pos["row"],
+            "col": pos["col"],
+            "size_x": pos["size_x"],
+            "size_y": pos["size_y"],
+            "parameter_mappings": mappings,
+            "visualization_settings": cdef.get("vis", {})
+        })
+
+    api_call(base_url, session_id, "PUT", f"/dashboard/{dash_id}/cards", {"cards": dashcards_payload}, dry_run)
+    print(f"[SUCCESS] Dashboard {dash_id} ('{dash_name}') deployed with {len(dashcards_payload)} cards and filters.")
+    print(f"URL: {base_url}/dashboard/{dash_id}")
+
+
 def deploy_token_analytics(base_url, session_id, dry_run=False):
     """Deploys or updates the LLM Token Economics & Key Health Dashboard and Cards."""
     print("=== Deploying LLM Token Analytics & Key Health Cards ===")
@@ -975,6 +1343,109 @@ def test_queries(base_url, session_id, dry_run=False):
         else:
             print(f"[ERROR] Card {cid} ('{name}') failed execution.")
 
+
+def inspect_groups(base_url, session_id, dry_run=False):
+    """Fetches and displays all user permission groups from Metabase."""
+    print("=== Inspecting Metabase Permission Groups ===")
+    groups = api_call(base_url, session_id, "GET", "/permissions/group", dry_run=dry_run)
+    if groups:
+        print(f"Found {len(groups)} permission groups:")
+        for g in groups:
+            print(f"  * ID: {g.get('id'):<3} | Name: {g.get('name')}")
+    else:
+        print("[WARNING] Could not retrieve permission groups.")
+
+def grant_collection_permissions(base_url, session_id, collection_ids, group_id=1, dry_run=False):
+    """
+    Grants 'read' permissions to a specified group (default Group 1: All Users)
+    for the provided collection IDs via PUT /api/collection/graph.
+    Safely preserves Administrator (Group 2) permissions.
+    """
+    print(f"=== Configuring Collection Permissions (Group {group_id} -> Collections: {collection_ids}) ===")
+    cols = api_call(base_url, session_id, "GET", "/collection", dry_run=dry_run) or []
+    all_col_ids = [str(c["id"]) for c in cols if "id" in c]
+    
+    cg = api_call(base_url, session_id, "GET", "/collection/graph", dry_run=dry_run) or {}
+    revision = cg.get("revision", 0)
+    current_groups = cg.get("groups", {})
+    
+    group_str = str(group_id)
+    target_group_perms = {"root": "none"}
+    for cid in all_col_ids:
+        target_group_perms[cid] = "none"
+        
+    for cid in collection_ids:
+        target_group_perms[str(cid)] = "read"
+        
+    admin_perms = current_groups.get("2", {"root": "write"})
+    payload = {
+        "revision": revision,
+        "groups": {
+            group_str: target_group_perms,
+            "2": admin_perms
+        }
+    }
+    
+    res = api_call(base_url, session_id, "PUT", "/collection/graph", payload, dry_run=dry_run)
+    if res or dry_run:
+        print(f"[SUCCESS] Permissions updated: Group {group_id} now has 'read' access to collections: {collection_ids}")
+    else:
+        print(f"[ERROR] Failed to update collection permissions.")
+
+def test_user_access(base_url, email, password, dashboard_id=10):
+    """Tests authentication and dashboard accessibility for a specific user."""
+    print(f"=== Testing Access for User: {email} ===")
+    user_session = get_session(base_url, email, password)
+    if not user_session:
+        print(f"[FAIL] Could not authenticate user {email}")
+        return False
+        
+    print(f"[OK] Authenticated successfully as {email}. Session token acquired.")
+    dash = api_call(base_url, user_session, "GET", f"/dashboard/{dashboard_id}", dry_run=False)
+    if not dash:
+        print(f"[FAIL] Could not access Dashboard {dashboard_id} as {email}")
+        return False
+        
+    dash_cards = dash.get("dashcards", [])
+    print(f"[OK] Successfully accessed Dashboard {dashboard_id} ('{dash.get('name')}'). Contains {len(dash_cards)} cards.")
+    
+    success_count = 0
+    for dc in dash_cards:
+        cid = dc.get("card_id")
+        if not cid:
+            continue
+        cname = dc.get("card", {}).get("name", f"Card {cid}")
+        q_res = api_call(base_url, user_session, "POST", f"/card/{cid}/query", {}, dry_run=False)
+        if q_res and q_res.get("status") == "completed":
+            row_count = len(q_res.get("data", {}).get("rows", []))
+            print(f"   [OK] Card {cid} ('{cname[:40]}'): OK ({row_count} rows)")
+            success_count += 1
+        else:
+            print(f"   [RESTRICTED] Card {cid} ('{cname[:40]}'): Failed or restricted")
+            
+    print(f"[SUMMARY] User {email} has functional access to {success_count}/{len(dash_cards)} cards on Dashboard {dashboard_id}.")
+    return True
+
+def test_card_query(base_url, session_id, card_id, parameters=None, dry_run=False):
+    """Executes a single Metabase card query and prints results summary."""
+    print(f"=== Testing Execution of Card {card_id} ===")
+    payload = {"parameters": parameters or []}
+    res = api_call(base_url, session_id, "POST", f"/card/{card_id}/query", payload, dry_run=dry_run)
+    if not res:
+        print(f"[ERROR] Failed to execute query for Card {card_id}")
+        return
+        
+    data = res.get("data", {})
+    cols = [c.get("name") for c in data.get("cols", [])]
+    rows = data.get("rows", [])
+    print(f"[OK] Card {card_id} executed successfully. Status: {res.get('status')}")
+    print(f"Columns ({len(cols)}): {cols}")
+    print(f"Total Rows: {len(rows)}")
+    if rows:
+        print("\nFirst up to 5 rows:")
+        for i, r in enumerate(rows[:5], 1):
+            print(f"  Row {i}: {r}")
+
 def db_stats(base_url, session_id, dry_run=False):
     """Fetches high-level summary statistics from DWH via Metabase native dataset API."""
     print("=== Fetching DWH Analytics High-Level Summary ===")
@@ -1164,7 +1635,7 @@ def tender_report(base_url, session_id, period="month", filter_by="create", dry_
 def main():
     parser = argparse.ArgumentParser(description="Metabase BI Management and Dashboard Pipeline")
     parser.add_argument("--action", required=True, 
-                        choices=["update-cards", "tender-report", "deploy-tender-ops", "token-analytics", "setup-all", "patch-locale", "create-user", "test-queries", "db-stats"],
+                        choices=["update-cards", "tender-report", "deploy-tender-ops", "deploy-weekly-sync", "token-analytics", "setup-all", "patch-locale", "create-user", "test-queries", "db-stats", "grant-permissions", "test-access", "test-card", "inspect-groups"],
                         help="Action to perform on Metabase")
     parser.add_argument("--dry-run", action="store_true", help="Simulate API calls without modifying state")
     parser.add_argument("--url", default=DEFAULT_METABASE_URL, help="Metabase instance URL")
@@ -1174,6 +1645,9 @@ def main():
     parser.add_argument("--manager-password", default="TenderManager2026!", help="Manager user password")
     parser.add_argument("--period", default="month", help="Reporting period: 'month', 'prev-month', 'week', 'today', or 'YYYY-MM-DD..YYYY-MM-DD'")
     parser.add_argument("--filter-by", default="create", choices=["create", "close"], help="Filter by 'create' (creation date) or 'close' (outcome date)")
+    parser.add_argument("--card-id", type=int, default=85, help="Card ID for --action test-card")
+    parser.add_argument("--collection-ids", default="4,5,8", help="Comma-separated Collection IDs for --action grant-permissions")
+    parser.add_argument("--dashboard-id", type=int, default=10, help="Dashboard ID for --action test-access")
 
     args = parser.parse_args()
 
@@ -1204,6 +1678,17 @@ def main():
         tender_report(args.url, session_id, args.period, args.filter_by, args.dry_run)
     elif args.action == "deploy-tender-ops":
         deploy_tender_ops_dashboard(args.url, session_id, args.dry_run)
+    elif args.action == "deploy-weekly-sync":
+        deploy_weekly_sync_dashboard(args.url, session_id, args.dry_run)
+    elif args.action == "inspect-groups":
+        inspect_groups(args.url, session_id, args.dry_run)
+    elif args.action == "grant-permissions":
+        col_list = [int(x.strip()) for x in args.collection_ids.split(",") if x.strip()]
+        grant_collection_permissions(args.url, session_id, col_list, group_id=1, dry_run=args.dry_run)
+    elif args.action == "test-access":
+        test_user_access(args.url, args.manager_email, args.manager_password, dashboard_id=args.dashboard_id)
+    elif args.action == "test-card":
+        test_card_query(args.url, session_id, args.card_id, dry_run=args.dry_run)
     elif args.action == "setup-all":
         patch_locale_and_formatting(args.url, session_id, args.dry_run)
         create_manager_user(args.url, session_id, args.manager_email, args.manager_password, args.dry_run)
