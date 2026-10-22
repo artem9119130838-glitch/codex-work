@@ -88,6 +88,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Интеграционный** | `build_rod_matrix.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/Price creating/scripts/build_rod_matrix.py` | Simply delegate to the canonical root script | 1 |
 | **Интеграционный** | `build_rod_matrix.py` | `D:/Soft/Codex Backup/projects/Price creating/scripts/build_rod_matrix.py` | Simply delegate to the canonical root script | 0 |
+| **Канонический** | `format_universal_word_kp.py` | `scripts/format_universal_word_kp.py` | Универсальный генератор и форматировщик КП в Word (DOCX/PDF): 100% табличная шапка в колонтитуле (логотип + ИНН), w:tblHeader, cantSplit, защита от наезда шапки при любой ориентации | 0 |
 
 ---
 
@@ -482,6 +483,7 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Базовый** | `analyze_unassociated.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/analyze_unassociated.py` | Автоматизация рабочего процесса. | 8 |
+| **Канонический** | `generate_filters_kp_and_inquiry.py` | `projects/1c_odata/scripts/generate_filters_kp_and_inquiry.py` | Комплексная обработка закрытых запросов ОЛ на фильтры из сделки/почты Битрикс24 (ИНК): расчет цен КНР, опросный лист клиенту и файл корректировки объемов Ванг | 0 |
 | **Базовый** | `apply_unassociated_matches.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/apply_unassociated_matches.py` | Автоматизация рабочего процесса. | 17 |
 | **Базовый** | `fetch_email_8071.py` | `ARCHIVE/leads_processing_research_scratch/fetch_email_8071.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `fetch_raw_emails.py` | `ARCHIVE/codex_shared_archive/n8n_email_ai_funnel_version/scratch/fetch_raw_emails.py` | 1. Start SSH tunnel locally | 1 |
