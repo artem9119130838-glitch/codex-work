@@ -685,7 +685,7 @@ def extract_phone_and_signature_details(text: str) -> dict:
     clean_text = clean_text.replace('\xa0', ' ')
 
     # 1. Поиск всех телефонных номеров в тексте
-    pattern_strict = r'(?:(?:\+7|8)[\s\-]?(?:\(\d{3,5}\)|\d{3,5})[\s\-]?\d{2,3}[\s\-]?\d{2}[\s\-]?\d{2}(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)'
+    pattern_strict = r'(?<!\d)(?:(?:\+7|8)[\s\-]?(?:\(\d{3,5}\)|\d{3,5})[\s\-]?\d{2,3}[\s\-]?\d{2}[\s\-]?\d{2}(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)'
     matches = list(re.finditer(pattern_strict, clean_text, re.IGNORECASE))
     
     extracted = []
@@ -695,7 +695,7 @@ def extract_phone_and_signature_details(text: str) -> dict:
         raw_p = m.group(0).strip()
         norm_p, ext = normalize_phone_number(raw_p)
         digits = re.sub(r'\D', '', norm_p)
-        if len(digits) == 11 and digits not in own_phones and norm_p not in seen:
+        if len(digits) == 11 and digits not in own_phones and norm_p not in seen and digits[1] in ('3', '4', '8', '9'):
             seen.add(norm_p)
             code = digits[1:4]
             # Мобильные номера РФ начинаются на 9 (900-999)
@@ -733,7 +733,7 @@ def extract_phone_and_signature_details(text: str) -> dict:
 
     # 2. Поиск должности
     post = ""
-    m_post = re.search(r'(?:Специалист\s*\d*(?:\.\s*[^\n\r,<>]{0,40})?|Инженер[^\n\r,<>]{0,40}|Менеджер[^\n\r,<>]{0,40}|Директор[^\n\r,<>]{0,40}|Руководитель[^\n\r,<>]{0,40}|Начальник[^\n\r,<>]{0,40}|Ведущий инженер[^\n\r,<>]{0,40}|Главный специалист[^\n\r,<>]{0,40})', clean_text, flags=re.IGNORECASE)
+    m_post = re.search(r'(?:Отдел\s*снабжения|Специалист\s*\d*(?:\.\s*[^\n\r,<>]{0,40})?|Инженер[^\n\r,<>]{0,40}|Менеджер[^\n\r,<>]{0,40}|Директор[^\n\r,<>]{0,40}|Руководитель[^\n\r,<>]{0,40}|Начальник[^\n\r,<>]{0,40}|Ведущий инженер[^\n\r,<>]{0,40}|Главный специалист[^\n\r,<>]{0,40})', clean_text, flags=re.IGNORECASE)
     if m_post:
         p_val = " ".join(m_post.group(0).split()).strip(" ,;.-")
         p_val = re.split(r'\b(?:россия|г\.|ул\.|тел|e-mail|факс)\b', p_val, flags=re.IGNORECASE)[0].strip(" ,;.-")
@@ -742,11 +742,21 @@ def extract_phone_and_signature_details(text: str) -> dict:
 
     # 3. Поиск корпоративного сайта
     website = ""
-    m_web = re.search(r'(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9\-_]{2,}\.(?:ru|com|su|рф|cn|org|net))', clean_text, flags=re.IGNORECASE)
-    if m_web:
+    for m_web in re.finditer(r'(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9\-_]{2,}\.(?:ru|com|su|рф|cn|org|net))', clean_text, flags=re.IGNORECASE):
         w_val = m_web.group(0).strip()
-        if not any(dm in w_val.lower() for dm in ["yandex", "mail.ru", "gmail", "bk.ru", "inbox.ru", "longwang.ru", "longwang"]):
+        low_w = w_val.lower().replace("www.", "")
+        if not any(low_w == dm or low_w.endswith("." + dm) or (dm in ("longwang.ru", "longwang") and dm in low_w) for dm in ["yandex.ru", "mail.ru", "gmail.com", "bk.ru", "inbox.ru", "list.ru", "longwang.ru", "longwang"]):
             website = w_val
+            break
+
+    # 4. Поиск имени контактного лица в подписи (после 'С уважением' / 'Best regards')
+    sig_name = ""
+    m_sig_name = re.search(r'(?:[cсCС][\s\xa0]*уважением[,\s\xa0\r\n]+|best\s*regards[,\s\r\n]+|regards[,\s\r\n]+)([А-ЯЁ][а-яё]+(?:[ \t]+[А-ЯЁ][а-яё]+)?)', clean_text, re.IGNORECASE)
+    if m_sig_name:
+        cand_n = m_sig_name.group(1).strip()
+        # Исключаем названия компаний или общие слова
+        if not any(w in cand_n.lower() for w in ["ооо", "ао", "зао", "ип", "компани", "отдел", "служба", "команд"]):
+            sig_name = cand_n
 
     return {
         "phone": contact_phone,
@@ -754,7 +764,8 @@ def extract_phone_and_signature_details(text: str) -> dict:
         "company_phone": company_phone,
         "ext": ext_found,
         "post": post,
-        "website": website
+        "website": website,
+        "sig_name": sig_name
     }
 
 def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand: str = "") -> list:
@@ -769,15 +780,21 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
         "автоматический выключатель": "断路器", "рубильник": "隔离开关", "модуль": "模块",
         "клапан": "阀门", "насос": "泵", "датчик": "传感器", "цилиндр": "气缸",
         "подшипник": "轴承", "муфта": "联轴器", "преобразователь": "变频器",
-        "частотник": "变频器", "реле": "继电器"
+        "частотник": "变频器", "реле": "继电器",
+        "подогреватель": "加热器", "прокладка": "垫片", "свеча": "火花塞", "свечи": "火花塞",
+        "кольцо": "密封圈", "уплотнение": "密封垫", "фильтр": "滤清器"
     }
     clean_lines = [l.strip() for l in text.split('\n') if l.strip()]
     idx = 1
     for line in clean_lines:
-        m_qty = re.search(r'[-–—:]?\s*(\d+)\s*(?:шт(?:ук[иа]?)?|pcs|pc|ед|units?|台|个)\b', line, re.IGNORECASE)
+        m_qty = re.search(r'[-–—:]?\s*(\d+(?:[.,]\d+)?)\s*(?:шт(?:ук[иа]?)?|pcs|pc|ед|units?|台|个)\b', line, re.IGNORECASE)
         if not m_qty:
             continue
-        qty = int(m_qty.group(1))
+        try:
+            qty_val = float(m_qty.group(1).replace(',', '.'))
+            qty = int(round(qty_val)) if qty_val > 0 else 1
+        except Exception:
+            qty = 1
         raw_name = re.sub(r'^\s*[-*•\d]+[.)]?\s*', '', line)
         raw_name = raw_name[:m_qty.start()].strip(' -–—:;,')
         if len(raw_name) < 3:
@@ -788,7 +805,7 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
                 cn_cat = v
                 break
         brand = default_brand or ""
-        m_b = re.search(r'\b(ABB|Siemens|Schneider|Endress(?:\+Hauser)?|E\+H|Lenze|SMC|Festo|Omron|Danfoss|Yokogawa|WIKA|IFM|Sick|Parker|Rexroth|Eaton)\b', raw_name, re.IGNORECASE)
+        m_b = re.search(r'\b(ABB|Siemens|Schneider|Endress(?:\+Hauser)?|E\+H|Lenze|SMC|Festo|Omron|Danfoss|Yokogawa|WIKA|IFM|Sick|Parker|Rexroth|Eaton|Cummins|康明斯)\b', raw_name, re.IGNORECASE)
         if m_b:
             brand = m_b.group(1)
         elif not brand:
@@ -895,7 +912,7 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     KNOWN_BRANDS = [
         "OMRON", "FLENDER", "GEMU", "SKF", "HYDAC", "FESTO", "SIEMENS", "ABB", "DANFOSS",
         "SCHNEIDER", "ENDRESS+HAUSER", "LENZE", "SMC", "YOKOGAWA", "WIKA", "IFM", "SICK",
-        "PARKER", "REXROTH", "EATON", "BITZER", "FRONIUS", "WILO", "BREVINI", "AUTONICS", "CATERPILLAR"
+        "PARKER", "REXROTH", "EATON", "BITZER", "FRONIUS", "WILO", "BREVINI", "AUTONICS", "CATERPILLAR", "CUMMINS", "BAUMER", "HUBNER", "HÜBNER"
     ]
     detected_brand = ""
     for kb in KNOWN_BRANDS:
@@ -909,6 +926,11 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     if "epm-120" in f"{title} {email_subject} {clean_text}".lower():
         brand = "OEM (EPM-120GA)"
         model = "Пресс-автомат EPM-120GA (ЗИП)"
+    elif "pog" in f"{title} {email_subject} {clean_text}".lower() and ("10" in f"{title} {email_subject} {clean_text}" or "dn" in f"{title} {email_subject} {clean_text}".lower()):
+        brand = "Baumer"
+        m_pog = re.search(r'(POG\s*10\s*DN[^\r\n<]+)', f'{clean_lines_text}\n{title}\n{email_subject}', re.I)
+        model = m_pog.group(1).strip() if m_pog else 'POG 10 DN 1000 I B10 / 11076614'
+        cn_nomenclature = f'堡盟重载增量式编码器 ({model})'
     elif detected_brand:
         brand = detected_brand
         rem_parts = [p for p in parts if p.upper() != brand.upper()]
@@ -1515,6 +1537,11 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     if sig_info.get("post"):
         contact_post = sig_info["post"]
         print(f"  [SIGNATURE-PARSER] Из подписи извлечена должность: {contact_post}")
+    if sig_info.get("sig_name"):
+        cand_sn = sig_info["sig_name"]
+        if not contact_name or contact_name.lower() in ('контактное лицо', 'новое лицо') or any(w in contact_name.lower() for w in ['компания', 'ооо', 'ао', 'зао', 'нпп', 'нпо', 'буровая']) or raw_company_title.lower() in contact_name.lower():
+            contact_name = cand_sn
+            print(f"  [SIGNATURE-PARSER] Из подписи извлечено имя контакта: {contact_name}")
 
     # Если наименование компании в лиде отсутствует или содержит заглушку, извлекаем из темы или текста
     placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы', 'ооо', 'ао', 'зао', 'пао', 'ип', 'нпо', 'нпп', 'тпк', 'гк', 'мтк'}
@@ -2038,10 +2065,28 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         ]
         is_multi_item_rfq = True
     elif is_multi_item_rfq:
-        title_naming = f"{company_title}, {cn_nomenclature}"
+        # Каноническая 4-составная маска для Multi-Item RFQ (Lead/Deal Naming Invariant):
+        # [Компания], [Бренд/Модель], [CN], [RU (+ кол-во)]
+        seen_b = set()
+        unique_brands = []
+        for it in rfq_items:
+            b_val = it.get('brand', '').strip()
+            if b_val and b_val.upper() not in seen_b and b_val.upper() != 'OEM':
+                seen_b.add(b_val.upper())
+                unique_brands.append(b_val.title() if b_val.isupper() and len(b_val) > 4 else b_val)
+        brand_model_part = " / ".join(unique_brands) if unique_brands else ((detected_brand.title() if len(detected_brand) > 4 else detected_brand) or brand_extracted or "OEM")
+        tot_qty = sum(it.get('qty', 1) for it in rfq_items) if rfq_items else 1
+        pos_cnt = len(rfq_items) if rfq_items else 1
+        cn_part = f"{brand_model_part}发动机配件及耗材 ({pos_cnt}项)" if "cummins" in brand_model_part.lower() else f"{brand_model_part}配件清单 ({pos_cnt}项)"
+        ru_part = f"Запчасти и расходные материалы {brand_model_part} ({pos_cnt} поз., {tot_qty} шт.)"
+        title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
+        cn_nomenclature = f"{cn_part}"
     else:
         bm_cand = f"{brand_extracted} {model_extracted}".strip() if (brand_extracted and brand_extracted != "OEM") else (lead_title or "Оборудование")
-        ru_cand = f"{lead_title} ({qty_str})" if lead_title else f"Заказ ({qty_str})"
+        if brand_extracted == "Baumer":
+            ru_cand = f"Инкрементальный энкодер Baumer ({qty_str})"
+        else:
+            ru_cand = f"{lead_title} ({qty_str})" if lead_title else f"Заказ ({qty_str})"
         title_naming = f"{company_title}, {bm_cand}, {cn_nomenclature}, {ru_cand}"
 
     # Фильтрация вложений: Inquiry-Only Attachment Guard
