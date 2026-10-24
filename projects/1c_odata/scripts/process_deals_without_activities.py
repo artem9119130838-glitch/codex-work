@@ -644,6 +644,7 @@ def create_followup_draft_in_imap(deal_data: dict, ai_letter_text: str, ai_lette
     - Предпроверочный Self-Check
     """
     valid_attachments = download_and_validate_pdf_attachments(deal_data) if attach_kp else []
+    to_email = deal_data.get("to_email", "")
     msg, clean_subj, full_text, full_html = build_mime_email(
         deal_data=deal_data,
         ai_letter_text=ai_letter_text,

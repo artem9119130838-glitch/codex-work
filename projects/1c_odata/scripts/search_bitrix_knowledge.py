@@ -95,17 +95,105 @@ def inspect_task(task_id: int, webhook: str = None):
         for m in sorted(msgs, key=lambda x: x.get("date", ""))[-10:]:
             print(f"  [{m.get('date')}] User {m.get('author_id')}: {m.get('text', '')[:180]}")
 
-def inspect_chat(chat_id: str, limit: int = 50, webhook: str = None):
-    """Выгрузка сообщений из конкретного чата."""
-    dialog_id = f"chat{chat_id}" if not str(chat_id).startswith("chat") and str(chat_id).isdigit() else str(chat_id)
-    print(f"\n=== ВЫГРУЗКА СООБЩЕНИЙ ИЗ {dialog_id} (LIMIT: {limit}) ===")
-    res = b24_call("im.dialog.messages.get", {"DIALOG_ID": dialog_id, "LIMIT": limit}, webhook)
-    msgs = res.get("result", {}).get("messages", [])
-    if not msgs:
-        print("Сообщений не найдено.")
+def inspect_chat(dialog_raw: str, limit: int = 50, since_date: str = None, download_files: bool = False, output_dir: str = None, webhook: str = None):
+    """Выгрузка сообщений и файлов из конкретного чата или персонального диалога с фильтрацией по дате."""
+    # Определение формата: если передан чисто номер без префикса chat, проверяем как прямой DIALOG_ID
+    dialog_id = str(dialog_raw).strip()
+    print(f"\n=== ВЫГРУЗКА СООБЩЕНИЙ ИЗ ДИАЛОГА {dialog_id} ===")
+    if since_date:
+        print(f"📅 Фильтр по дате: строго с {since_date} включительно")
+
+    all_msgs = []
+    users_map = {}
+    files_map = {}
+    last_id = None
+    batch_limit = 50
+
+    while True:
+        payload = {"DIALOG_ID": dialog_id, "LIMIT": batch_limit}
+        if last_id:
+            payload["LAST_ID"] = last_id
+        res = b24_call("im.dialog.messages.get", payload, webhook)
+        if not res or "result" not in res:
+            # Если прямой DIALOG_ID не сработал и это число, пробуем с префиксом chat
+            if not dialog_id.startswith("chat") and dialog_id.isdigit():
+                dialog_id = f"chat{dialog_id}"
+                print(f"🔄 Переключение на {dialog_id}...")
+                payload["DIALOG_ID"] = dialog_id
+                res = b24_call("im.dialog.messages.get", payload, webhook)
+            if not res or "result" not in res:
+                break
+
+        result = res.get("result", {})
+        msgs = result.get("messages", [])
+        if not msgs:
+            break
+
+        for u in result.get("users", []):
+            if isinstance(u, dict):
+                users_map[str(u.get("id"))] = u.get("name", f"User {u.get('id')}")
+        for f in result.get("files", []):
+            if isinstance(f, dict):
+                files_map[str(f.get("id"))] = f
+
+        all_msgs.extend(msgs)
+        batch_sorted = sorted(msgs, key=lambda x: x.get("date", ""))
+        earliest_date = batch_sorted[0].get("date", "")
+
+        if since_date and earliest_date < since_date:
+            break
+        if len(all_msgs) >= limit and not since_date:
+            break
+        if len(all_msgs) >= 250:
+            break
+        last_id = batch_sorted[0].get("id")
+
+    # Сортировка и фильтрация
+    sorted_msgs = sorted(all_msgs, key=lambda x: x.get("date", ""))
+    filtered = [m for m in sorted_msgs if not since_date or m.get("date", "") >= since_date]
+
+    if not filtered:
+        print(f"Сообщений в диалоге {dialog_id} не найдено.")
         return
-    for m in sorted(msgs, key=lambda x: x.get("date", "")):
-        print(f"[{m.get('date')}] User {m.get('author_id')}: {m.get('text')}\n")
+
+    print(f"Найдено сообщений: {len(filtered)} (всего просканировано {len(all_msgs)}):\n")
+    attached_file_ids = set()
+
+    for m in filtered:
+        date = m.get("date", "")
+        author_id = str(m.get("author_id", ""))
+        author_name = users_map.get(author_id, f"User {author_id}")
+        text = m.get("text", "")
+        params = m.get("params") or {}
+        fids = params.get("FILE_ID", []) if isinstance(params, dict) else []
+        attached_file_ids.update(fids)
+
+        fnames = [files_map.get(str(fid), {}).get("name", f"ID {fid}") for fid in fids]
+        print(f"[{date}] {author_name} (ID {author_id}):")
+        print(text)
+        if fnames:
+            print(f"📎 Вложения: {', '.join(fnames)}")
+        print("-" * 55)
+
+    if download_files and attached_file_ids:
+        out_folder = output_dir or os.path.join(os.path.dirname(__file__), "..", "downloads")
+        os.makedirs(out_folder, exist_ok=True)
+        print(f"\n📥 Скачивание {len(attached_file_ids)} вложений в: {out_folder}")
+        for fid in attached_file_ids:
+            finfo = files_map.get(str(fid), {})
+            fname = finfo.get("name", f"file_{fid}")
+            # Авторизованный URL через disk.file.get
+            d_res = b24_call("disk.file.get", {"id": fid}, webhook)
+            d_url = d_res.get("result", {}).get("DOWNLOAD_URL") or finfo.get("urlDownload")
+            if d_url:
+                target_p = os.path.join(out_folder, fname)
+                try:
+                    req = urllib.request.Request(d_url)
+                    with urllib.request.urlopen(req, timeout=60) as resp, open(target_p, "wb") as f_out:
+                        f_out.write(resp.read())
+                    print(f"   ✓ {fname} ({os.path.getsize(target_p)} bytes)")
+                except Exception as ex:
+                    print(f"   ✗ Ошибка скачивания {fname}: {ex}")
 
 def search_tasks_and_knowledge(query: str, users: list, since_date: str, limit: int, check_chats: bool, webhook: str = None):
     """Комплексный поиск задач по участникам и нечетким ключевым словам."""
@@ -187,25 +275,36 @@ def main():
     parser = argparse.ArgumentParser(description="Поиск знаний, задач, созвонов и чатов в Битрикс24.")
     parser.add_argument("--query", "-q", type=str, default="", help="Ключевые слова для поиска")
     parser.add_argument("--users", "-u", type=str, default="", help="ID пользователей через запятую (например, 20,38)")
-    parser.add_argument("--since", type=str, default="2026-07-01", help="Дата начала поиска (ГГГГ-ММ-ДД)")
-    parser.add_argument("--limit", type=int, default=10, help="Максимальное количество результатов")
+    parser.add_argument("--since", type=str, default=None, help="Дата начала поиска (ГГГГ-ММ-ДД)")
+    parser.add_argument("--limit", type=int, default=50, help="Максимальное количество результатов")
     parser.add_argument("--task-id", type=int, default=None, help="Детальный осмотр конкретной задачи")
-    parser.add_argument("--chat-id", type=str, default=None, help="Выгрузка сообщений из чата")
+    parser.add_argument("--chat-id", type=str, default=None, help="Выгрузка сообщений из чата (например chat24 или 24)")
+    parser.add_argument("--dialog-id", type=str, default=None, help="Выгрузка сообщений из персонального диалога или чата")
+    parser.add_argument("--download-files", action="store_true", help="Автоматически скачивать вложенные файлы из чата через disk.file.get")
+    parser.add_argument("--output-dir", type=str, default=None, help="Папка для сохранения скачанных файлов")
     parser.add_argument("--check-chats", action="store_true", help="Автоматически проверять сообщения в связанных чатах задач")
     parser.add_argument("--dry-run", action="store_true", help="Холостой запуск (только чтение)")
 
     args = parser.parse_args()
 
+    target_dialog = args.dialog_id or args.chat_id
+
     if args.task_id:
         inspect_task(args.task_id)
-    elif args.chat_id:
-        inspect_chat(args.chat_id, limit=args.limit)
+    elif target_dialog:
+        inspect_chat(
+            target_dialog,
+            limit=args.limit,
+            since_date=args.since,
+            download_files=args.download_files,
+            output_dir=args.output_dir
+        )
     else:
         user_list = [x.strip() for x in args.users.split(",") if x.strip()] if args.users else []
         search_tasks_and_knowledge(
             query=args.query,
             users=user_list,
-            since_date=args.since,
+            since_date=args.since or "2026-07-01",
             limit=args.limit,
             check_chats=args.check_chats
         )

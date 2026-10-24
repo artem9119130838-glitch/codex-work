@@ -1,0 +1,656 @@
+[
+  {
+    "id": 158104,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-21T13:11:20+03:00",
+    "text": "Это все российское. Конечно у него этого нет. Но мы в 90% случаев делаем сами или подрядчики",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "FORWARD_ID": [
+        "158092"
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 158102,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-21T13:11:20+03:00",
+    "text": "Надо меня спрашивать перед тем как завершать задачи Ну не надо такой самодеятельности",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "FORWARD_ID": [
+        "158090"
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 158108,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-21T13:11:41+03:00",
+    "text": "[USER=14]Сауле Бестова[/USER] [USER=20]Азат Денишов[/USER] почему это не объяснили коллеги мы что сейчас половину сделать таким образом откажемся",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 158110,
+    "chat_id": 2138,
+    "author_id": 20,
+    "date": "2026-08-21T13:12:42+03:00",
+    "text": "о чем речь?",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 158112,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-21T13:13:29+03:00",
+    "text": "[USER=20]Азат Денишов[/USER] а габариты? [USER=38]Александра Пономарева[/USER] напишите Азату в той задаче где с поставщиком (Ван) общались. Если успеваем податься, то го, если нет то разберите проблему, чтобы не повторять в будущем",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 158114,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-08-21T13:14:29+03:00",
+    "text": "успеваем, там пн край",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 158126,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-21T13:17:29+03:00",
+    "text": "",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "FILE_ID": [
+        93156
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 158148,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-21T13:17:42+03:00",
+    "text": "BitrixGPT создал [URL=https://b24-g4wfjq.bitrix24.ru/company/personal/user/1/tasks/task/view/3028/]Аудио Задачу AI[/URL] на основании [CONTEXT=chat2138/158126]сообщения[/CONTEXT]\n[SIZE=12pt][COLOR=#C2C2C2]Отправлено роботом[/COLOR][/SIZE]",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "CLASS": "bx-messenger-content-item-system",
+      "URL_ID": [
+        6838
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 164486,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-08-26T09:23:33+03:00",
+    "text": "[USER=1]Артем[/USER] я всегда считала пошлины для КП промтом, как вы мне изначально сказали. Теперь, оказывается, надо это каждый раз у брокера запрашивать? Я не понимаю, как правильно, и брокера найти не могу, они просят 5-10 тр за час работы - узнать ТН ВЭД и нужен ли СС",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 164496,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-26T09:27:04+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER]  1. Промт дает верные ответы, если его правильно спрашивать. Я тут описал как",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 164498,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-26T09:28:53+03:00",
+    "text": "2. Как все получите можно составить сборный файл с результатами проверки по промту и отправить его брокеру. Елена, например вообще не берет денег, в крайнем случае возьмет 1,5 тр как она скзала, но не надо ей отправлять ото всех. Решите с [USER=14]Сауле Бестова[/USER] кто из вас будет отправлять и раз в день отправляйте на проверку один общий файл.",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 164506,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-26T09:30:37+03:00",
+    "text": "3. Надо искать еще брокера, если у них что-то оформить то будут отвечать бесплатно. Но никого не надо просто так дергать. Сначала промт, потом расчет КП и проверка, если интересно и будем участвовать, то перед подачей уже Елене или еще кому-то на проверку, НО ОБЩИЙ ФАЙЛ ЧТОБЫ НЕ ПО ОДНОМУ ВОПРОСУ И ОТ ОДНОГО ИЗ ВАС",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 164510,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-08-26T09:32:07+03:00",
+    "text": "[USER=14]Сауле Бестова[/USER] Елена примерно насколько быстро отвечает? Может на стадии подготовки документов будешь ей отправлять сводный файл на проверку с тем, что промт нарешал? Или там за сутки-двое до окончания подачи заявок",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 164516,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-08-26T09:34:13+03:00",
+    "text": "Ну вот у меня есть несколько эл адресов теперь. Когда нужно будет оформлять, им раскидаю тогда заявку и выберу, с кем работать дальше",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 164580,
+    "chat_id": 2138,
+    "author_id": 14,
+    "date": "2026-08-26T10:04:58+03:00",
+    "text": "по-разному. обычно за сутки. но тоже от ее загруженности зависит",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 164730,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-26T11:06:46+03:00",
+    "text": "[USER=14]Сауле Бестова[/USER] [USER=38]Александра Пономарева[/USER] пошлина не главная проблема. Там +/- 5%, на маленьких не так важно. Важны: СС, нотификация, РУ Минздрава, антидемпинг. Это в большинстве случаев ИИ может. Главное правильно определить код. Если дать ему даташит и сферу применения то он точно определит. Для уверенности использовать аудио которые я наговорил: несколько чатов, selfcheck. Поговорите с Михаилом у него стоит аналогичная задача, ему тоже промт делать. Отправить ему мой, обсудить, проверит на прошлых отправках насколько правильно определяет код промт",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 167936,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-08-28T07:45:18+03:00",
+    "text": "Если вот такая таблица с характеристиками, мне для мисс Ван ее переводить вообще без второго столбца, чтобы кириллицы не было? [USER=20]Азат Денишов[/USER]",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "FILE_ID": [
+        95966
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 167960,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-28T07:53:28+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER] кириллицу она сама удалить может, а в оригинале лучше оставить чтобы понять что просили изначально. Я так делаю",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 167982,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-08-28T07:55:06+03:00",
+    "text": "[USER=1]Артем[/USER] там прикреплено ТЗ на русском также",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 167984,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-28T07:56:17+03:00",
+    "text": "Тогда я не понял. Мне Джимми не переводит через дробь и русский китайский русский китайский русский китайский. всё",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 167986,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-08-28T07:56:23+03:00",
+    "text": "Gemini",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 167988,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-08-28T07:56:46+03:00",
+    "text": "а я отдельно делаю для Азата и для мисс Ван, там даже 2 ячейки под эти документы",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 167990,
+    "chat_id": 2138,
+    "author_id": 20,
+    "date": "2026-08-28T07:58:45+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER] Я согласен,  в этом случае это именно российский артикул, который может быть важен. Китайцы смогут найти аналог этим артикулам, лучше оставьте в данном случае на русском. Я говорил именно о случаях с западными брендами.",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "LIKE": [
+        38
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 178226,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-09-04T10:02:22+03:00",
+    "text": "такая формулировка означает, что мы можем предлагать любой срок, верно? \nСрок поставки - минимально возможный, исчисляется с даты заключения договора.\n\n[USER=1]Артем[/USER] [USER=14]Сауле Бестова[/USER]",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 178254,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-09-04T10:15:39+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER] не могу знать. Вероятно",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 183248,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-09-09T12:01:44+03:00",
+    "text": "мы же работаем по ЭДО с УПД, не по ТОРГ-12? [USER=16]Анжелика Павлова[/USER] [USER=1]Артем[/USER] [USER=24]Ирина Мусина[/USER]",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 183250,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-09-09T12:02:37+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER] да",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "LIKE": [
+        38
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 186762,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-09-14T07:43:57+03:00",
+    "text": "с этим что делать? [USER=1]Артем[/USER]",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "FILE_ID": [
+        103220
+      ],
+      "IS_EDITED": "Y"
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 186828,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-09-14T08:48:36+03:00",
+    "text": "Ничего. Завершить как некачественную. Именно эту",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 194378,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-09-22T07:30:59+03:00",
+    "text": "[USER=1]Артем[/USER] а эту?",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "FILE_ID": [
+        106070
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 194408,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-09-22T08:12:02+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER] этому можно отправить ответ по шаблону. Там есть шаблон, называется : какой именно у вас вопрос",
+    "unread": false,
+    "uuid": null,
+    "replaces": [],
+    "params": {
+      "LIKE": [
+        38
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 219404,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-19T08:23:01+03:00",
+    "text": "[USER=1]Артем[/USER] нам нужен оригинал Сертификата СМК?",
+    "unread": false,
+    "uuid": "119d0f79-e77e-4c96-aa98-39fe6e7c7735",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 219408,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-19T08:37:20+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER] мне нет, но если они говорят что нужен, то пусть пришлют, адрес сказать?",
+    "unread": false,
+    "uuid": "d497732a-5514-409a-bcd6-d3c5c2fd36a3",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 219416,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-19T08:40:50+03:00",
+    "text": "[USER=1]Артем[/USER] да",
+    "unread": false,
+    "uuid": "66a48dba-7c1e-470d-a8dc-881c54dab552",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 219418,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-19T08:41:10+03:00",
+    "text": "и контактное лицо + номер телефона",
+    "unread": false,
+    "uuid": "fc83506c-44a3-4b1d-ace7-df8fa7175ee5",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 220132,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-19T14:10:16+03:00",
+    "text": "[USER=1]Артем[/USER] на какой адрес выслать?",
+    "unread": false,
+    "uuid": "03bb37ab-4838-4a35-ba98-6e818b7af737",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 220136,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-19T14:11:24+03:00",
+    "text": "Пусть тогда вам пришлют, потом разберемся. Мне он не нужен, а Штефан опять за границей",
+    "unread": false,
+    "uuid": "b007a2b4-72bb-4c0f-bc54-e006dea5a124",
+    "replaces": [],
+    "params": {
+      "LIKE": [
+        38
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 225938,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-23T12:59:23+03:00",
+    "text": "[USER=1]Артем[/USER] с какой причиной закрывать сделку, если заказчик не дал фото шильдов, а без них подобрать товары нельзя?",
+    "unread": false,
+    "uuid": "3e6ce4a4-8a51-4e1f-93b6-178f490d4032",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 225982,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-23T13:18:19+03:00",
+    "text": "там есть такая причина [USER=38]Александра Пономарева[/USER]",
+    "unread": false,
+    "uuid": "ffbbb44d-9242-4c7c-bb69-bbb4238689d1",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226166,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-23T14:16:54+03:00",
+    "text": "[USER=1]Артем[/USER] не получили КП?",
+    "unread": false,
+    "uuid": "5b4fd5fd-c81b-401c-81d2-88af43c85355",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226168,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-23T14:17:18+03:00",
+    "text": "Не предоставил данные или как-то так",
+    "unread": false,
+    "uuid": "1a91c9b2-e8d6-4f3e-bea9-6cd58e1bd512",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226170,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-23T14:17:29+03:00",
+    "text": "Клиент не дал информацию",
+    "unread": false,
+    "uuid": "667a5325-ee6e-465c-b20d-e5848b67d55d",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226172,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-23T14:17:34+03:00",
+    "text": "Что-то такое",
+    "unread": false,
+    "uuid": "7df84fd6-89b2-403f-a124-a0e0ad42cab0",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226174,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-23T14:17:49+03:00",
+    "text": "там нет такой причины, нужно добавить [USER=1]Артем[/USER]",
+    "unread": false,
+    "uuid": "5669715c-4a7b-4e54-9d51-acb8a39ca26b",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226204,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-23T14:39:47+03:00",
+    "text": "[USER=38]Александра Пономарева[/USER]",
+    "unread": false,
+    "uuid": "953ce253-8884-4c7d-b845-6acb71095579",
+    "replaces": [],
+    "params": {
+      "FILE_ID": [
+        119126
+      ]
+    },
+    "disappearing_date": null
+  },
+  {
+    "id": 226206,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-23T14:40:18+03:00",
+    "text": "[USER=1]Артем[/USER] это может в новых сделках появилось только?",
+    "unread": false,
+    "uuid": "dfad67f9-5271-47e6-adf7-eec7b5c20cac",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226214,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-23T14:41:58+03:00",
+    "text": "[USER=1]Артем[/USER] эту может закрыть с Другое и пояснением?",
+    "unread": false,
+    "uuid": "66bcfe05-4189-4dd3-a0c0-1d7e16d58785",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226228,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-23T14:44:57+03:00",
+    "text": "какая сделка? [USER=38]Александра Пономарева[/USER]",
+    "unread": false,
+    "uuid": "bf29aca4-10e7-4ae8-9144-56e81c43c8d5",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226230,
+    "chat_id": 2138,
+    "author_id": 1,
+    "date": "2026-10-23T14:45:02+03:00",
+    "text": "ссылку",
+    "unread": false,
+    "uuid": "f915dcfa-a37e-405b-bf64-f6dadcf17fc5",
+    "replaces": [],
+    "params": [],
+    "disappearing_date": null
+  },
+  {
+    "id": 226232,
+    "chat_id": 2138,
+    "author_id": 38,
+    "date": "2026-10-23T14:45:18+03:00",
+    "text": "[USER=1]Артем[/USER] [URL]https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2578/[/URL]",
+    "unread": false,
+    "uuid": "02af2fc8-9aff-48b8-afb6-ddc9802a08d8",
+    "replaces": [],
+    "params": {
+      "LIKE": [
+        1
+      ]
+    },
+    "disappearing_date": null
+  }
+]
