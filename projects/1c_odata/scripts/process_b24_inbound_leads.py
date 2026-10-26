@@ -2134,12 +2134,27 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
         cn_nomenclature = f"{cn_part}"
     else:
-        bm_cand = f"{brand_extracted} {model_extracted}".strip() if (brand_extracted and brand_extracted != "OEM") else (lead_title or "Оборудование")
-        if brand_extracted == "Baumer":
-            ru_cand = f"Инкрементальный энкодер Baumer ({qty_str})"
+        # Очистка названия от повторов и сырых префиксов почты (Deal & Task Naming Invariant)
+        clean_subj = re.sub(r'^(?:re:\s*|fwd:\s*|fw:\s*|запрос(?:\s+на)?\s+|заявка(?:\s+на)?\s+|кп\s+|счет\s+|тз(?:\s+на)?\s+)+', '', str(lead_title or email_subject or ''), flags=re.IGNORECASE).strip()
+        clean_subj = re.sub(r'(?:\s+для\s+[а-яёa-z]+)+$', '', clean_subj, flags=re.IGNORECASE).strip()
+
+        # Если бренд/модель содержат китайские иероглифы, выделяем чистую латиницу/цифры во 2-ю часть
+        if any(ord(c) > 0x4e00 for c in (brand_extracted or '')) or any(ord(c) > 0x4e00 for c in (model_extracted or '')):
+            latin_bm = ' '.join(re.findall(r'[A-Za-z0-9\.\-\/\+_]+', f'{brand_extracted} {model_extracted}')).strip()
+            bm_cand = latin_bm if latin_bm else (brand_extracted or 'OEM')
         else:
-            ru_cand = f"{lead_title} ({qty_str})" if lead_title else f"Заказ ({qty_str})"
-        title_naming = f"{company_title}, {bm_cand}, {cn_nomenclature}, {ru_cand}"
+            bm_cand = f'{brand_extracted} {model_extracted}'.strip() if (brand_extracted and brand_extracted != 'OEM') else (clean_subj or 'Оборудование')
+
+        if brand_extracted == 'Baumer':
+            ru_cand = f'Инкрементальный энкодер Baumer ({qty_str})'
+        elif clean_subj and not re.match(r'^[нh]\s*\d+[\-\d]*', clean_subj, re.I) and len(clean_subj) > 3:
+            ru_cand = f'{clean_subj} ({qty_str})'
+        elif bm_cand and bm_cand != 'Оборудование':
+            ru_cand = f'Поставка {bm_cand} ({qty_str})'
+        else:
+            ru_cand = f'Заказ ({qty_str})'
+
+        title_naming = f'{company_title}, {bm_cand}, {cn_nomenclature}, {ru_cand}'
 
     # Фильтрация вложений: Inquiry-Only Attachment Guard
     supply_disk_ids = []
