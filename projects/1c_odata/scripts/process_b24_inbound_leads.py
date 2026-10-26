@@ -212,10 +212,17 @@ def check_1c_counterparty(inn=None, name=None):
         print(f"1C Check Counterparty exception: {e}")
     return None
 
-def check_1c_lead(inn=None, name=None):
+def check_1c_lead(inn=None, name=None, email=None):
     if not ONEC_BASE or not ONEC_AUTH_READ:
         return None
     try:
+        if email:
+            q = urllib.parse.quote(f"substringof('{email}', АдресЭПДляПоиска)")
+            r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=12)
+            if r.status_code == 200:
+                val = r.json().get('value', [])
+                if val:
+                    return val[0]
         if inn:
             q = urllib.parse.quote(f"substringof('{inn}', Тема) or substringof('{inn}', Description)")
             r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
@@ -406,6 +413,42 @@ def normalize_phone_number(raw_phone: str) -> tuple[str, str]:
 
     return formatted_phone, ext_str
 
+
+def sync_b24_company_requisites(company_id: int, title: str, inn: str, dry_run: bool = False):
+    """
+    Записывает ИНН в основной блок Реквизиты организации Bitrix24 (crm.requisite / RQ_INN).
+    """
+    if not company_id or not inn or dry_run:
+        return
+    try:
+        reqs = call_b24("crm.requisite.list", {"filter": {"ENTITY_TYPE_ID": 4, "ENTITY_ID": company_id}})
+        if reqs:
+            r_id = reqs[0]["ID"]
+            call_b24("crm.requisite.update", {
+                "id": r_id,
+                "fields": {
+                    "RQ_INN": str(inn).strip(),
+                    "RQ_COMPANY_NAME": title,
+                    "RQ_COMPANY_FULL_NAME": title
+                }
+            })
+            print(f"  [B24-REQUISITE] Основной реквизит ИНН ({inn}) обновлен в crm.requisite #{r_id}")
+        else:
+            r_add = call_b24("crm.requisite.add", {
+                "fields": {
+                    "ENTITY_TYPE_ID": 4,
+                    "ENTITY_ID": company_id,
+                    "PRESET_ID": 1,
+                    "NAME": "Организация",
+                    "RQ_INN": str(inn).strip(),
+                    "RQ_COMPANY_NAME": title,
+                    "RQ_COMPANY_FULL_NAME": title
+                }
+            })
+            print(f"  [B24-REQUISITE] Создан основной блок Реквизиты crm.requisite #{r_add} с ИНН {inn}")
+    except Exception as e:
+        print(f"  [WARN] Не удалось записать ИНН в основной блок реквизитов: {e}")
+
 def enrich_or_create_b24_company(title: str, inn: str = None, address: str = None, phone: str = None, email: str = None, origin_id: str = None, contact_company_id: int = None, assigned_by_id: int = USER_ARTEM, dry_run: bool = False, web: str = None) -> dict:
     existing = find_b24_company(inn=inn, title=title, origin_id=origin_id, contact_company_id=contact_company_id)
     clean_phone, _ = normalize_phone_number(phone) if phone else ("", "")
@@ -432,6 +475,8 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
         if fields and not dry_run:
             call_b24("crm.company.update", {"id": cid, "fields": fields})
             return {"action": "updated", "id": cid, "data": existing}
+        if inn and not dry_run:
+            sync_b24_company_requisites(cid, title, inn, dry_run=dry_run)
         return {"action": "exists", "id": cid, "data": existing}
     else:
         fields = {
@@ -455,6 +500,8 @@ def enrich_or_create_b24_company(title: str, inn: str = None, address: str = Non
         if dry_run:
             return {"action": "dry_run_create", "id": "PREVIEW_CID", "fields": fields}
         cid = call_b24("crm.company.add", {"fields": fields})
+        if inn and not dry_run:
+            sync_b24_company_requisites(cid, title, inn, dry_run=dry_run)
         return {"action": "created", "id": cid}
 
 
@@ -1803,7 +1850,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     # 4. Сверка с 1С:УНФ
     ca_1c = check_1c_counterparty(inn=inn, name=company_title)
-    lead_1c = check_1c_lead(inn=inn, name=company_title)
+    lead_1c = check_1c_lead(inn=inn, name=company_title, email=contact_email)
+    if lead_1c and not inn and lead_1c.get('Тема'):
+        m_inn_1c = re.search(r'\b(\d{10}|\d{12})\b', lead_1c.get('Тема', ''))
+        if m_inn_1c:
+            inn = m_inn_1c.group(1)
+            print(f"  [1C-LINK] Из существующего Лида 1С ({lead_1c.get('Code')}) извлечен ИНН: {inn}")
     is_buyer = bool(ca_1c and ca_1c.get('Покупатель'))
     print(f"\n3. Сверка с 1С:УНФ:")
     print(f"   - Покупатель 1С: {'ДА (Код ' + ca_1c.get('Code', '') + ')' if is_buyer else 'НЕТ'}")

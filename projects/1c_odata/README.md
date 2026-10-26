@@ -23,3 +23,9 @@
 - [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md) — регламент входящих лидов, снабжения КНР, Full RFQ Attachment Guard и Azat Supply Override.
 - [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md) — регламент реанимации и Follow-up сделок.
 - [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md) — регламент 1С:УНФ OData, Zero-Blank Lead Guard и АдресЭП.
+
+---
+
+## 🗄️ Архив снимков боевых скриптов (`scripts/archive/`)
+- `2026-10-26_process_b24_inbound_leads_v20_before_requisite_inn_and_single_lead_guard.py` — Снимок `process_b24_inbound_leads.py` перед добавлением записи ИНН в основной блок `crm.requisite` (`RQ_INN`), поиском лидов в 1С по `АдресЭПДляПоиска` и обработкой префиксов «ТД/Торговый Дом».
+
