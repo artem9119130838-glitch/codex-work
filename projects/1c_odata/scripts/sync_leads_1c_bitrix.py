@@ -1326,30 +1326,55 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             if r_co_get.get("result"):
                 b24_company = r_co_get["result"]
 
-        # 1C Lead search (СТРОГО без пустых условий, предотвращая ложный матч Фабрика Спорт 76)
-        onec_lead = None
-        if spec.get("onec_guid"):
-            r_ol_spec = requests.get(
-                f"{ODATA_BASE}/Catalog_Лиды(guid'{spec['onec_guid']}')?$format=json",
-                auth=auth_1c, headers=headers_1c, timeout=15
-            )
-            if r_ol_spec.status_code == 200:
-                onec_lead = r_ol_spec.json()
-        if not onec_lead:
-            filter_parts = []
-            if inn:
-                filter_parts.append(f"substringof('{inn}', Тема)")
-            if email:
-                filter_parts.append(f"substringof('{email}', Description)")
-                filter_parts.append(f"substringof('{email}', АдресЭПДляПоиска)")
-            if filter_parts:
-                f_query = " or ".join(filter_parts)
-                r_ol = requests.get(
-                    f"{ODATA_BASE}/Catalog_Лиды?$top=2&$filter={f_query}",
+        # 1C Counterparty First Guard: Поиск существующего покупателя в Catalog_Контрагенты
+        onec_cp = None
+        if inn:
+            try:
+                r_cp = requests.get(
+                    f"{ODATA_BASE}/Catalog_Контрагенты?$top=1&$filter=substringof('{inn}', ИНН)&$format=json",
                     auth=auth_1c, headers=headers_1c, timeout=15
                 )
-                if r_ol.status_code == 200 and r_ol.json().get("value"):
-                    onec_lead = r_ol.json()["value"][0]
+                if r_cp.status_code == 200 and r_cp.json().get("value"):
+                    onec_cp = r_cp.json()["value"][0]
+            except Exception as e_cp:
+                print(f"  [1C-WARN] Ошибка поиска контрагента по ИНН {inn}: {e_cp}")
+
+        if not onec_cp and email:
+            try:
+                r_cp_em = requests.get(
+                    f"{ODATA_BASE}/Catalog_Контрагенты?$top=1&$filter=substringof('{email}', Description)&$format=json",
+                    auth=auth_1c, headers=headers_1c, timeout=15
+                )
+                if r_cp_em.status_code == 200 and r_cp_em.json().get("value"):
+                    onec_cp = r_cp_em.json()["value"][0]
+            except Exception:
+                pass
+
+        # 1C Lead search (СТРОГО если НЕ найден контрагент)
+        onec_lead = None
+        if not onec_cp:
+            if spec.get("onec_guid"):
+                r_ol_spec = requests.get(
+                    f"{ODATA_BASE}/Catalog_Лиды(guid'{spec['onec_guid']}')?$format=json",
+                    auth=auth_1c, headers=headers_1c, timeout=15
+                )
+                if r_ol_spec.status_code == 200:
+                    onec_lead = r_ol_spec.json()
+            if not onec_lead:
+                filter_parts = []
+                if inn:
+                    filter_parts.append(f"substringof('{inn}', Тема)")
+                if email:
+                    filter_parts.append(f"substringof('{email}', Description)")
+                    filter_parts.append(f"substringof('{email}', АдресЭПДляПоиска)")
+                if filter_parts:
+                    f_query = " or ".join(filter_parts)
+                    r_ol = requests.get(
+                        f"{ODATA_BASE}/Catalog_Лиды?$top=2&$filter={f_query}",
+                        auth=auth_1c, headers=headers_1c, timeout=15
+                    )
+                    if r_ol.status_code == 200 and r_ol.json().get("value"):
+                        onec_lead = r_ol.json()["value"][0]
 
 
         tag_names = [TAG_NAME_MAP.get(t, t) for t in tags]
@@ -1439,12 +1464,42 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                 b24_lead_id = 9999903
 
         # Исполнение / План действий в 1С
-        onec_lead_guid = None
-        onec_lead_code = None
-        if onec_lead:
-            onec_lead_guid = onec_lead.get("Ref_Key")
-            onec_lead_code = onec_lead.get("Code")
-            print(f"  [1C Lead #{onec_lead_code}] Найден: '{onec_lead.get('Description')}' ({onec_lead_guid})")
+        onec_target_guid = None
+        onec_target_type = None
+        onec_target_label = None
+
+        if onec_cp:
+            onec_target_guid = onec_cp.get("Ref_Key")
+            onec_target_type = "StandardODATA.Catalog_Контрагенты"
+            onec_target_label = f"Контрагент '{onec_cp.get('Description')}'"
+            print(f"  [1C Counterparty #{onec_cp.get('Code')}] Найден: '{onec_cp.get('Description')}' ({onec_target_guid})")
+            print(f"  [COUNTERPARTY FIRST GUARD] Создание лида в 1С отменено: контакт привязывается к контрагенту.")
+            if not dry_run and email:
+                cp_ci = onec_cp.get("КонтактнаяИнформация", [])
+                if not any(email.lower() in (c.get("АдресЭП", "") + c.get("Представление", "")).lower() for c in cp_ci):
+                    clean_ci = [c for c in cp_ci if c.get("АдресЭП") != email]
+                    clean_ci.append({
+                        "LineNumber": str(len(clean_ci) + 1),
+                        "Тип": "АдресЭлектроннойПочты",
+                        "Вид_Key": "5c0dc758-23c6-11ed-91a8-a068f8f3337c",  # EmailКонтрагента (Strict CI Invariant Guard)
+                        "Представление": email,
+                        "АдресЭП": email,
+                        "Значение": email,
+                        "ЗначенияПолей": f'{{"EMail":"{email}"}}'
+                    })
+                    for r in clean_ci:
+                        if r.get("Вид_Key") == "5c0dc769-23c6-11ed-91a8-a068f8f3337c":
+                            r["Вид_Key"] = "5c0dc758-23c6-11ed-91a8-a068f8f3337c"
+                    try:
+                        requests.patch(f"{ODATA_BASE}/Catalog_Контрагенты(guid'{onec_target_guid}')?$format=json", json={"КонтактнаяИнформация": clean_ci}, auth=auth_1c, headers=headers_1c, timeout=15)
+                        print(f"  [1C OK] Email {email} добавлен в КИ контрагента '{onec_cp.get('Description')}' (Вид_Key: 5c0dc758)")
+                    except Exception as e_ci:
+                        print(f"  [1C-WARN] Ошибка обновления КИ контрагента: {e_ci}")
+        elif onec_lead:
+            onec_target_guid = onec_lead.get("Ref_Key")
+            onec_target_type = "StandardODATA.Catalog_Лиды"
+            onec_target_label = f"Лид #{onec_lead.get('Code')} '{onec_lead.get('Description')}'"
+            print(f"  [1C Lead #{onec_lead.get('Code')}] Найден: '{onec_lead.get('Description')}' ({onec_target_guid})")
             if not dry_run:
                 cur_ci = onec_lead.get("КонтактнаяИнформация", [])
                 ci_modified = False
@@ -1478,55 +1533,69 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                         "КонтактнаяИнформация": cur_ci,
                         "АдресЭПДляПоиска": cur_search
                     }
-                    requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{onec_lead_guid}')?$format=json", json=patch_ex, auth=auth_1c, headers=headers_1c, timeout=20)
-                    print(f"  [1C Lead OK] Лид #{onec_lead_code} успешно дополнен новым email '{email}' и контактными данными")
+                    requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{onec_target_guid}')?$format=json", json=patch_ex, auth=auth_1c, headers=headers_1c, timeout=20)
+                    print(f"  [1C Lead OK] Лид #{onec_lead.get('Code')} успешно дополнен новым email '{email}' и контактными данными")
         else:
-            print(f"  [1C Lead] Создать Лид '{company_name}' (Zero-Blank Lead Guard, ИНН: {inn}, Ответственный: Артем)")
-            print(f"            Заполнить ТЧ КонтактнаяИнформация: Email '{email}', Телефон '{phone}', Адрес '{address}'")
-            print(f"            Установить Теги: {', '.join(tag_names)}")
-            if not dry_run:
-                base_payload = {
-                    "Description": company_name,
-                    "НаименованиеКомпании": company_name,
-                    "Тема": f"ИНН: {inn}" if inn else company_name,
-                    "Вид": "ПервичноеОбращение",
-                    "Ответственный_Key": "209d4fb0-3142-11ed-a3f1-3085a9a0f5bf",
-                    "ИсточникПривлечения_Key": "9dbbff5e-23c6-11ed-91a8-a068f8f3337c",
-                    "СостояниеЛида_Key": "0c989b06-70c5-11ed-b990-f01898a67170",
-                    "Комментарий": f"Лид Битрикс24 #{b24_lead_id}." if b24_lead_id else "Синхронизация из почты 1С"
-                }
-                try:
-                    r_post = requests.post(f"{ODATA_BASE}/Catalog_Лиды?$format=json", json=base_payload, auth=auth_1c, headers=headers_1c, timeout=20)
-                    if r_post.status_code in (200, 201):
-                        p_data = r_post.json()
-                        onec_lead_guid = p_data.get("Ref_Key")
-                        onec_lead_code = p_data.get("Code")
-                        ci_rows = [
-                            {"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c", "Представление": email, "Значение": email, "АдресЭП": email}
-                        ]
-                        if phone:
-                            ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc76d-23c6-11ed-91a8-a068f8f3337c", "Представление": phone, "Значение": phone, "НомерТелефона": phone})
-                        if address:
-                            ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Адрес", "Вид_Key": "5c0dc76f-23c6-11ed-91a8-a068f8f3337c", "Представление": address, "Значение": ""})
-                        tag_rows = [{"LineNumber": str(i+1), "Тег_Key": t} for i, t in enumerate(tags)]
-                        patch_payload = {
-                            "КонтактнаяИнформация": ci_rows,
-                            "АдресЭПДляПоиска": email,
-                            "Теги": tag_rows
-                        }
-                        if phone:
-                            patch_payload["НомерТелефонаДляПоиска"] = phone
-                        requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{onec_lead_guid}')?$format=json", json=patch_payload, auth=auth_1c, headers=headers_1c, timeout=20)
-                        print(f"  [1C OK] Создан Лид #{onec_lead_code} ({onec_lead_guid})")
-                    else:
-                        print(f"  [1C-ERROR] Ошибка создания лида: HTTP {r_post.status_code} -> {r_post.text}")
-                except Exception as e_cr:
-                    print(f"  [1C-ERROR] Исключение при создании Лида: {e_cr}")
+            # Zero-Dummy Lead Guard
+            is_dummy_title = (
+                not inn and (
+                    company_name == cdata.get("subject") or
+                    any(company_name.lower().strip().startswith(p) for p in ["re:", "fwd:", "запрос", "заявка", "документы", "упд", "счет"]) or
+                    len(company_name) > 60
+                )
+            )
+            if is_dummy_title:
+                print(f"  [ZERO-DUMMY LEAD GUARD SKIP] Создание лида-пустышки заблокировано!")
+                print(f"    Тема письма: '{company_name}' | Email: {email}")
+                print(f"    Причина: Реквизиты/подпись компании не идентифицированы. Требуется ручной разбор.")
+            else:
+                print(f"  [1C Lead] Создать Лид '{company_name}' (Zero-Blank Lead Guard, ИНН: {inn}, Ответственный: Артем)")
+                print(f"            Заполнить ТЧ КонтактнаяИнформация: Email '{email}', Телефон '{phone}', Адрес '{address}'")
+                print(f"            Установить Теги: {', '.join(tag_names)}")
+                if not dry_run:
+                    base_payload = {
+                        "Description": company_name,
+                        "НаименованиеКомпании": company_name,
+                        "Тема": f"ИНН: {inn}" if inn else company_name,
+                        "Вид": "ПервичноеОбращение",
+                        "Ответственный_Key": "209d4fb0-3142-11ed-a3f1-3085a9a0f5bf",
+                        "ИсточникПривлечения_Key": "9dbbff5e-23c6-11ed-91a8-a068f8f3337c",
+                        "СостояниеЛида_Key": "0c989b06-70c5-11ed-b990-f01898a67170",
+                        "Комментарий": f"Лид Битрикс24 #{b24_lead_id}." if b24_lead_id else "Синхронизация из почты 1С"
+                    }
+                    try:
+                        r_post = requests.post(f"{ODATA_BASE}/Catalog_Лиды?$format=json", json=base_payload, auth=auth_1c, headers=headers_1c, timeout=20)
+                        if r_post.status_code in (200, 201):
+                            p_data = r_post.json()
+                            onec_target_guid = p_data.get("Ref_Key")
+                            onec_target_type = "StandardODATA.Catalog_Лиды"
+                            onec_target_label = f"Лид #{p_data.get('Code')} '{company_name}'"
+                            ci_rows = [
+                                {"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c", "Представление": email, "Значение": email, "АдресЭП": email}
+                            ]
+                            if phone:
+                                ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc76d-23c6-11ed-91a8-a068f8f3337c", "Представление": phone, "Значение": phone, "НомерТелефона": phone})
+                            if address:
+                                ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Адрес", "Вид_Key": "5c0dc76f-23c6-11ed-91a8-a068f8f3337c", "Представление": address, "Значение": ""})
+                            tag_rows = [{"LineNumber": str(i+1), "Тег_Key": t} for i, t in enumerate(tags)]
+                            patch_payload = {
+                                "КонтактнаяИнформация": ci_rows,
+                                "АдресЭПДляПоиска": email,
+                                "Теги": tag_rows
+                            }
+                            if phone:
+                                patch_payload["НомерТелефонаДляПоиска"] = phone
+                            requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{onec_target_guid}')?$format=json", json=patch_payload, auth=auth_1c, headers=headers_1c, timeout=20)
+                            print(f"  [1C OK] Создан Лид #{p_data.get('Code')} ({onec_target_guid})")
+                        else:
+                            print(f"  [1C-ERROR] Ошибка создания лида: HTTP {r_post.status_code} -> {r_post.text}")
+                    except Exception as e_cr:
+                        print(f"  [1C-ERROR] Исключение при создании Лида: {e_cr}")
 
         # Привязка входящих писем 1С (Event Linking Guard)
         for ev in onec_events:
-            print(f"  [1C Event #{ev['Number']}] Привязать к Лиду 1С (снятие плашки [сохранить в CRM])")
-            if not dry_run and onec_lead_guid:
+            print(f"  [1C Event #{ev['Number']}] Привязать к {onec_target_label or 'сущности 1С'} (снятие плашки [сохранить в CRM])")
+            if not dry_run and onec_target_guid and onec_target_type:
                 ev_ref = ev.get("Ref_Key")
                 ev_patch = {
                     "Участники": [{
@@ -1536,15 +1605,15 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                         "ИдентификаторСообщения": "",
                         "СтатусДоставки": "",
                         "ТипПолучателяЭлектронногоПисьма": "ОтКого",
-                        "Контакт": onec_lead_guid,
-                        "Контакт_Type": "StandardODATA.Catalog_Лиды"
+                        "Контакт": onec_target_guid,
+                        "Контакт_Type": onec_target_type
                     }]
                 }
                 try:
                     r_evp = requests.patch(f"{ODATA_BASE}/Document_Событие(guid'{ev_ref}')?$format=json", json=ev_patch, auth=auth_1c, headers=headers_1c, timeout=20)
                     if r_evp.status_code in (200, 204):
-                        update_address_book_entry(email, company_name, contact_guid=onec_lead_guid)
-                        print(f"  [1C Event OK] Событие #{ev['Number']} привязано к Лиду {onec_lead_code or onec_lead_guid}")
+                        update_address_book_entry(email, company_name, contact_guid=onec_target_guid)
+                        print(f"  [1C Event OK] Событие #{ev['Number']} привязано к {onec_target_label}")
                 except Exception as e_lk:
                     print(f"  [1C Event WARN] Ошибка привязки события #{ev['Number']}: {e_lk}")
 

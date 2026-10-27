@@ -1,0 +1,35 @@
+货物规格（共计32支）：----本产品为无缝钢管，没有焊接点
+- 16支：1型珩磨缸筒，外径Ø500 × 内径Ø420 × 长度2174 mm（公差2174–2177 mm，平头无螺栓孔）
+- 8支：2型缸筒，外径Ø500 × 内径Ø420 × 长度1707 mm（平头无坡口）
+- 8支：2型缸筒，外径Ø500 × 内径Ø420 × 长度1707 mm（带36×45°焊接大坡口及内倒角2×45°）
+
+一、核心检验大纲（重点新增项）：
+1. 100% 外观及表面质量检查。
+2. 100% 几何尺寸检验（内径 H9: 420.00–420.15 mm；外径 499.5–501.0 mm；长度公差 +3 mm；坡口尺寸）。
+3. 壁厚及偏心度检测（偏心度 ΔS ≤ 7–8%）：
+   - 在每根钢管两端及中部3个截面、按圆周4个方向（0°、90°、180°、270°）使用超声波测厚仪精确测量壁厚，确保偏心度严格控制在 7–8% 以内（340 bar 耐压关键指标！）。
+4. 内孔镜面粗糙度检测：Ra ≤ 0.40 μm。
+5. 超声波探伤无损检测（UT 抽检 10–20%）：按 ISO 10893-8 / GB/T 5777 标准检测管体内部有无夹层、裂纹及密集杂质。
+6. 机械性能与材质验证（PMI）：
+   - 严格核查原厂 EN 10204 3.1 质保书炉号及屈服强度（≥345 MPa）、抗拉强度（470–630 MPa）；
+   - 100% 便携式光谱仪（PMI）核验 Q345B 化学成分；
+   - 如有切头样件，安排机械性能见证取样。
+7. 防锈与包装检查：防锈油、管口保护盖、出口木箱完好性。
+8. 持证NDT Level II专业人员使用自有仪器进行独立的连续超声波检测。
+9. 保证配备带加长杆的内径指示千分尺，以便沿缸筒全长精确测量Ø420 mm内径。
+10. 在检验员出发前，提供所有仪器有效的中国国家计量检定证书复印件。
+11. 在Kunxin工厂100%确认管材批次准备就绪（视频记录和测量数据）之后，才派遣检验员；并在3个人工日范围内，确认在Kunxin现场对活塞杆的检验安排。
+二、 Updated Inspection Matrix / 详细检验控制表
+
+--- TABLE ---
+Item / 检测项目 | Nominal / 标称要求 | Standard / 参照标准 | Method & Tool / 方法工具 | Sampling / 检验比例
+Internal Bore (Øвн)内径 | Ø420 mm (H9: 420.00–420.15 mm) | ISO H9 / GB/T 1800 | Calibrated 3-point dial bore gauge | 100% (32 pcs)
+External OD (Øн) | Ø500 mm (Ref: 499.5–501.0 mm) | Factory agreement | External micrometer / caliper | 100% (32 pcs)
+Length Type 1 & 2 外径 | 2174 / 1707 mm (+3 mm) | Factory agreement | Calibrated steel tape measure | 100% (32 pcs)
+Wall Eccentricity (偏心度) | ΔS <= 7–8% (Nominal S=40 mm) | Hydraulic Cylinder Spec | UT Wall Gauge (4 pts x 3 cross sections) | 100% (32 pcs)
+Surface Roughness Ra-表面粗糙度 | Ra <= 0.40 um (Mirror bore) | ISO 4287 / GB/T 1031 | Portable stylus profilometer (min 6 pts) | 100% (32 pcs)
+Ultrasonic Testing (UT)超声波检测 | No internal cracks/laminations | ISO 10893-8 / GB/T 5777 (U2) | Calibrated UT flaw detector probe | 10–20% (4–6 pcs)
+Mechanical Properties力学性能 | Yield >=345 MPa, Tensile 470-630 | GB/T 1591 / EN 10025 | MTC 3.1 check + cut coupon witness test | 100% MTC + Coupons
+Material Grade (PMI)材料等级 | Steel Grade Q345B | C, Mn, Si, P, S limits | Portable XRF / OES spectrometer | 100% (32 pcs)
+Welding Bevel Geometry焊接 | Outer 36x45°, Inner 2x45° | Weld prep drawing | Welding bevel gauge / protractor | 100% (8 pcs Type 2)
+Packaging & End Caps包装 | Export seaworthy crate | Standard protection | Visual check (Anti-rust oil & plastic caps) | 100% (32 pcs)

@@ -45,6 +45,7 @@
 | **Базовый** | `retry_failed_batches.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/AI chats export/src/retry_failed_batches.py` | Добавляем папку src в пути поиска модулей | 1 |
 | **Базовый** | `retry_failed_batches.py` | `D:/Soft/Codex Backup/projects/AI chats export/src/retry_failed_batches.py` | Добавляем папку src в пути поиска модулей | 0 |
 | **Расширенный** | `AI_chats_filter_optimized.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/AI chats export/src/AI_chats_filter_optimized.py` | Принудительно настраиваем UTF-8 для вывода в консоль | 2 |
+| **Канонический** | `inspect_doc.py` | `scripts/inspect_doc.py` | Универсальный инспектор и конвертер документов (PDF, Word DOCX, Excel XLSX, TXT, картинок) и папок в UTF-8 без падений Windows cp1251 charmap. | 0 |
 
 ---
 
@@ -391,7 +392,7 @@
 | **Базовый** | `print_bodies_batch_5.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/print_bodies_batch_5.py` | Let's inspect IMAP bodies from scratch/attachments_batch_41_50 or re-fetch body | 0 |
 | **Базовый** | `print_items_35_36_38.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/print_items_35_36_38.py` | Автоматизация рабочего процесса. | 0 |
 | **Базовый** | `process_b24_contact_inquiries.py` | `projects/1c_odata/scripts/process_b24_contact_inquiries.py` | Автоматизация рабочего процесса. | 0 |
-| **Базовый** | `process_b24_inbound_leads.py` | `projects/1c_odata/scripts/process_b24_inbound_leads.py` | !/usr/bin/env python3 | 0 |
+| **Боевой** | `process_b24_inbound_leads.py` | `projects/1c_odata/scripts/process_b24_inbound_leads.py` | Канонический конвейер сквозной квалификации и обработки входящих лидов Битрикс24 и 1С:УНФ. Contact Email Binding Guard, Triple Activity Binding, Multi-Item RFQ Excel. | 0 |
 | **[ТЕСТ / ПИЛОТ] Реквизиты CRM** | manage_b24_company_requisites.py | projects/1c_odata/scripts/manage_b24_company_requisites.py | Автозаполнение официальных реквизитов Б24 (crm.requisite, crm.address) по ИНН через DaData | 0 |
 | **Базовый** | `process_manual_lead_entry.py` | `projects/1c_odata/scripts/process_manual_lead_entry.py` | Управляемая ручная обработка лидов и оффлайн-заявок (Canonical Manual Lead Entry) | 0 |
 | **Базовый** | `process_b24_inbound_leads.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scripts/process_b24_inbound_leads.py` | !/usr/bin/env python3 | 0 |
@@ -459,7 +460,7 @@
 | **Расширенный** | `run_check_contractors_batch_4.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/1c_odata/scratch/run_check_contractors_batch_4.py` | Автоматизация рабочего процесса. | 0 |
 | **Расширенный** | `run_onec_sync.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/app/run_onec_sync.py` | Автоматизация рабочего процесса. | 9 |
 | **Боевой** | `sync_b24_to_novofon.py` | `projects/1c_odata/scripts/sync_b24_to_novofon.py` | Автономная двухсторонняя синхронизация телефонной книги Битрикс24 и Новофон Data API v2.0 | 0 |
-| **Расширенный** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | !/usr/bin/env python3 | 0 |
+| **Боевой** | `sync_leads_1c_bitrix.py` | `projects/1c_odata/scripts/sync_leads_1c_bitrix.py` | Канонический конвейер сквозной синхронизации лидов и отскоков почты 1С:УНФ и Битрикс24 CRM. Counterparty First Guard, Zero-Dummy Lead Guard, Strict CI Invariant (Vid_Key 5c0dc758). | 0 |
 
 | **Расширенный** | `sync_suppliers_1c_bitrix.py` | `projects/1c_odata/scripts/sync_suppliers_1c_bitrix.py` | !/usr/bin/env python3 | 0 |
 | **Расширенный** | `sync_to_bitrix.py` | `D:/Soft/Codex Backup/projects/1c_odata/scripts/sync_to_bitrix.py` | Автоматизация рабочего процесса. | 0 |

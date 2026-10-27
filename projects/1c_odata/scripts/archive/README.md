@@ -59,3 +59,8 @@
 2. **Откат (Rollback):** Для отката к любой предыдущей версии достаточно скопировать нужный файл из этого каталога поверх боевого скрипта в `projects/1c_odata/scripts/`.
 3. **Ротация при новом ТЗ:** Перед внесением изменений в боевой скрипт текущая стабильная версия сначала копируется сюда с новой датой и описанием.
 | `2026-10-23_process_deals_without_activities_v2_1_before_to_email_fix.py` | 23.10.2026 | `process_deals_without_activities.py` | **Снимок v2.1 перед устранением NameError: to_email в create_followup_draft_in_imap**. |
+| `2026-10-26_sync_leads_1c_bitrix_v9_before_counterparty_first_and_zero_dummy.py` | 26.10.2026 | `sync_leads_1c_bitrix.py` | **Снимок v9.0 перед внедрением Counterparty First Guard, защиты от XDTO-рассинхрона 1С:УНФ/БП (Vid_Key 5c0dc758) и Zero-Dummy Lead Guard в parse_mxl_file/sync_leads_from_mxl**. |
+| `2026-10-27_process_b24_inbound_leads_v22_before_contact_email_binding_fix.py` | 27.10.2026 | `process_b24_inbound_leads.py` | **Снимок v22.0 перед исправлением привязки писем существующих контактов (Contact Email Binding Guard):** устранение пропуска писем с `OWNER_TYPE_ID = 3` при наличии CRM_TODO на лиде и сквозная привязка писем контакта к создаваемой сделке. |
+
+- **2026-10-27_process_b24_inbound_leads_v23_before_nested_quotes_and_phone_grouping_fix.py**
+  - Снимок перед поддержкой вложенных кавычек в наименованиях юрлиц (`ООО "НПК "Изуран"`), добавлением `НПК` в классификатор шаблонов ОПФ, гибким парсингом 3-значных хвостов телефонов РФ (`20-55-100`, `44-24-116`) и поддержкой двоеточий в добавочных (`доб: 328`).

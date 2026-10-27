@@ -387,10 +387,10 @@ def normalize_phone_number(raw_phone: str) -> tuple[str, str]:
 
     # 1. Извлечение добавочного (доб. / ext. / внутр.)
     ext_str = ""
-    m_ext = re.search(r'(?:доб\.?|ext\.?|внутр\.?)\s*(\d+)', text, flags=re.IGNORECASE)
+    m_ext = re.search(r'(?:доб\.?|ext\.?|внутр\.?)[\s:\-]*(\d+)', text, flags=re.IGNORECASE)
     if m_ext:
         ext_str = f"доб. {m_ext.group(1)}"
-        text = re.sub(r'\(?\s*(?:доб\.?|ext\.?|внутр\.?)\s*\d+\s*\)?', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\(?\s*(?:доб\.?|ext\.?|внутр\.?)[\s:\-]*\d+\s*\)?', '', text, flags=re.IGNORECASE)
 
     # 2. Очистка от сдвоенных номеров (/06, /215-87-68)
     text = re.split(r'[/,;]', text)[0].strip()
@@ -732,7 +732,7 @@ def extract_phone_and_signature_details(text: str) -> dict:
     clean_text = clean_text.replace('\xa0', ' ')
 
     # 1. Поиск всех телефонных номеров в тексте
-    pattern_strict = r'(?<!\d)(?:(?:\+7|8)[\s\-]?(?:\(\d{3,5}\)|\d{3,5})[\s\-]?\d{2,3}[\s\-]?\d{2}[\s\-]?\d{2}(?:\s*(?:\(доб\.?\s*\d+\)|доб\.?\s*\d+|ext\.?\s*\d+))?)'
+    pattern_strict = r'(?<!\d)(?:(?:\+7|8)[\s\-]?(?:\(\d{3,5}\)|\d{3,5})[\s\-]?\d{2,3}[\s\-]?\d{2,3}[\s\-]?\d{2,4}(?:\s*(?:\(доб\.?\s*[:\-]?\s*\d+\)|доб\.?\s*[:\-]?\s*\d+|ext\.?\s*[:\-]?\s*\d+))?)'
     matches = list(re.finditer(pattern_strict, clean_text, re.IGNORECASE))
     
     extracted = []
@@ -1160,15 +1160,46 @@ def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_
     чтобы исключить дублирование и попадание чужих/старых запросов в таймлайн Сделки!
     Все письма лида связываются с Контактом и Компанией для сохранения полной истории.
     """
-    acts = call_b24("crm.activity.list", {
-        "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id},
-        "select": ["ID", "TYPE_ID", "PROVIDER_ID", "SUBJECT", "COMMUNICATIONS"]
-    }) or []
-    if not acts and deal_id:
-        acts = call_b24("crm.activity.list", {
+    acts_dict = {}
+
+    # 1. Сбор активностей с Лида
+    if lead_id:
+        r_lead_acts = call_b24("crm.activity.list", {
+            "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id},
+            "select": ["ID", "TYPE_ID", "PROVIDER_ID", "SUBJECT", "COMMUNICATIONS"]
+        }) or []
+        for a in r_lead_acts:
+            acts_dict[int(a["ID"])] = a
+
+    # 2. Сбор активностей со Сделки
+    if deal_id:
+        r_deal_acts = call_b24("crm.activity.list", {
             "filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": deal_id},
             "select": ["ID", "TYPE_ID", "PROVIDER_ID", "SUBJECT", "COMMUNICATIONS"]
         }) or []
+        for a in r_deal_acts:
+            acts_dict[int(a["ID"])] = a
+
+    # 3. Если передан target_email_id и его еще нет в acts_dict — дозагружаем напрямую
+    if target_email_id and int(target_email_id) not in acts_dict:
+        t_act = call_b24("crm.activity.get", {"id": target_email_id})
+        if t_act:
+            acts_dict[int(target_email_id)] = t_act
+
+    # 4. Contact Email Fallback Guard: если на Лиде/Сделке нет писем, а Контакт известен — ищем на Контакте
+    has_emails = any((a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4") for a in acts_dict.values())
+    if not has_emails and contact_id:
+        r_cnt_acts = call_b24("crm.activity.list", {
+            "filter": {"OWNER_TYPE_ID": 3, "OWNER_ID": contact_id},
+            "order": {"ID": "DESC"},
+            "select": ["ID", "TYPE_ID", "PROVIDER_ID", "SUBJECT", "COMMUNICATIONS"]
+        }) or []
+        for a in r_cnt_acts:
+            if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4":
+                acts_dict[int(a["ID"])] = a
+                break
+
+    acts = list(acts_dict.values())
     bound_count = 0
     for act in acts:
         act_id = act.get("ID")
@@ -1538,22 +1569,38 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id}}) or []
     if acts:
         acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
-    if not acts:
-        # Если лид уже сконвертирован или привязан к Сделке, ищем активности по связанной Сделке или Контакту
-        deal_id_cand = lead.get("DEAL_ID") or lead.get("UF_CRM_DEAL_ID")
-        if deal_id_cand:
-            acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": deal_id_cand}}) or []
-            if acts:
-                acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
-        if not acts:
-            contact_id_cand = lead.get("CONTACT_ID")
-            if contact_id_cand:
-                acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 3, "OWNER_ID": contact_id_cand}}) or []
-                if acts:
-                    acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
+
     email_acts = [a for a in acts if (a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4") and str(a.get("DIRECTION")) != "2"]
     if not email_acts:
         email_acts = [a for a in acts if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4"]
+
+    # Contact & Deal Fallback Guard: если на Лиде нет email-писем (например, повторный лид с делом CRM_TODO,
+    # где само входящее письмо Б24 привязал к Контакту или Сделке), ищем письмо на Контакте и Сделке
+    if not email_acts:
+        deal_id_cand = lead.get("DEAL_ID") or lead.get("UF_CRM_DEAL_ID")
+        if deal_id_cand:
+            deal_acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 2, "OWNER_ID": deal_id_cand}}) or []
+            if deal_acts:
+                deal_acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
+                cand_emails = [a for a in deal_acts if (a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4") and str(a.get("DIRECTION")) != "2"]
+                if not cand_emails:
+                    cand_emails = [a for a in deal_acts if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4"]
+                if cand_emails:
+                    email_acts = cand_emails
+                    acts.extend(deal_acts)
+        if not email_acts:
+            contact_id_cand = lead.get("CONTACT_ID")
+            if contact_id_cand:
+                cnt_acts = call_b24("crm.activity.list", {"filter": {"OWNER_TYPE_ID": 3, "OWNER_ID": contact_id_cand}}) or []
+                if cnt_acts:
+                    cnt_acts.sort(key=lambda x: int(x.get("ID", 0)), reverse=True)
+                    cand_emails = [a for a in cnt_acts if (a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4") and str(a.get("DIRECTION")) != "2"]
+                    if not cand_emails:
+                        cand_emails = [a for a in cnt_acts if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4"]
+                    if cand_emails:
+                        email_acts = cand_emails
+                        acts.extend(cnt_acts)
+
     main_email_act = email_acts[0] if email_acts else (acts[0] if acts else {})
 
     email_subject = main_email_act.get("SUBJECT", "")
@@ -1591,7 +1638,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             print(f"  [SIGNATURE-PARSER] Из подписи извлечено имя контакта: {contact_name}")
 
     # Если наименование компании в лиде отсутствует или содержит заглушку, извлекаем из темы или текста
-    placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы', 'ооо', 'ао', 'зао', 'пао', 'ип', 'нпо', 'нпп', 'тпк', 'гк', 'мтк'}
+    placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы', 'ооо', 'ао', 'зао', 'пао', 'ип', 'нпо', 'нпп', 'тпк', 'гк', 'мтк', 'нпк'}
     stop_words_tail = {'никаких', 'обязательств', 'не', 'для', 'от', 'по', 'за', 'при', 'в', 'на', 'с', 'к', 'из'}
     clean_desc_text = sanitize_html_email_text(email_desc or '')
     clean_comments_text = sanitize_html_email_text(lead_comments or '')
@@ -1604,7 +1651,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         c_low = c_str.lower()
         if any(sw in c_low for sw in own_company_stopwords):
             return False
-        inner = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]?|[»"\'”]?$', '', c_str).strip().lower()
+        inner = re.sub(r'^(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s*[«"\'“”]?|[»"\'”]?$', '', c_str).strip().lower()
         if inner in placeholders or inner in stop_words_tail or len(inner) < 2:
             return False
         return True
@@ -1614,25 +1661,25 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         if m_comp_comment and is_valid_company_cand(m_comp_comment.group(1).split('\n')[0].strip()):
             raw_company_title = m_comp_comment.group(1).split('\n')[0].strip()
 
-        # Поиск компании в lead_title и email_subject (высший приоритет)
+        # Поиск компании в lead_title и email_subject (высший приоритет, поддержка вложенных кавычек)
         if not raw_company_title or raw_company_title.strip().lower() in placeholders:
             for src_txt in [lead_title, email_subject]:
-                m_q = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]([A-Za-zА-Яа-я0-9\-_ ]{2,35})[»"\'”]', src_txt)
+                m_q = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s*([«"\'“”][^"\n\r«»“”]+(?:[«"\'“”][^"\n\r«»“”]+[»"\'“”])?[»"\'”]?|[^\n\r,<>]{2,40})', src_txt)
                 if m_q and is_valid_company_cand(m_q.group(0)):
                     raw_company_title = m_q.group(0).strip()
                     break
-                m_noq = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', src_txt)
+                m_noq = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', src_txt)
                 if m_noq and is_valid_company_cand(m_noq.group(0)):
                     raw_company_title = m_noq.group(0).strip()
                     break
 
-        # Поиск в общем тексте (за вычетом собственной компании LongWang)
+        # Поиск в общем тексте (за вычетом собственной компании LongWang, поддержка вложенных кавычек)
         if not raw_company_title or raw_company_title.strip().lower() in placeholders:
-            m_quoted = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s*[«"\'“”]([A-Za-zА-Яа-я0-9\-_ ]{2,35})[»"\'”]', f"{clean_comments_text} {full_search_text}")
+            m_quoted = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s*([«"\'“”][^"\n\r«»“”]+(?:[«"\'“”][^"\n\r«»“”]+[»"\'“”])?[»"\'”]?|[^\n\r,<>]{2,40})', f"{clean_comments_text} {full_search_text}")
             if m_quoted and is_valid_company_cand(m_quoted.group(0)):
                 raw_company_title = m_quoted.group(0).strip()
             else:
-                m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', full_search_text)
+                m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', full_search_text)
                 if m_comp and is_valid_company_cand(m_comp.group(0)):
                     raw_company_title = m_comp.group(0).strip()
                 else:

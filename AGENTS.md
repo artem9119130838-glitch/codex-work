@@ -82,6 +82,7 @@
 | **«запуск trend radar»** (`«радар трендов»`) | `py projects/SEO/scripts/trend_spike_radar.py --dry-run` | **Dry-run**. Радар перехвата B2B-хайпа и карго. См. [SEO_STRATEGIC_PLAN_2026.md](file:///C:/Codex/projects/SEO/docs/SEO_STRATEGIC_PLAN_2026.md). |
 | **«аудит тендеров sla»** | `py projects/1c_odata/scripts/audit_tender_sla_compliance.py` | Аудит воронки тендеров и снабжения КНР. См. [TENDER_SUPPLY_SLA_POLICY.md](file:///C:/Codex/codex_kb/20_domains/tenders/TENDER_SUPPLY_SLA_POLICY.md). |
 | **«проверь расчет налогов»** (`«аудит ндс унф бп»`) | `py projects/1c_odata/scripts/audit_tax_unf_bp.py --dry-run` | **Dry-run**. Сверка УНФ и БП, авансы 76.АВ, НДС 22%. См. [ERP_1C_POLICY.md](file:///C:/Codex/projects/1c_odata/ERP_1C_POLICY.md). |
+| **«прочитай документ [файл/папка]»** | `py scripts/inspect_doc.py --file [путь] [--stdout]` | Инспекция PDF, Word DOCX, Excel XLSX, картинок в UTF-8. См. [SKILL.md](file:///C:/Users/Артем/.gemini/config/skills/session_management/SKILL.md). |
 
 > **Explicit Scope Guard:** Если в командах обработки данных (лиды, сделки, синхронизации) не указаны обязательные параметры (сотрудник, ящик, лимит, период) — не запускать вслепую, а немедленно запросить уточнение у пользователя!
 
