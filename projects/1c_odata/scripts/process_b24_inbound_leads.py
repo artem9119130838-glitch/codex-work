@@ -188,58 +188,250 @@ def upload_file_to_b24_disk(file_path: str, folder_id: int = FOLDER_CHINA_SUPPLY
 # ----------------------------------------------------------------------
 # 1С:УНФ OData Helpers
 # ----------------------------------------------------------------------
-def check_1c_counterparty(inn=None, name=None):
+def build_1c_bsp_contact_info(email=None, phone=None, address=None, website=None):
+    """
+    Генератор структурированной контактной информации БСП (Библиотека Стандартных Подсистем 1С)
+    для Catalog_Лиды и Catalog_Контрагенты в формате JSON v4 и XML ЗначенияПолей.
+    Гарантирует автоматический перенос Телефона, Адреса и Сайта при конвертации Лида в Контрагента.
+    """
+    ci_rows = []
+    header_updates = {}
+
+    # 1. Email (CI_EMAIL: 5c0dc769-23c6-11ed-91a8-a068f8f3337c)
+    if email and "@" in email:
+        clean_email = email.strip()
+        bsp_json_email = json.dumps({"version": 4, "value": clean_email, "type": "ЭлектроннаяПочта"}, ensure_ascii=False)
+        xml_email = f'<КонтактнаяИнформация xmlns="http://www.v8.1c.ru/ssl/contactinfo" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Представление="{clean_email}"><Состав xsi:type="ЭлектроннаяПочта" Значение="{clean_email}"/></КонтактнаяИнформация>'
+        ci_rows.append({
+            "LineNumber": str(len(ci_rows) + 1),
+            "Тип": "АдресЭлектроннойПочты",
+            "Вид_Key": CI_EMAIL,
+            "Представление": clean_email,
+            "АдресЭП": clean_email,
+            "Значение": bsp_json_email,
+            "ЗначенияПолей": xml_email
+        })
+        header_updates["АдресЭПДляПоиска"] = clean_email
+
+    # 2. Телефон (CI_PHONE: 5c0dc76d-23c6-11ed-91a8-a068f8f3337c)
+    if phone:
+        digits = re.sub(r'\D', '', phone)
+        if len(digits) == 11 and digits.startswith('8'):
+            digits = '7' + digits[1:]
+        elif len(digits) == 10:
+            digits = '7' + digits
+
+        country_code = digits[:1] if len(digits) >= 1 else "7"
+        area_code = digits[1:4] if len(digits) >= 4 else ""
+        local_num = digits[4:] if len(digits) >= 4 else digits
+        local_fmt = f"{local_num[:3]} {local_num[3:5]} {local_num[5:]}".strip() if len(local_num) >= 7 else local_num
+        clean_phone = f"+{country_code} ({area_code}) {local_num[:3]}-{local_num[3:5]}-{local_num[5:]}" if len(digits) == 11 else phone.strip()
+
+        bsp_json_phone = json.dumps({
+            "version": 4,
+            "value": clean_phone,
+            "type": "Телефон",
+            "countryCode": country_code,
+            "areaCode": area_code,
+            "number": local_fmt
+        }, ensure_ascii=False)
+
+        xml_phone = f'<КонтактнаяИнформация xmlns="http://www.v8.1c.ru/ssl/contactinfo" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Представление="{clean_phone}"><Состав xsi:type="НомерТелефона" КодСтраны="{country_code}" КодГорода="{area_code}" Номер="{local_fmt}" Добавочный=""/></КонтактнаяИнформация>'
+
+        ci_rows.append({
+            "LineNumber": str(len(ci_rows) + 1),
+            "Тип": "Телефон",
+            "Вид_Key": CI_PHONE,
+            "Представление": clean_phone,
+            "НомерТелефона": digits,
+            "НомерТелефонаБезКодов": local_num,
+            "Значение": bsp_json_phone,
+            "ЗначенияПолей": xml_phone
+        })
+        header_updates["НомерТелефонаДляПоиска"] = digits
+
+    # 3. Юридический / Фактический адрес (CI_LEGAL_ADDRESS: 5c0dc76f-23c6-11ed-91a8-a068f8f3337c)
+    if address:
+        clean_addr = address.strip()
+        bsp_json_addr = json.dumps({
+            "version": 4,
+            "value": clean_addr,
+            "type": "Адрес",
+            "country": "Россия",
+            "addressType": "ВСвободнойФорме",
+            "street": clean_addr
+        }, ensure_ascii=False)
+
+        xml_addr = f'<КонтактнаяИнформация xmlns="http://www.v8.1c.ru/ssl/contactinfo" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Представление="{clean_addr}"><Состав xsi:type="Адрес" Страна="Россия"><Состав xsi:type="АдресРФ"><Улица>{clean_addr}</Улица></Состав></Состав></КонтактнаяИнформация>'
+
+        ci_rows.append({
+            "LineNumber": str(len(ci_rows) + 1),
+            "Тип": "Адрес",
+            "Вид_Key": CI_LEGAL_ADDRESS,
+            "Представление": clean_addr,
+            "Страна": "Россия",
+            "Значение": bsp_json_addr,
+            "ЗначенияПолей": xml_addr
+        })
+
+    # 4. Веб-сайт (CI_WEBSITE: 5c0dc76c-23c6-11ed-91a8-a068f8f3337c)
+    if website:
+        clean_site = website.strip()
+        if not clean_site.startswith("http"):
+            clean_site = f"https://{clean_site}"
+        bsp_json_site = json.dumps({
+            "version": 4,
+            "value": clean_site,
+            "type": "ВебСтраница"
+        }, ensure_ascii=False)
+
+        ci_rows.append({
+            "LineNumber": str(len(ci_rows) + 1),
+            "Тип": "ВебСтраница",
+            "Вид_Key": CI_WEBSITE,
+            "Представление": clean_site,
+            "Значение": bsp_json_site
+        })
+
+    return ci_rows, header_updates
+
+
+def clean_company_name_for_match(name: str) -> str:
+    """Очистка наименования компании от ОПФ, знаков препинания и кавычек для точного сопоставления."""
+    if not name:
+        return ""
+    s = name.replace('"', '').replace("'", '').replace('«', '').replace('»', '').replace('“', '').replace('”', '').strip()
+    # Убираем стандартные ОПФ
+    tokens = [w for w in s.split() if w.upper() not in ['ООО', 'АО', 'ЗАО', 'ПАО', 'ИП', 'ГК', 'МТК', 'ТПК', 'НПО', 'НПП', 'ПКФ', 'ТД']]
+    return " ".join(tokens).strip()
+
+
+def check_1c_counterparty(inn=None, name=None, email=None, phone=None):
+    """
+    Строгий поиск Контрагента в 1С:УНФ (Strict Matching Guard).
+    Ложные срабатывания по коротким аббревиатурам (КТС, МДУ) категорически исключены.
+    """
     if not ONEC_BASE or not ONEC_AUTH_READ:
         return None
     try:
-        if inn:
-            q = urllib.parse.quote(f"ИНН eq '{inn}'")
+        # 1. Приоритет: Точный ИНН
+        if inn and len(str(inn).strip()) in (10, 12):
+            q = urllib.parse.quote(f"ИНН eq '{str(inn).strip()}'")
             r = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
             if r.status_code == 200:
                 val = r.json().get('value', [])
                 if val:
                     return val[0]
-            return None
+
+        # 2. Точный Email в контактной информации контрагента
+        if email and "@" in email:
+            q_em = urllib.parse.quote(f"substringof('{email.strip().lower()}', КонтактнаяИнформация/АдресЭП)")
+            try:
+                r_em = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты?$filter={q_em}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                if r_em.status_code == 200:
+                    val = r_em.json().get('value', [])
+                    if val:
+                        return val[0]
+            except Exception:
+                pass
+
+        # 3. Точный номер телефона (последние 10 цифр)
+        if phone:
+            digits = re.sub(r'\D', '', phone)
+            if len(digits) >= 10:
+                last_10 = digits[-10:]
+                q_ph = urllib.parse.quote(f"substringof('{last_10}', КонтактнаяИнформация/НомерТелефона)")
+                try:
+                    r_ph = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты?$filter={q_ph}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                    if r_ph.status_code == 200:
+                        val = r_ph.json().get('value', [])
+                        if val:
+                            return val[0]
+                except Exception:
+                    pass
+
+        # 4. По наименованию: только длинные имена (>= 5 символов), полное точное равенство очищенных названий
         if name:
-            clean_name = re.sub(r'[«»"“”\']', '', name).strip()
-            q = urllib.parse.quote(f"substringof('{clean_name}', Description)")
-            r = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
-            if r.status_code == 200:
-                val = r.json().get('value', [])
-                if val:
-                    return val[0]
+            clean_name = clean_company_name_for_match(name)
+            # Короткие аббревиатуры (<= 4 символов) искать по названию запрещено без второго фактора!
+            if len(clean_name) >= 5:
+                q_nm = urllib.parse.quote(f"Description eq '{clean_name}'")
+                r_nm = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты?$filter={q_nm}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                if r_nm.status_code == 200:
+                    val = r_nm.json().get('value', [])
+                    if val:
+                        return val[0]
     except Exception as e:
         print(f"1C Check Counterparty exception: {e}")
     return None
 
-def check_1c_lead(inn=None, name=None, email=None):
+
+def check_1c_lead(inn=None, name=None, email=None, phone=None):
+    """
+    Строгий поиск Лида в 1С:УНФ (Strict Lead Matching Guard).
+    Совпадение строго по точным реквизитам. Ложные срабатывания по коротким подстрокам исключены.
+    """
     if not ONEC_BASE or not ONEC_AUTH_READ:
         return None
     try:
-        if email:
-            q = urllib.parse.quote(f"substringof('{email}', АдресЭПДляПоиска)")
-            r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=12)
-            if r.status_code == 200:
-                val = r.json().get('value', [])
-                if val:
-                    return val[0]
-        if inn:
-            q = urllib.parse.quote(f"substringof('{inn}', Тема) or substringof('{inn}', Description)")
+        # 1. Приоритет: Точный Email лида
+        if email and "@" in email:
+            clean_email = email.strip().lower()
+            q = urllib.parse.quote(f"АдресЭПДляПоиска eq '{clean_email}'")
             r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
             if r.status_code == 200:
                 val = r.json().get('value', [])
                 if val:
                     return val[0]
-            return None
+
+            # 1.1 Поиск в контактных лицах лидов (Catalog_КонтактыЛидов)
+            try:
+                q_cnt = urllib.parse.quote(f"АдресЭПДляПоиска eq '{clean_email}'")
+                r_cnt = requests.get(f"{ONEC_BASE}/Catalog_КонтактыЛидов?$filter={q_cnt}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                if r_cnt.status_code == 200:
+                    cnt_items = r_cnt.json().get('value', [])
+                    if cnt_items:
+                        owner_key = cnt_items[0].get("Owner_Key")
+                        if owner_key:
+                            r_lead = requests.get(f"{ONEC_BASE}/Catalog_Лиды(guid'{owner_key}')?$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                            if r_lead.status_code == 200:
+                                return r_lead.json()
+            except Exception:
+                pass
+
+        # 2. Точный номер телефона (последние 10 цифр)
+        if phone:
+            digits = re.sub(r'\D', '', phone)
+            if len(digits) >= 10:
+                last_10 = digits[-10:]
+                q_ph = urllib.parse.quote(f"substringof('{last_10}', НомерТелефонаДляПоиска)")
+                r_ph = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_ph}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                if r_ph.status_code == 200:
+                    val = r_ph.json().get('value', [])
+                    if val:
+                        return val[0]
+
+        # 3. Точный ИНН (строго как отдельное слово из 10 или 12 цифр)
+        if inn and len(str(inn).strip()) in (10, 12):
+            q_inn = urllib.parse.quote(f"substringof('{str(inn).strip()}', Тема)")
+            r_inn = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_inn}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+            if r_inn.status_code == 200:
+                val = r_inn.json().get('value', [])
+                for lead_cand in val:
+                    lead_topic = lead_cand.get("Тема", "")
+                    lead_desc = lead_cand.get("Description", "")
+                    lead_info = lead_cand.get("ОсновныеСведения", "")
+                    if re.search(r'\b' + str(inn).strip() + r'\b', f"{lead_topic} {lead_desc} {lead_info}"):
+                        return lead_cand
+
+        # 4. По наименованию: только длинные имена (>= 5 символов), строго полное совпадение
         if name:
-            clean_name = re.sub(r'[«»"“”\']', '', name).strip()
-            tokens = [w for w in clean_name.split() if w.upper() not in ['ООО', 'АО', 'ЗАО', 'ПАО', 'ИП', 'ГК', 'МТК', 'ТПК', 'НПО', 'НПП']]
-            if tokens and len(tokens[0]) >= 4:
-                kw = tokens[0]
-                q = urllib.parse.quote(f"substringof('{kw}', Description)")
-                r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
-                if r.status_code == 200:
-                    val = r.json().get('value', [])
+            clean_name = clean_company_name_for_match(name)
+            if len(clean_name) >= 5:
+                q_nm = urllib.parse.quote(f"Description eq '{clean_name}' or НаименованиеКомпании eq '{clean_name}'")
+                r_nm = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_nm}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                if r_nm.status_code == 200:
+                    val = r_nm.json().get('value', [])
                     if val:
                         return val[0]
     except Exception as e:
@@ -1895,9 +2087,10 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         if edom not in ["gmail.com", "mail.ru", "yandex.ru", "bk.ru", "inbox.ru", "list.ru", "rambler.ru", "internet.ru"]:
             company_website = f"www.{edom}"
 
-    # 4. Сверка с 1С:УНФ
-    ca_1c = check_1c_counterparty(inn=inn, name=company_title)
-    lead_1c = check_1c_lead(inn=inn, name=company_title, email=contact_email)
+    # 4. Сверка с 1С:УНФ (Строгое сопоставление без ложных срабатываний)
+    phone_for_lead = company_phone or contact_phone
+    ca_1c = check_1c_counterparty(inn=inn, name=company_title, email=contact_email, phone=phone_for_lead)
+    lead_1c = check_1c_lead(inn=inn, name=company_title, email=contact_email, phone=phone_for_lead)
     if lead_1c and not inn and lead_1c.get('Тема'):
         m_inn_1c = re.search(r'\b(\d{10}|\d{12})\b', lead_1c.get('Тема', ''))
         if m_inn_1c:
@@ -2039,20 +2232,17 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                 "СостояниеЛида_Key": "0c989b06-70c5-11ed-b990-f01898a67170",
                 "Комментарий": onec_comment_str
             }
+            # Формирование эталонной БСП Контактной Информации (JSON v4 + XML)
+            ci_rows, hdr_upd = build_1c_bsp_contact_info(email=contact_email, phone=company_phone or contact_phone, address=address, website=company_website)
+            lead_payload.update(hdr_upd)
             r_post_1c = requests.post(f"{ONEC_BASE}/Catalog_Лиды?$format=json", json=lead_payload, auth=ONEC_AUTH_WRITE, timeout=12)
             if r_post_1c.status_code in (200, 201):
                 new_lead_guid = r_post_1c.json().get("Ref_Key")
                 print(f"  [1C] Лид зафиксирован в 1С:УНФ (GUID {new_lead_guid}, Теги: {list(all_tags)})")
-                ci_rows = []
-                if contact_email:
-                    ci_rows.append({"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": CI_EMAIL, "Представление": contact_email, "АдресЭП": contact_email, "АдресЭПДляПоиска": contact_email})
-                phone_for_lead = company_phone or contact_phone
-                if phone_for_lead:
-                    ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": CI_PHONE, "Представление": phone_for_lead})
-                if company_website:
-                    ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "ВебСтраница", "Вид_Key": CI_WEBSITE, "Представление": company_website})
                 if ci_rows:
-                    requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{new_lead_guid}')?$format=json", json={"КонтактнаяИнформация": ci_rows}, auth=ONEC_AUTH_WRITE, timeout=12)
+                    patch_bsp = {"КонтактнаяИнформация": ci_rows}
+                    patch_bsp.update(hdr_upd)
+                    requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{new_lead_guid}')?$format=json", json=patch_bsp, auth=ONEC_AUTH_WRITE, timeout=12)
                 write_to_onec(inn=inn, one_c_guid=new_lead_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
                 if contact_email:
                     link_1c_events_and_address_book(contact_email, new_lead_guid, company_title, is_counterparty=False)
@@ -2484,20 +2674,17 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         if brand_folder_key:
             lead_payload["Parent_Key"] = brand_folder_key
             print(f"  [1C] Лид будет размещен в профильную папку бренда (Parent_Key: {brand_folder_key})")
+        # Формирование эталонной БСП Контактной Информации (JSON v4 + XML)
+        ci_rows, hdr_upd = build_1c_bsp_contact_info(email=contact_email, phone=company_phone or contact_phone, address=address, website=company_website)
+        lead_payload.update(hdr_upd)
         r_lead = requests.post(f"{ONEC_BASE}/Catalog_Лиды?$format=json", json=lead_payload, auth=ONEC_AUTH_WRITE, timeout=12)
         if r_lead.status_code in (200, 201):
             new_lead_guid = r_lead.json().get("Ref_Key")
             print(f"  [1C] Создан Лид в 1С:УНФ (GUID {new_lead_guid}, Теги: {list(set(contractor_tags))})")
-            ci_rows = []
-            if contact_email:
-                ci_rows.append({"LineNumber": "1", "Тип": "АдресЭлектроннойПочты", "Вид_Key": CI_EMAIL, "Представление": contact_email, "АдресЭП": contact_email, "АдресЭПДляПоиска": contact_email})
-            phone_for_lead = company_phone or contact_phone
-            if phone_for_lead:
-                ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "Телефон", "Вид_Key": CI_PHONE, "Представление": phone_for_lead})
-            if company_website:
-                ci_rows.append({"LineNumber": str(len(ci_rows) + 1), "Тип": "ВебСтраница", "Вид_Key": CI_WEBSITE, "Представление": company_website})
             if ci_rows:
-                requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{new_lead_guid}')?$format=json", json={"КонтактнаяИнформация": ci_rows}, auth=ONEC_AUTH_WRITE, timeout=12)
+                patch_bsp = {"КонтактнаяИнформация": ci_rows}
+                patch_bsp.update(hdr_upd)
+                requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{new_lead_guid}')?$format=json", json=patch_bsp, auth=ONEC_AUTH_WRITE, timeout=12)
             write_to_onec(inn=inn, one_c_guid=new_lead_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
             if contact_email:
                 link_1c_events_and_address_book(contact_email, new_lead_guid, company_title, is_counterparty=False)

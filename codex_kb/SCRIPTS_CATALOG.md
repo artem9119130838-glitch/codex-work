@@ -324,6 +324,7 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Боевой (CI Guard)** | `audit_unf_counterparties_ci.py` | `projects/1c_odata/scripts/audit_unf_counterparties_ci.py` | Сплошной аппаратный аудит и исправление видов КИ контрагентов 1С:УНФ (Strict CI Invariant). Флаги: Read-only аудит, `--fix` для автоисправления. | 0 |
+| **Боевой (Bank Accounts)** | `deactivate_inactive_org_bank_accounts.py` | `projects/1c_odata/scripts/deactivate_inactive_org_bank_accounts.py` | Аудит и массовая деактивация устаревших банковских счетов собственных организаций 1С:УНФ (> 365 дней без движений). Защита спецсчетов 47405, тендерных и юаневых счетов. Флаги: Read-only аудит, `--apply` для записи. | 0 |
 | **Боевой (Tax Auditor)** | `audit_tax_unf_bp.py` | `projects/1c_odata/scripts/audit_tax_unf_bp.py` | Автоматический аудит и сверка расчетов налогов (НДС 22%, прибыль) между 1С:УНФ и 1С:БП, верификация авансов 76.АВ, факторный анализ пошлин/импорта и генерация сводных Excel-отчетов. Флаги: `--dry-run`, `--quarter`, `--year`, `--chat-id`, `--files-dir`. | 0 |
 | **Боевой (DevOps 1C)** | `audit_1c_extensions_db.py` | `projects/1c_odata/scripts/audit_1c_extensions_db.py` | Диагностика расширений 1С в PostgreSQL на VPS, выявление неактивных модулей и снятие бинарных дампов (`_extensionsinfo`). Флаги: `--list`, `--check-inactive`, `--backup`. | 0 |
 | **Боевой (Task Inspector)** | `inspect_b24_task.py` | `projects/1c_odata/scripts/inspect_b24_task.py` | Чтение метаданных задач Битрикс24, истории комментариев и чатов (`TASKS_TASK`), автоматическая выгрузка скриншотов и вложений на диск. Флаги: `--task-id`, `--days`, `--download-dir`, `--no-download`. | 0 |
@@ -512,6 +513,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Боевой (B24 CRM Sync)** | `test_reactivation_b24_sync.py` | `projects/lead_reactivation/scripts/test_reactivation_b24_sync.py` | Тестовая синхронизация сущностей Битрикс24 (Компания + Контакт) и регистрация исходящих писем в таймлайне CRM перед реанимацией спящих клиентов 1С. Флаги: `--email`, `--company`, `--inn`, `--contact`, `--manager`, `--apply`. | 0 |
 | **Базовый** | `2026-10-03_run_daily_reactivation_v1_before_sbis.py` | `projects/lead_reactivation/scripts/archive/2026-10-03_run_daily_reactivation_v1_before_sbis.py` | Setup path | 0 |
 | **Базовый** | `2026-10-04_run_daily_reactivation_v2_before_quote_and_company_fix.py` | `projects/lead_reactivation/scripts/archive/2026-10-04_run_daily_reactivation_v2_before_quote_and_company_fix.py` | Setup path | 1 |
 | **Базовый** | `2026-10-07_llm_service_v1_before_framework_fix.py` | `projects/lead_reactivation/scripts/archive/2026-10-07_llm_service_v1_before_framework_fix.py` | Автоматизация рабочего процесса. | 1 |
