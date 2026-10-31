@@ -50,6 +50,8 @@
 
 ---
 
+- **External Drive Extension Invariant (Диск E:\ как расширенное зеркало):** Внешний накопитель E:\Mirror_E_Home подключен к MateBook постоянно. Если каких-то локальных файлов, архивных скриптов (scripts/archive/), дампов, документов или .env нет в C:\Codex (отсечены .gitignore), ассистент обращается напрямую к E:\Mirror_E_Home\Codex_Work\... или E:\Mirror_E_Home\... без требования переносить их на SSD ноутбука.
+
 ## 4. Следующие шаги на MateBook
 1. Подключить внешний диск к MateBook под буквой `E:\`.
 2. Запустить FreeFileSync и выполнить профиль `E:\Mirror_E_Home\2_External_to_MateBook.ffs_gui` (режим Update).
