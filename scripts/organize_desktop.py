@@ -22,6 +22,7 @@ STRICT_WHITELIST = {
     "desktop.ini",
     "Artem-Home.lnk",
     "Мышь.lnk",
+    "Antigravity.lnk",
     "Soft",
     "Презентация и референс-лист.pdf",
     "ЛУНВАН.cer",
@@ -31,6 +32,7 @@ STRICT_WHITELIST = {
     "ПАМЯТКА_ГДЕ_МОИ_ФАЙЛЫ.txt",
     "ПАМЯТКА_ГДЕ_МОИ_ФАЙЛЫ.html",
     "📂 ССЫЛКИ ДЛЯ ПРОВОДНИКА",
+    "📂 ПАМЯТКИ ССЫЛКИ ДЛЯ ПРОВОДНИКА",
 }
 
 SYNC_ROOT = Path(r"D:\Документы Sync E")
@@ -56,18 +58,25 @@ def classify_items(items):
 
     # Целевые базовые директории
     ved_root = SYNC_ROOT / "Рабочее" / "В работе" / "Белые отправки"
-    gidramax_dir = SYNC_ROOT / "Рабочее" / "В работе" / "Гидрамакс (Логистиктранс)" / "Готовые цилиндры"
     customs_gtd = SYNC_ROOT / "Рабочее" / "Таможня" / "ГТД ЛВ"
     customs_jde = customs_gtd / "Янтарный комбинат ЖДЭ"
+    customs_tech = SYNC_ROOT / "Рабочее" / "Таможня" / "Технические описания"
     marketing_blanks = SYNC_ROOT / "Рабочее" / "Маркетинг" / "Бланки"
     requisites_our = SYNC_ROOT / "Рабочее" / "Реквизиты" / "Наши"
+    contracts_sz = SYNC_ROOT / "Рабочее" / "Договоры" / "Самозанятые"
+    contracts_ponomareva = contracts_sz / "Пономарева (Ассистент руководителя)"
     
     lika_dover = SYNC_ROOT / "Лика" / "Доверенности"
     lika_ff = SYNC_ROOT / "Лика" / "Маркетплэйсы" / "ФФ"
     lika_buh = SYNC_ROOT / "Лика" / "Бух Нов"
+    lika_taxes = lika_buh / "Налоги Лика"
     lika_dogovory = SYNC_ROOT / "Лика" / "Договоры"
+    lika_cards_photos = SYNC_ROOT / "Лика" / "Маркетплэйсы" / "Карточки" / "Фото товаров 2026-10"
+    lika_institute = SYNC_ROOT / "Лика" / "Личное_Архив" / "Институт"
+    lika_archive_photos = SYNC_ROOT / "Лика" / "Личное_Архив" / "Фото"
     
     docs_migration = Path(r"C:\Codex\docs\migration")
+    docs_backups = Path(r"C:\Codex\docs\backups")
     temp_dir = SYNC_ROOT / "Общая папка_TEMP" / "Временное_Desktop_2026-10"
 
     # Папка отправки Ци Линь Проекторы (уровень 4)
@@ -79,15 +88,34 @@ def classify_items(items):
         # Пропуск whitelist
         if name in STRICT_WHITELIST:
             continue
+        # Защита системных сертификатов и ярлыков
+        if name.endswith(".cer") or name.endswith(".pfx") or (name.endswith(".lnk") and name not in plan):
+            continue
 
         src_path = DESKTOP / name
 
-        # 1. Временные lock-файлы Office
+        # 1. Временные lock-файлы Office и пустые нулевые черновики
         if name.startswith("~$"):
             plan[name] = {
                 "action": "delete",
                 "dest": None,
                 "category": "Удаление временного lock-файла Office",
+            }
+            continue
+
+        if name.startswith("Соглашение.docx") and src_path.is_file() and src_path.stat().st_size == 0:
+            plan[name] = {
+                "action": "delete",
+                "dest": None,
+                "category": "Удаление пустого файла Соглашение.docx (0 байт)",
+            }
+            continue
+
+        if "счет_на_оплату_№_96" in name.lower() and src_path.is_file() and src_path.stat().st_size == 0:
+            plan[name] = {
+                "action": "delete",
+                "dest": None,
+                "category": "Удаление пустого дубликата Счета №96 (0 байт)",
             }
             continue
 
@@ -99,16 +127,15 @@ def classify_items(items):
                     "dest": None,
                     "category": "Удаление пустой папки Агентский договор",
                 }
-                continue
             else:
                 plan[name] = {
                     "action": "move",
                     "dest": lika_dogovory / name,
                     "category": "Лика: Договоры",
                 }
-                continue
+            continue
 
-        # 2. Технические отчеты о миграции
+        # 2. Системные и технические отчеты / бэкапы
         if name in ["MATEBOOK_MIGRATION_SUMMARY.md", "TRANSFER_AUDIT_REPORT.md"]:
             plan[name] = {
                 "action": "move",
@@ -117,16 +144,67 @@ def classify_items(items):
             }
             continue
 
-        # 3. Таможня и ГТД
-        if name.startswith("GTD_") or name.startswith("ДТ Signature"):
+        if name == "CredentialProviders-backup.reg":
             plan[name] = {
                 "action": "move",
-                "dest": customs_gtd / name,
-                "category": "Рабочее: Таможня ГТД",
+                "dest": docs_backups / name,
+                "category": "Codex: Системные бэкапы",
             }
             continue
 
-        # 4. Логистика ЖДЭ
+        # 3. ВЭД: Поставка Ци Линь Проекторы (DATL300926 / Пулково)
+        if "21965387" in name or ("проектор" in name.lower() and name.endswith(".pdf") and "бланк" not in name.lower()):
+            plan[name] = {
+                "action": "move",
+                "dest": cilin_shipment / "ДС и СС" / name,
+                "category": "ВЭД: Декларации и сертификаты (ДС/СС)",
+            }
+            continue
+
+        if "усс-" in name.lower() and "ци линь" in name.lower():
+            plan[name] = {
+                "action": "move",
+                "dest": cilin_shipment / "бух документы" / name,
+                "category": "ВЭД: Бухгалтерские документы",
+            }
+            continue
+
+        # 4. Таможня: Технические описания оборудования для брокера (ABB, Danfoss)
+        if "danfoss" in name.lower() and "брокер" in name.lower():
+            plan[name] = {
+                "action": "move",
+                "dest": customs_tech / name,
+                "category": "Рабочее: Таможня (Технические описания для брокера)",
+            }
+            continue
+
+        if "техническое_описание_оборудования_abb" in name.lower():
+            plan[name] = {
+                "action": "move",
+                "dest": customs_tech / name,
+                "category": "Рабочее: Таможня (Технические описания для брокера)",
+            }
+            continue
+
+        # 5. Таможня и ЖДЭ (УПД и логистика ЖелДорЭкспедиция)
+        if name == "1359":
+            # УПД ЖДЭ СПБ2252131570758697 от 21.09.2026
+            plan[name] = {
+                "action": "move",
+                "dest": customs_jde / "УПД ЖДЭ СПБ2252131570758697 от 21.09.2026.pdf",
+                "category": "Рабочее: Таможня ЖДЭ (УПД СПБ2252131570758697)",
+            }
+            continue
+
+        if name == "УПД (статус 1) (4).pdf":
+            # УПД ЖДЭ СПБХХ99632900637689 от 01.09.2026
+            plan[name] = {
+                "action": "move",
+                "dest": customs_jde / "УПД ЖДЭ СПБХХ99632900637689 от 01.09.2026.pdf",
+                "category": "Рабочее: Таможня ЖДЭ (УПД СПБХХ99632900637689)",
+            }
+            continue
+
         if name.startswith("jde_") or name == "Янтарный комбинат ЖДЭ":
             plan[name] = {
                 "action": "move",
@@ -135,115 +213,144 @@ def classify_items(items):
             }
             continue
 
-        # 5. Гидрамакс / готовые цилиндры
-        if name in [
-            "drawings.pdf",
-            "tech agreement_cn translate.docx",
-            "ТЗ готовые цилиндры (финал) (1).pdf",
-            "Приложение №6 к Договору № 62_ 23 04 26 (руб.) ГИДРОЦИЛИНДРЫ (1).pdf",
-        ]:
+        if name.startswith("GTD_") or name.startswith("ДТ Signature"):
             plan[name] = {
                 "action": "move",
-                "dest": gidramax_dir / name,
-                "category": "Гидрамакс / Цилиндры",
+                "dest": customs_gtd / name,
+                "category": "Рабочее: Таможня ГТД",
             }
             continue
 
-        # 6. Белый Раст / контейнер
-        if any(k in name.lower() for k in ["белый раст", "cicu"]) or name in ["Пакет документов.pdf", "ЦЛ лента разметки.pdf"]:
-            dest_sub = "перевозочные документы"
+        # 6. Договоры: Самозанятые, Пономарева (Ассистент руководителя), Снабжение
+        if "пономарева" in name.lower() or "ассист рук" in name.lower() or name == "Соглашение к Догвоору оказания услуг.docx":
             plan[name] = {
                 "action": "move",
-                "dest": white_rust_shipment / dest_sub / name,
-                "category": "ВЭД: Контейнер Белый Раст",
+                "dest": contracts_ponomareva / name,
+                "category": "Рабочее: Договоры (Ассистент руководителя Пономарева)",
             }
             continue
 
-        # 7. Отгрузка Пулково и ВЭД Ци Линь (Проекторы DATL300926)
-        # 7.1 Расчеты брокера
-        if name in [
-            "Расчет_пошлин_и_НДС_ЦиЛинь_DATL300926.xlsx",
-            "Расчет_пошлин_и_НДС_ЦиЛинь_DATL300926_v2.xlsx",
-            "Брокеру.xlsx",
-            "итоговый вывод по брокеру.docx",
-            "Что сделал брокер Брокер вписал в предварительный.docx",
-        ] or "расчет_пошлин" in name.lower() or "брокер" in name.lower():
+        if name == "Договор с сз_агент по снабжению.docx":
             plan[name] = {
                 "action": "move",
-                "dest": cilin_shipment / "расчеты брокера" / name,
-                "category": "ВЭД: Расчеты брокера",
+                "dest": contracts_sz / name,
+                "category": "Рабочее: Договоры (Самозанятые)",
             }
             continue
 
-        # 7.2 Перевозочные документы (включая Пулково)
-        if any(k in name.lower() for k in ["пулково", "pulkovo", "транзитная", "экспортная", "авианакладная", "随车文件"]) or name in ["DAT"]:
+        # 7. Лика: Личное / Институт (РГПУ им. Герцена)
+        if "павлова а.а." in name.lower() and "2026-2027" in name.lower():
             plan[name] = {
                 "action": "move",
-                "dest": cilin_shipment / "перевозочные документы" / name,
-                "category": "ВЭД: Перевозочные документы (в т.ч. Пулково)",
+                "dest": lika_institute / name,
+                "category": "Лика: Институт / Обучение (РГПУ им. Герцена)",
             }
             continue
 
-        # 7.3 Бухгалтерские документы ВЭД (включая пакет УСС)
-        if any(k in name.lower() for k in ["инвойс", "vbk", "пакинг", "постановке на учет контракта", "отсутствии страх", "отсутсвии страхования", "отсутствии шкс", "усс-"]):
+        # 8. Лика: Налоги и ФНС (ИП Павлова, Лун-Ван)
+        if name.startswith("1165") and name.endswith(".pdf"):
             plan[name] = {
                 "action": "move",
-                "dest": cilin_shipment / "бух документы" / name,
-                "category": "ВЭД: Бухгалтерские документы",
+                "dest": lika_taxes / name,
+                "category": "Лика: Налоги и ФНС (Лун-Ван)",
             }
             continue
 
-        # 7.4 Техническое описание
-        if any(k in name.lower() for k in ["тех описание", "техническое описание", "список и описание", "данные по грузу"]):
+        if name.startswith("UT_UVISCHSUMNAL") and name.endswith(".xml"):
             plan[name] = {
                 "action": "move",
-                "dest": cilin_shipment / "тех описание" / name,
-                "category": "ВЭД: Техническое описание",
+                "dest": lika_taxes / name,
+                "category": "Лика: Налоги и ФНС (ИП Павлова)",
             }
             continue
 
-        # 7.5 ДС и СС
-        if any(k in name.lower() for k in ["проектор заводской", "21951495", "21951550", "a13b8da3", "декларация о соответствии", "сертификат"]):
+        # 9. Лика: Бухгалтерия (Выписка 1С, счета, инвойсы Yiwu Yuhui, валютные реквизиты)
+        if name == "1с.txt":
             plan[name] = {
                 "action": "move",
-                "dest": cilin_shipment / "ДС и СС" / name,
-                "category": "ВЭД: Декларации и сертификаты (ДС/СС)",
+                "dest": lika_buh / "1с_выписка_2026-10-23.txt",
+                "category": "Лика: Бухгалтерия (Выписка Сбербанк 1С)",
             }
             continue
 
-        # 7.6 Фото
-        if name in ["фото.rar", "фото"]:
+        if "счет на оплату № 96" in name.lower() or "счет_на_оплату_№_96" in name.lower():
             plan[name] = {
                 "action": "move",
-                "dest": cilin_shipment / "фото" / name,
-                "category": "ВЭД: Фото архива поставки",
+                "dest": lika_buh / name,
+                "category": "Лика: Бухгалтерия (Счета)",
             }
             continue
 
-        # 8. Лика (Бухгалтерия, Доверенности, Маркетплейсы/ФФ, Договоры)
+        if "ip_pavlova_invoice" in name.lower():
+            plan[name] = {
+                "action": "move",
+                "dest": lika_buh / name,
+                "category": "Лика: Бухгалтерия (Инвойсы Yiwu Yuhui)",
+            }
+            continue
+
+        if "余晖" in name or "yuhui" in name.lower():
+            plan[name] = {
+                "action": "move",
+                "dest": lika_buh / name,
+                "category": "Лика: Бухгалтерия (Реквизиты/Маршрут оплаты Yiwu Yuhui USD)",
+            }
+            continue
+
+        if name == "Новые реквизиты.pdf":
+            plan[name] = {
+                "action": "move",
+                "dest": lika_buh / "Новые реквизиты (Yiwu Nakai USD).pdf",
+                "category": "Лика: Бухгалтерия (Реквизиты в долларах Yiwu Nakai)",
+            }
+            continue
+
+        # 10. Лика: Маркетплейсы Карточки (Фото товаров > 3 шт)
+        if name in ["10952399-2-1.jpg", "10952399-2-2.jpg", "10965927-2-1.jpg", "10965927-2-2.jpg"]:
+            plan[name] = {
+                "action": "move",
+                "dest": lika_cards_photos / name,
+                "category": "Лика: Маркетплейсы Карточки (Фото товаров)",
+            }
+            continue
+
+        # 11. Лика: Личный архив фото
+        if name in ["2974.jpg", "2974.pic"]:
+            plan[name] = {
+                "action": "move",
+                "dest": lika_archive_photos / name,
+                "category": "Лика: Личный архив фото",
+            }
+            continue
+
+        # 12. Общие правила Лика (Доверенности, Маркетплейсы ФФ, Бухгалтерия, Договоры)
         if "доверенност" in name.lower() and "pulkovo" not in name.lower():
             plan[name] = {"action": "move", "dest": lika_dover / name, "category": "Лика: Доверенности"}
             continue
+
         if any(k in name.lower() for k in ["фулфиллмент", "print-order"]):
             plan[name] = {"action": "move", "dest": lika_ff / name, "category": "Лика: Маркетплейсы ФФ"}
             continue
+
         if any(k in name.lower() for k in ["упд", "универсальный передаточный", "pavlova", "фау_ниа", "kl_to_1c", "счет для", "счет на оплату", "взаиморасчет"]):
             plan[name] = {"action": "move", "dest": lika_buh / name, "category": "Лика: Бухгалтерия"}
             continue
+
         if any(k in name.lower() for k in ["договор по кк", "кк рос"]):
             plan[name] = {"action": "move", "dest": lika_dogovory / name, "category": "Лика: Договоры"}
             continue
 
-        # 9. Реквизиты и Бланки
+        # 13. Реквизиты и Бланки
         if "реквизиты" in name.lower():
             target_req = requisites_our / "Ци Линь" if "ци линь" in name.lower() else requisites_our
             plan[name] = {"action": "move", "dest": target_req / name, "category": "Рабочее: Реквизиты"}
             continue
+
         if name == "Бланк Ци Линь новый.docx":
             plan[name] = {"action": "move", "dest": marketing_blanks / name, "category": "Рабочее: Маркетинг бланки"}
             continue
 
-        # 10. Папка Временное
+        # 14. Папка Временное
         if name == "Временное":
             plan[name] = {"action": "move", "dest": temp_dir, "category": "Общая папка TEMP"}
             continue
@@ -269,10 +376,12 @@ def create_explorer_shortcuts(desktop_dir):
         ("1. Ци Линь Проекторы (Белые отправки).url", r"D:\Документы Sync E\Рабочее\В работе\Белые отправки\2026-09 Ци Линь Проекторы (DATL300926)"),
         ("2. Контейнер Белый Раст (Белые отправки).url", r"D:\Документы Sync E\Рабочее\В работе\Белые отправки\2026-09 Контейнер CICU2663734 (Белый Раст)"),
         ("3. Бухгалтерия Анжелики (Бух Нов).url", r"D:\Документы Sync E\Лика\Бух Нов"),
-        ("4. Доверенности (Лика).url", r"D:\Документы Sync E\Лика\Доверенности"),
-        ("5. Маркетплейсы Фулфиллмент (Лика).url", r"D:\Документы Sync E\Лика\Маркетплэйсы\ФФ"),
-        ("6. Таможня и ГТД.url", r"D:\Документы Sync E\Рабочее\Таможня\ГТД ЛВ"),
-        ("7. Общая папка Временное.url", r"D:\Документы Sync E\Общая папка_TEMP"),
+        ("4. Налоги и ФНС (Бух Нов).url", r"D:\Документы Sync E\Лика\Бух Нов\Налоги Лика"),
+        ("5. Договоры и Самозанятые (Рабочее).url", r"D:\Документы Sync E\Рабочее\Договоры\Самозанятые"),
+        ("6. Таможня и ГТД (Рабочее).url", r"D:\Документы Sync E\Рабочее\Таможня\ГТД ЛВ"),
+        ("7. Карточки товаров и фото (Лика).url", r"D:\Документы Sync E\Лика\Маркетплэйсы\Карточки"),
+        ("8. Институт и личное (Лика).url", r"D:\Документы Sync E\Лика\Личное_Архив\Институт"),
+        ("9. Общая папка Временное.url", r"D:\Документы Sync E\Общая папка_TEMP"),
     ]
 
     for name, folder_path in targets:
@@ -294,14 +403,14 @@ def generate_html_memo(plan):
     folder_groups = {}
     for item, info in plan.items():
         if info["action"] == "delete":
-            folder_groups.setdefault("Удаленные временные файлы", []).append((item, "Корзина / Удалено", info["category"]))
+            folder_groups.setdefault("Удаленные временные и пустые файлы", []).append((item, "Корзина / Удалено", info["category"]))
             continue
         dest_folder = str(info["dest"].parent)
         folder_groups.setdefault(dest_folder, []).append((item, str(info["dest"]), info["category"]))
 
     rows_html = []
     for folder, files in sorted(folder_groups.items()):
-        is_del = folder == "Удаленные временные файлы"
+        is_del = folder == "Удаленные временные и пустые файлы"
         clean_folder = folder.replace("\\", "\\\\")
         copy_btn = "" if is_del else f"""<button class="copy-btn" onclick="copyPath('{clean_folder}')">📋 Скопировать путь папки</button>"""
         
@@ -491,7 +600,7 @@ def generate_html_memo(plan):
 
         <div class="whitelist-card">
             📌 <b>Оставлено на Рабочем столе без изменений (строго по вайтлисту):</b><br>
-            Пароли.txt • Сертификаты ЭП (ЛУНВАН.cer, ИП Павлова.cer, Ци Линь.pfx) • Ярлыки (Artem-Home, Мышь, папка Soft, Презентация и референс-лист).
+            Пароли.txt • Сертификаты ЭП (ЛУНВАН.cer, ИП Павлова.cer, Ци Линь.pfx) • Ярлыки запуска (Artem-Home, Мышь, Antigravity, папка Soft, Презентация и референс-лист).
         </div>
     </div>
 
@@ -532,7 +641,7 @@ def generate_txt_memo(plan):
         f"                Дата наведения порядка: {now_str}               ",
         "=================================================================",
         "",
-        "Анжелика, привет! Рабочий стол очищен и аккуратно структурирован.",
+        "Анжелика, привет! Рабочий стол полностью приведен в идеальный порядок.",
         "Для открытия любой папки скопируйте ее путь и вставьте в строку",
         "адреса Проводника (нажмите Win+E, затем Ctrl+L, вставьте путь и Enter).",
         "",
@@ -542,47 +651,66 @@ def generate_txt_memo(plan):
         "=================================================================",
         "1. ВЭД ПОСТАВКА: ПРОЕКТОРЫ ЦИ ЛИНЬ (DATL300926 / ПУЛКОВО)",
         "   Путь к папке: D:\\Документы Sync E\\Рабочее\\В работе\\Белые отправки\\2026-09 Ци Линь Проекторы (DATL300926)\\",
-        "   - перевозочные доки/ -> Отгрузка из Пулково, доверенности Пулково, декларации",
-        "   - бух документы/     -> Инвойсы (DATL), Пакет УСС-0443463 ЦИ ЛИНЬ, ВБК, письма",
-        "   - тех описание/      -> Техническое описание товаров, Данные по грузу (PDF, XLSX)",
-        "   - расчеты брокера/   -> Расчеты пошлин и НДС, итоговый вывод по брокеру, Брокеру.xlsx",
-        "   - ДС и СС/           -> Декларации соответствия на проекторы (004-020-037, 21951...)",
-        "   - фото/              -> Папка фото и архив фото.rar",
+        "   - ДС и СС/           -> ДС_проекторы_21965387 от 14.10.2026.pdf (декларация соответствия)",
+        "   - бух документы/     -> Пакет УСС-0443739 от 18_10_2026 _ЦИ ЛИНЬ_.pdf (услуги перевозки СВХ)",
         "",
-        "2. ВЭД ПОСТАВКА: КОНТЕЙНЕР БЕЛЫЙ РАСТ (CICU2663734)",
-        "   Путь к папке: D:\\Документы Sync E\\Рабочее\\В работе\\Белые отправки\\2026-09 Контейнер CICU2663734 (Белый Раст)\\",
-        "   - перевозочные доки/ -> Пакет документов СВХ Белый Раст 04.10.2026.rar, Пакет документов.pdf, СМГС, лента разметки",
+        "2. БУХГАЛТЕРИЯ АНЖЕЛИКИ (ИП ПАВЛОВА И ОРГАНИЗАЦИИ)",
+        "   Путь к папке: D:\\Документы Sync E\\Лика\\Бух Нов\\",
+        "   - 1с_выписка_2026-10-23.txt (выписка Сбербанк Бизнес Онлайн от 23.10.2026)",
+        "   - Счет на оплату № 96 от 21 октября 2026 г.pdf",
+        "   - IP_Pavlova_invoice_10-27-26.pdf (Инвойс Yiwu Yuhui Trading Firm на $6 850)",
+        "   - 义乌余晖汇款路线-美元(1).pdf (Маршрут валютного платежа Yiwu Yuhui в USD)",
+        "   - Новые реквизиты (Yiwu Nakai USD).pdf (Реквизиты платежа в USD Yiwu Nakai)",
         "",
-        "3. ТАМОЖНЯ И ГТД (РАЗДЕЛ ТАМОЖНЯ)",
-        "   Путь к папке: D:\\Документы Sync E\\Рабочее\\Таможня\\ГТД ЛВ\\",
-        "   - GTD_10131020_041026_5121673.pdf",
-        "   - ДТ Signature - 268f1d47-11eb-42c4-8c81-592f1a0e2b64.pdf",
-        "   - Янтарный комбинат ЖДЭ/ -> jde_2252131577672221_5833.pdf, накладные, акты",
+        "3. НАЛОГИ И ФНС (ИП ПАВЛОВА И ЛУН-ВАН)",
+        "   Путь к папке: D:\\Документы Sync E\\Лика\\Бух Нов\\Налоги Лика\\",
+        "   - UT_UVISCHSUMNAL_...xml (Уведомление об исчисленных суммах налогов ИП Павлова)",
+        "   - 1165050_7801_...pdf (Решение ИФНС №16 по ООО 'Лун-Ван')",
+        "   - 1165072_7801_...pdf (Решение о продлении камеральной налоговой проверки ООО 'Лун-Ван')",
         "",
-        "4. ДОКУМЕНТЫ АНЖЕЛИКИ (ПАПКА ЛИКА)",
-        "   - Бухгалтерия: D:\\Документы Sync E\\Лика\\Бух Нов\\",
-        "     * УПД №227, УПД №228 ООО ЦИ ЛИНЬ",
-        "     * УПД № НФ-89, УПД № НФ-94, УПД № НФ-96",
-        "     * Счет для НПП Алмаз.pdf, Счет на оплату № 91 от 5 октября",
-        "     * взаиморасчеты 12-10-26.xlsx, выписка kl_to_1c.txt",
-        "   - Доверенности: D:\\Документы Sync E\\Лика\\Доверенности\\",
-        "     * Доверенность.docx, Доверенность.pdf, образец доверенности",
-        "   - Маркетплейсы: D:\\Документы Sync E\\Лика\\Маркетплэйсы\\ФФ\\",
-        "     * print-order-10329419089, print-order-10329421472, print-order-10330654335, Фулфиллмент",
-        "   - Договоры:    D:\\Документы Sync E\\Лика\\Договоры\\",
+        "4. ДОГОВОРЫ: САМОЗАНЯТЫЕ И АССИСТЕНТ РУКОВОДИТЕЛЯ",
+        "   Путь к папке: D:\\Документы Sync E\\Рабочее\\Договоры\\Самозанятые\\",
+        "   - Договор с сз_агент по снабжению.docx",
+        "   Подпапка: ...\\Самозанятые\\Пономарева (Ассистент руководителя)\\",
+        "   - Договор с ассист рук 2610.pdf (Договор возмездного оказания услуг №4/26 ЦИ ЛИНЬ)",
+        "   - Соглашение к Догвоору оказания услуг.docx (Соглашение о неразглашении конфиденциальности)",
+        "   - Соглашение_о_конфиденциальности_ЦИ_ЛИНЬ_Пономарева_с_ответственностью.docx",
+        "   - Соглашение_о_конфиденциальности_ЦИ_ЛИНЬ_Пономарева_с_ответственностью.pdf",
         "",
-        "5. РЕКВИЗИТЫ И ОБЩИЕ ДОКУМЕНТЫ (ПАПКА РАБОЧЕЕ)",
-        "   - Реквизиты Ци Линь -> D:\\Документы Sync E\\Рабочее\\Реквизиты\\Наши\\Ци Линь\\",
-        "   - Реквизиты тенге   -> D:\\Документы Sync E\\Рабочее\\Реквизиты\\Наши\\",
-        "   - Готовые цилиндры  -> D:\\Документы Sync E\\Рабочее\\В работе\\Гидрамакс (Логистиктранс)\\Готовые цилиндры\\",
+        "5. ТАМОЖНЯ: ТЕХНИЧЕСКИЕ ОПИСАНИЯ И ЖДЭ",
+        "   - Технические описания: D:\\Документы Sync E\\Рабочее\\Таможня\\Технические описания\\",
+        "     * Danfoss_OFV_20_D_2412-183_описание_для_брокера (1).docx",
+        "     * Техническое_описание_оборудования_ABB.docx",
+        "   - Логистика ЖДЭ: D:\\Документы Sync E\\Рабочее\\Таможня\\ГТД ЛВ\\Янтарный комбинат ЖДЭ\\",
+        "     * УПД ЖДЭ СПБ2252131570758697 от 21.09.2026.pdf (файл 1359)",
+        "     * УПД ЖДЭ СПБХХ99632900637689 от 01.09.2026.pdf (файл УПД статус 1)",
         "",
-        "6. ТЕХНИЧЕСКИЕ ОТЧЕТЫ (CODEX)",
-        "   - Путь: C:\\Codex\\docs\\migration\\ (MATEBOOK_MIGRATION_SUMMARY.md, TRANSFER_AUDIT_REPORT.md)",
+        "6. МАРКЕТПЛЕЙСЫ: КАРТОЧКИ И ФОТО ТОВАРОВ",
+        "   Путь к папке: D:\\Документы Sync E\\Лика\\Маркетплэйсы\\Карточки\\Фото товаров 2026-10\\",
+        "   - 10952399-2-1.jpg, 10952399-2-2.jpg",
+        "   - 10965927-2-1.jpg, 10965927-2-2.jpg",
         "",
-        "7. ЧТО ОСТАЛОСЬ НА РАБОЧЕМ СТОЛЕ БЕЗ ИЗМЕНЕНИЙ (ВАЙТЛИСТ):",
+        "7. ЛИЧНОЕ / ИНСТИТУТ (РГПУ ИМ. ГЕРЦЕНА)",
+        "   Путь к папке: D:\\Документы Sync E\\Лика\\Личное_Архив\\Институт\\",
+        "   - Павлова А.А. 2026-2027.pdf (скан справки об обучении)",
+        "   - Павлова А.А._2026-2027.pdf (электронный документ об обучении)",
+        "",
+        "8. ЛИЧНЫЙ АРХИВ ФОТО",
+        "   Путь к папке: D:\\Документы Sync E\\Лика\\Личное_Архив\\Фото\\",
+        "   - 2974.jpg, 2974.pic",
+        "",
+        "9. СИСТЕМНЫЕ БЭКАПЫ",
+        "   Путь к папке: C:\\Codex\\docs\\backups\\",
+        "   - CredentialProviders-backup.reg",
+        "",
+        "10. УДАЛЕННЫЕ ПУСТЫЕ ФАЙЛЫ (0 БАЙТ):",
+        "   - Соглашение.docx (пустой файл)",
+        "   - Счет_на_оплату_№_96_от_21_октября_2026 г.pdf (пустой дубликат)",
+        "",
+        "11. ЧТО ОСТАЛОСЬ НА РАБОЧЕМ СТОЛЕ БЕЗ ИЗМЕНЕНИЙ (ВАЙТЛИСТ):",
         "   - Пароли.txt (строго на месте)",
         "   - Сертификаты ЭП: ЛУНВАН.cer, ИП Павлова.cer, Ци Линь.pfx",
-        "   - Ярлыки: Artem-Home, Мышь, папка Soft, Презентация и референс-лист",
+        "   - Ярлыки запуска: Artem-Home, Мышь, Antigravity, папка Soft, Презентация и референс-лист",
         "",
         "-----------------------------------------------------------------",
         "ПОДСКАЗКА: Любой файл можно мгновенно найти через Everything",
@@ -620,6 +748,14 @@ def run_cleanup(execute=False):
     print("\n--- ВЫПОЛНЕНИЕ ПЕРЕНОСА ---")
     success_count = 0
     errors = []
+
+    # Удаляем устаревшую дублирующую папку ярлыков если была
+    old_shortcuts = DESKTOP / "📂 ПАМЯТКИ ССЫЛКИ ДЛЯ ПРОВОДНИКА"
+    if old_shortcuts.exists() and old_shortcuts.is_dir():
+        try:
+            shutil.rmtree(old_shortcuts)
+        except Exception:
+            pass
 
     for item, info in plan.items():
         src = DESKTOP / item
