@@ -1,0 +1,208 @@
+{
+  "elesov_adr": [
+    [
+      "Филиал АО «АЭМ-технологии» «Петрозаводскмаш»",
+      null,
+      null
+    ]
+  ],
+  "elesov_events": [
+    {
+      "Number": "00000019071",
+      "Theme": "АЭМ Fronius Данил Елесов-Елена Назарова",
+      "State_Key": "5c0dc746-23c6-11ed-91a8-a068f8f3337c",
+      "Participants": [
+        [
+          "es.nazarova@pzm.su",
+          "30798616-d0fb-11f0-9570-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ],
+        [
+          "d.elesov@pzm.su",
+          "8d04139a-d115-11f1-974e-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    },
+    {
+      "Number": "00000019078",
+      "Theme": "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "State_Key": "5c0dc746-23c6-11ed-91a8-a068f8f3337c",
+      "Participants": [
+        [
+          "d.elesov@pzm.su",
+          "8d04139a-d115-11f1-974e-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    },
+    {
+      "Number": "00000019121",
+      "Theme": "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "State_Key": "5c0dc747-23c6-11ed-91a8-a068f8f3337c",
+      "Participants": [
+        [
+          "d.elesov@pzm.su",
+          "8d04139a-d115-11f1-974e-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    },
+    {
+      "Number": "00000019115",
+      "Theme": "Автоматический ответ: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "State_Key": "5c0dc746-23c6-11ed-91a8-a068f8f3337c",
+      "Participants": [
+        [
+          "es.nazarova@pzm.su",
+          "30798616-d0fb-11f0-9570-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    },
+    {
+      "Number": "00000019117",
+      "Theme": "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "State_Key": "5c0dc746-23c6-11ed-91a8-a068f8f3337c",
+      "Participants": [
+        [
+          "d.elesov@pzm.su",
+          "8d04139a-d115-11f1-974e-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ],
+        [
+          "es.nazarova@pzm.su",
+          "30798616-d0fb-11f0-9570-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    },
+    {
+      "Number": "00000019568",
+      "Theme": "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "State_Key": "034f5df3-23c7-11ed-91a8-a068f8f3337c",
+      "Participants": [
+        [
+          "es.nazarova@pzm.su",
+          "30798616-d0fb-11f0-9570-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ],
+        [
+          "d.elesov@pzm.su",
+          "8d04139a-d115-11f1-974e-02006df8aab5",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    }
+  ],
+  "adr_usolcev.aleksei@naz.uacrussia.ru": [
+    [
+      "ПАО «ОАК» (НАЗ им. В.П. Чкалова)",
+      null,
+      null
+    ]
+  ],
+  "adr_karbashovann@alrosa.ru": [
+    [
+      "АК «АЛРОСА» (ПАО)",
+      null,
+      null
+    ]
+  ],
+  "lead_biryulin": {
+    "Description": "ИП Бирюлин Илья Игоревич",
+    "ИНН": null,
+    "EmailSearch": "ilya-centrmash@yandex.ru",
+    "CI": [
+      [
+        "АдресЭлектроннойПочты",
+        "ilya-centrmash@yandex.ru",
+        "ilya-centrmash@yandex.ru"
+      ]
+    ],
+    "Tags": [
+      "6c77607c-e770-11ef-8e46-02006df8aab5"
+    ]
+  },
+  "b24_co_biryulin": {
+    "ID": "12618",
+    "COMPANY_TYPE": "CUSTOMER",
+    "TITLE": "ИП Бирюлин Илья Игоревич",
+    "LEAD_ID": null,
+    "HAS_PHONE": "N",
+    "HAS_EMAIL": "Y",
+    "HAS_IMOL": "N",
+    "ASSIGNED_BY_ID": "1",
+    "CREATED_BY_ID": "1",
+    "MODIFY_BY_ID": "1",
+    "BANKING_DETAILS": null,
+    "INDUSTRY": null,
+    "REVENUE": "0.00",
+    "CURRENCY_ID": "RUB",
+    "EMPLOYEES": "EMPLOYEES_1",
+    "COMMENTS": "\n• Выручка: Не раскрыта (Не определен)\n• ОКВЭД: не указан\n• Торги: Участник (поставщик): 0 | Заказчик: 0\n• Структура: Независимая организация\n• Вердикт: КОНЕЧНЫЙ ПОКУПАТЕЛЬ\n\nЗапрос\n\n[p]BitrixGPT\nЗаказ: манжета DUPLOMATIC (арт. 0592322) — 6 шт.\nКлиент: Илья Игоревич Бирюлин\nКомпания: «Центрмаш»\nE-mail: ilya-centrmash@yandex.ru\nТелефон: 89272065515[/p]",
+    "DATE_CREATE": "2026-11-04T00:04:50+03:00",
+    "DATE_MODIFY": "2026-11-04T00:04:57+03:00",
+    "OPENED": "Y",
+    "IS_MY_COMPANY": "N",
+    "ORIGINATOR_ID": "email-tracker",
+    "ORIGIN_ID": "36",
+    "ORIGIN_VERSION": null,
+    "ADDRESS": null,
+    "ADDRESS_2": null,
+    "ADDRESS_CITY": null,
+    "ADDRESS_POSTAL_CODE": null,
+    "ADDRESS_REGION": null,
+    "ADDRESS_PROVINCE": null,
+    "ADDRESS_COUNTRY": null,
+    "ADDRESS_COUNTRY_CODE": null,
+    "ADDRESS_LOC_ADDR_ID": null,
+    "ADDRESS_LEGAL": null,
+    "REG_ADDRESS": null,
+    "REG_ADDRESS_2": null,
+    "REG_ADDRESS_CITY": null,
+    "REG_ADDRESS_POSTAL_CODE": null,
+    "REG_ADDRESS_REGION": null,
+    "REG_ADDRESS_PROVINCE": null,
+    "REG_ADDRESS_COUNTRY": null,
+    "REG_ADDRESS_COUNTRY_CODE": null,
+    "REG_ADDRESS_LOC_ADDR_ID": null,
+    "UTM_SOURCE": null,
+    "UTM_MEDIUM": null,
+    "UTM_CAMPAIGN": null,
+    "UTM_CONTENT": null,
+    "UTM_TERM": null,
+    "LAST_ACTIVITY_BY": "1",
+    "LAST_ACTIVITY_TIME": "2026-11-04T00:04:50+03:00",
+    "LAST_COMMUNICATION_TIME": null,
+    "UF_CRM_1771270836": "",
+    "UF_CRM_1771271000": "",
+    "UF_CRM_699421CD2A684": "622809624504",
+    "UF_CRM_699421CD4310A": "",
+    "UF_CRM_COMPANY_3906919321652": "",
+    "UF_CRM_COMPANY_3906948259980": "",
+    "UF_CRM_1771441448": [],
+    "UF_CRM_COMPANY_3907039049819": "",
+    "UF_CRM_CLIENTS_ARCH": "",
+    "UF_CRM_SEGM_TYPE_CLI": "",
+    "UF_CRM_SEGM_STATUS": "",
+    "UF_CRM_SEGM_SALES": "",
+    "UF_CRM_SEGM_DATEPAY": "",
+    "UF_CRM_SEGM_COUNTPAY": "",
+    "UF_CRM_SEGM_DIALOG": "",
+    "UF_CRM_SEGM_CONTACT": "",
+    "UF_CRM_69A7F74E6F9F3": "",
+    "UF_CRM_69A7F74E80652": "",
+    "UF_CRM_COMPANY_PINCOMMENT": "",
+    "UF_CRM_COMPANY_LASTCOMMENT": "",
+    "UF_CRM_1C_FOLDER": "",
+    "EMAIL": [
+      {
+        "ID": "97990",
+        "VALUE_TYPE": "WORK",
+        "VALUE": "ilya-centrmash@yandex.ru",
+        "TYPE_ID": "EMAIL"
+      }
+    ]
+  }
+}
