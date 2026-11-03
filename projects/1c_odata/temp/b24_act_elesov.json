@@ -1,0 +1,647 @@
+{
+  "by_email": [
+    {
+      "ID": "50130",
+      "SUBJECT": "Расходники Fronius",
+      "OWNER_ID": "18644",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-10-23T16:09:34+03:00",
+      "SETTINGS": {
+        "EMAIL_META": {
+          "__email": "salman@longwang.ru",
+          "from": "Назарова Елена Сандэровна <es.nazarova@pzm.su>",
+          "replyTo": "",
+          "to": "Артем Петров, LongWang\t<salman@longwang.ru>",
+          "cc": "Крюков Денис Викторович\t<d.kryukov@pzm.su>,\tЕлесов Данил Валерьевич\t<d.elesov@pzm.su>",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "NOT_LOADED_ATTACHMENTS": 1,
+        "COPILOT_LAST_MESSAGES_FINGERPRINT": {
+          "1_18644": "9c08608a8cbdd97ee6ef4137d9165341"
+        }
+      }
+    },
+    {
+      "ID": "50582",
+      "SUBJECT": "АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T10:48:32+03:00",
+      "SETTINGS": {
+        "IS_BATCH_EMAIL": false,
+        "MESSAGE_HEADERS": {
+          "Message-Id": "<crm.activity.50582-8DC13G@b24-g4wfjq.bitrix24.ru>",
+          "Reply-To": "sales@longwang.ru"
+        },
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Артем Петров LongWang, ООО Ци Линь <sales@longwang.ru>",
+          "replyTo": "",
+          "to": "es.nazarova@pzm.su, d.elesov@pzm.su",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "READ_CONFIRMED": 1793089717
+      }
+    },
+    {
+      "ID": "50592",
+      "SUBJECT": "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T10:59:28+03:00",
+      "SETTINGS": {
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Елесов Данил Валерьевич\t<d.elesov@pzm.su>",
+          "replyTo": "",
+          "to": "\"sales@longwang.ru\" <sales@longwang.ru>,\tНазарова Елена Сандэровна <es.nazarova@pzm.su>",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "NOT_LOADED_ATTACHMENTS": 0
+      }
+    },
+    {
+      "ID": "50604",
+      "SUBJECT": "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T11:29:29+03:00",
+      "SETTINGS": {
+        "IS_BATCH_EMAIL": false,
+        "MESSAGE_HEADERS": {
+          "Message-Id": "<crm.activity.50604-C75U56@b24-g4wfjq.bitrix24.ru>",
+          "Reply-To": "sales@longwang.ru"
+        },
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Артем Петров LongWang, ООО Ци Линь <sales@longwang.ru>",
+          "replyTo": "",
+          "to": "d.elesov@pzm.su",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1
+      }
+    },
+    {
+      "ID": "50636",
+      "SUBJECT": "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T11:57:38+03:00",
+      "SETTINGS": {
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Елесов Данил Валерьевич\t<d.elesov@pzm.su>",
+          "replyTo": "",
+          "to": "\"sales@longwang.ru\" <sales@longwang.ru>",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "NOT_LOADED_ATTACHMENTS": 0
+      }
+    },
+    {
+      "ID": "51804",
+      "SUBJECT": "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-11-03T09:55:46+03:00",
+      "SETTINGS": {
+        "IS_BATCH_EMAIL": false,
+        "MESSAGE_HEADERS": {
+          "Message-Id": "<crm.activity.51804-33F1G2@b24-g4wfjq.bitrix24.ru>",
+          "Reply-To": "sales@longwang.ru"
+        },
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Артем Петров LongWang, ООО Ци Линь <sales@longwang.ru>",
+          "replyTo": "",
+          "to": "es.nazarova@pzm.su, d.elesov@pzm.su",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1
+      }
+    }
+  ],
+  "by_deal": [
+    {
+      "ID": "50240",
+      "SUBJECT": "АО АЭМ-ТЕХНОЛОГИИ, FRONIUS расходники 22 позиции (ЗИП горелок и подачи проволоки)",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-26T10:50:36+03:00",
+      "SETTINGS": {
+        "TASK_FILE_IDS": [
+          119452,
+          119454
+        ],
+        "TASK_ID": 5256,
+        "AUTHOR_ID": 1,
+        "RESPONSIBLE_ID": 20,
+        "REFRESH_TASK_ACTIVITY": false,
+        "TASK_RESTORED": false,
+        "ACTIVITY_STATUS": "FINISHED"
+      }
+    },
+    {
+      "ID": "50582",
+      "SUBJECT": "АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T10:48:32+03:00",
+      "SETTINGS": {
+        "IS_BATCH_EMAIL": false,
+        "MESSAGE_HEADERS": {
+          "Message-Id": "<crm.activity.50582-8DC13G@b24-g4wfjq.bitrix24.ru>",
+          "Reply-To": "sales@longwang.ru"
+        },
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Артем Петров LongWang, ООО Ци Линь <sales@longwang.ru>",
+          "replyTo": "",
+          "to": "es.nazarova@pzm.su, d.elesov@pzm.su",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "READ_CONFIRMED": 1793089717
+      }
+    },
+    {
+      "ID": "50590",
+      "SUBJECT": "Автоматический ответ: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T10:49:18+03:00",
+      "SETTINGS": {
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Назарова Елена Сандэровна <es.nazarova@pzm.su>",
+          "replyTo": "",
+          "to": "Артем Петров LongWang, ООО Ци Линь\t<sales@longwang.ru>",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "NOT_LOADED_ATTACHMENTS": 0,
+        "COPILOT_LAST_MESSAGES_FINGERPRINT": {
+          "2_2648": "1b17c62bd6d1c33dc8519d652dca6a5e"
+        }
+      }
+    },
+    {
+      "ID": "50592",
+      "SUBJECT": "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T10:59:28+03:00",
+      "SETTINGS": {
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Елесов Данил Валерьевич\t<d.elesov@pzm.su>",
+          "replyTo": "",
+          "to": "\"sales@longwang.ru\" <sales@longwang.ru>,\tНазарова Елена Сандэровна <es.nazarova@pzm.su>",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "NOT_LOADED_ATTACHMENTS": 0
+      }
+    },
+    {
+      "ID": "50604",
+      "SUBJECT": "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T11:29:29+03:00",
+      "SETTINGS": {
+        "IS_BATCH_EMAIL": false,
+        "MESSAGE_HEADERS": {
+          "Message-Id": "<crm.activity.50604-C75U56@b24-g4wfjq.bitrix24.ru>",
+          "Reply-To": "sales@longwang.ru"
+        },
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Артем Петров LongWang, ООО Ци Линь <sales@longwang.ru>",
+          "replyTo": "",
+          "to": "d.elesov@pzm.su",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1
+      }
+    },
+    {
+      "ID": "50636",
+      "SUBJECT": "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T11:57:38+03:00",
+      "SETTINGS": {
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Елесов Данил Валерьевич\t<d.elesov@pzm.su>",
+          "replyTo": "",
+          "to": "\"sales@longwang.ru\" <sales@longwang.ru>",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1,
+        "NOT_LOADED_ATTACHMENTS": 0
+      }
+    },
+    {
+      "ID": "50584",
+      "SUBJECT": "Проверить реакцию на КП",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-27T10:48:36+03:00",
+      "SETTINGS": {
+        "COLOR": "default"
+      }
+    },
+    {
+      "ID": "51804",
+      "SUBJECT": "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-11-03T09:55:46+03:00",
+      "SETTINGS": {
+        "IS_BATCH_EMAIL": false,
+        "MESSAGE_HEADERS": {
+          "Message-Id": "<crm.activity.51804-33F1G2@b24-g4wfjq.bitrix24.ru>",
+          "Reply-To": "sales@longwang.ru"
+        },
+        "EMAIL_META": {
+          "__email": "sales@longwang.ru",
+          "from": "Артем Петров LongWang, ООО Ци Линь <sales@longwang.ru>",
+          "replyTo": "",
+          "to": "es.nazarova@pzm.su, d.elesov@pzm.su",
+          "cc": "",
+          "bcc": ""
+        },
+        "SANITIZE_ON_VIEW": 1
+      }
+    }
+  ],
+  "by_subj": [
+    {
+      "ID": "9258",
+      "SUBJECT": "Поиск: Закупка кабеля Fronius",
+      "OWNER_ID": "14844",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-24T09:12:44+03:00"
+    },
+    {
+      "ID": "50240",
+      "SUBJECT": "АО АЭМ-ТЕХНОЛОГИИ, FRONIUS расходники 22 позиции (ЗИП горелок и подачи проволоки)",
+      "OWNER_ID": "2648",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-10-26T10:50:36+03:00"
+    },
+    {
+      "ID": "35924",
+      "SUBJECT": "焊枪送丝驱动装置 Привод горелки СМТ W/UD Fronius",
+      "OWNER_ID": "1918",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-08-24T12:35:48+03:00"
+    },
+    {
+      "ID": "35926",
+      "SUBJECT": "焊枪送丝驱动装置 Привод горелки СМТ W/UD Fronius确定出口条件。",
+      "OWNER_ID": "1918",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-08-24T12:35:49+03:00"
+    },
+    {
+      "ID": "34650",
+      "SUBJECT": "Fronius АЭМ Крюков",
+      "OWNER_ID": "6048",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-08-17T08:18:35+03:00"
+    },
+    {
+      "ID": "12892",
+      "SUBJECT": "02. 27.03. Speed Clad Fronius 42,0001,4777 – 4 pc",
+      "OWNER_ID": "12654",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-27T20:20:20+03:00"
+    },
+    {
+      "ID": "34652",
+      "SUBJECT": "Fronius АЭМ Крюков确定出口条件。",
+      "OWNER_ID": "1800",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-08-17T08:18:35+03:00"
+    },
+    {
+      "ID": "10492",
+      "SUBJECT": "螺旋线进给FRONIUS钢MTG/MTW1.2MM15M ART.40.0002.0042.015 — 4 件",
+      "OWNER_ID": "12190",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-05T11:13:24+03:00"
+    },
+    {
+      "ID": "8966",
+      "SUBJECT": "Запрос на роботизированную сварочную горелку Fronius",
+      "OWNER_ID": "6420",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-20T00:34:50+03:00"
+    },
+    {
+      "ID": "8908",
+      "SUBJECT": "RE: Запрос на роботизированную сварочную горелку Fronius",
+      "OWNER_ID": "6420",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-20T00:33:49+03:00"
+    },
+    {
+      "ID": "7030",
+      "SUBJECT": "RE: КП по запросу RE: Fronius LongWang",
+      "OWNER_ID": "7686",
+      "OWNER_TYPE_ID": "3",
+      "CREATED": "2026-02-19T08:58:00+03:00"
+    },
+    {
+      "ID": "7602",
+      "SUBJECT": "RE: КП по запросу RE: Fronius LongWang",
+      "OWNER_ID": "7686",
+      "OWNER_TYPE_ID": "3",
+      "CREATED": "2026-02-19T22:45:09+03:00"
+    },
+    {
+      "ID": "8444",
+      "SUBJECT": "RE: Запрос Шланг-пакет Fronius MHP 700i",
+      "OWNER_ID": "6078",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-19T23:33:06+03:00"
+    },
+    {
+      "ID": "7176",
+      "SUBJECT": "RE: КП по запросу RE: Fronius LongWang",
+      "OWNER_ID": "7686",
+      "OWNER_TYPE_ID": "3",
+      "CREATED": "2026-02-19T09:05:10+03:00"
+    },
+    {
+      "ID": "7196",
+      "SUBJECT": "RE: КП по запросу RE: Fronius LongWang",
+      "OWNER_ID": "7686",
+      "OWNER_TYPE_ID": "3",
+      "CREATED": "2026-02-19T09:05:24+03:00"
+    },
+    {
+      "ID": "8396",
+      "SUBJECT": "RE: КП по запросу RE: Fronius LongWang",
+      "OWNER_ID": "6048",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-19T23:32:09+03:00"
+    },
+    {
+      "ID": "8338",
+      "SUBJECT": "Закупка кабеля Fronius",
+      "OWNER_ID": "14844",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-19T23:29:24+03:00"
+    },
+    {
+      "ID": "7344",
+      "SUBJECT": "Закупка кабеля Fronius",
+      "OWNER_ID": "9222",
+      "OWNER_TYPE_ID": "3",
+      "CREATED": "2026-02-19T14:20:19+03:00"
+    },
+    {
+      "ID": "9280",
+      "SUBJECT": "Re: Закупка кабеля Fronius",
+      "OWNER_ID": "68",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-02-24T11:38:29+03:00"
+    },
+    {
+      "ID": "9294",
+      "SUBJECT": "Re: Закупка кабеля Fronius",
+      "OWNER_ID": "68",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-02-24T12:11:05+03:00"
+    },
+    {
+      "ID": "9422",
+      "SUBJECT": "Re: Запрос цены и сроков поставки 42.0100.1221 Кольцо изоляционное ф14/ф16,9х11,2 для сварочного рукава Fronius",
+      "OWNER_ID": "11928",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-25T08:57:00+03:00"
+    },
+    {
+      "ID": "9418",
+      "SUBJECT": "Re: Запрос цены и сроков поставки 42.0100.1221 Кольцо изоляционное ф14/ф16,9х11,2 для сварочного рукава Fronius",
+      "OWNER_ID": "11928",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-02-25T08:56:58+03:00"
+    },
+    {
+      "ID": "10478",
+      "SUBJECT": "СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "12190",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-05T10:22:58+03:00"
+    },
+    {
+      "ID": "10488",
+      "SUBJECT": "Re: СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "12190",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-05T11:10:45+03:00"
+    },
+    {
+      "ID": "10490",
+      "SUBJECT": "Re: СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "12190",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-05T11:10:46+03:00"
+    },
+    {
+      "ID": "10536",
+      "SUBJECT": "Re: Закупка кабеля Fronius",
+      "OWNER_ID": "68",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-03-05T13:45:04+03:00"
+    },
+    {
+      "ID": "10604",
+      "SUBJECT": "Re: СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "12190",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-06T09:16:58+03:00"
+    },
+    {
+      "ID": "10678",
+      "SUBJECT": "Re: СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "12190",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-06T12:48:20+03:00"
+    },
+    {
+      "ID": "10704",
+      "SUBJECT": "Re: СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "12190",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-08T10:44:59+03:00"
+    },
+    {
+      "ID": "11680",
+      "SUBJECT": "RE: Запрос на роботизированную сварочную горелку Fronius + по силовому оборудованию и запчастям",
+      "OWNER_ID": "6420",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-18T13:50:16+03:00"
+    },
+    {
+      "ID": "11982",
+      "SUBJECT": "Re: СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "246",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-03-20T12:30:09+03:00"
+    },
+    {
+      "ID": "12380",
+      "SUBJECT": "Re: СПИРАЛЬ ПРОВОЛОКОПОДАЮЩАЯ FRONIUS STEEL MTG/MTW 1.2MM 15M АРТ.40.0002.0042.015 — 4 штуки",
+      "OWNER_ID": "246",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-03-24T21:41:26+03:00"
+    },
+    {
+      "ID": "12862",
+      "SUBJECT": "RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "12654",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-27T16:11:28+03:00"
+    },
+    {
+      "ID": "12968",
+      "SUBJECT": "Re: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "12654",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-03-30T08:48:25+03:00"
+    },
+    {
+      "ID": "13608",
+      "SUBJECT": "Re: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "12654",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-04-02T14:06:23+03:00"
+    },
+    {
+      "ID": "13634",
+      "SUBJECT": "RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-02T15:09:24+03:00"
+    },
+    {
+      "ID": "13648",
+      "SUBJECT": "Re: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-02T16:29:32+03:00"
+    },
+    {
+      "ID": "13664",
+      "SUBJECT": "Re: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-02T18:40:16+03:00"
+    },
+    {
+      "ID": "13748",
+      "SUBJECT": "RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-03T13:07:28+03:00"
+    },
+    {
+      "ID": "13768",
+      "SUBJECT": "Re: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-03T14:11:00+03:00"
+    },
+    {
+      "ID": "13792",
+      "SUBJECT": "RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-03T17:03:46+03:00"
+    },
+    {
+      "ID": "13804",
+      "SUBJECT": "RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-04T08:47:27+03:00"
+    },
+    {
+      "ID": "14622",
+      "SUBJECT": "Fwd: RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-10T15:21:43+03:00"
+    },
+    {
+      "ID": "14654",
+      "SUBJECT": "RE: RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-10T16:34:49+03:00"
+    },
+    {
+      "ID": "14656",
+      "SUBJECT": "Re: RE: FW: Fronius 26-й год КП от LongWang (ООО Ци Линь)",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-04-10T16:35:33+03:00"
+    },
+    {
+      "ID": "21272",
+      "SUBJECT": "Прибытие груза Кожух на рукав Fronius (размер 26х1,5 3.5м W5)",
+      "OWNER_ID": "38",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-06-07T08:57:44+03:00"
+    },
+    {
+      "ID": "23460",
+      "SUBJECT": "Fronius / Long Wang",
+      "OWNER_ID": "7916",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-06-19T13:05:11+03:00"
+    },
+    {
+      "ID": "23936",
+      "SUBJECT": "Fronius / Long Wang",
+      "OWNER_ID": "7138",
+      "OWNER_TYPE_ID": "1",
+      "CREATED": "2026-06-22T19:42:20+03:00"
+    },
+    {
+      "ID": "24550",
+      "SUBJECT": "Re: Прибытие груза Кожух на рукав Fronius (размер 26х1,5 3.5м W5)",
+      "OWNER_ID": "38",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-06-24T17:58:41+03:00"
+    },
+    {
+      "ID": "24576",
+      "SUBJECT": "Прибытие груза Втулка изолирующая Fronius",
+      "OWNER_ID": "330",
+      "OWNER_TYPE_ID": "2",
+      "CREATED": "2026-06-25T00:25:20+03:00"
+    }
+  ]
+}

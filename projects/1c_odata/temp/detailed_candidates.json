@@ -1,0 +1,433 @@
+[
+  {
+    "candidate": {
+      "email": "d.elesov@pzm.su",
+      "inn": "7817311895",
+      "name": "АО «АЭМ-технологии» (Елесов)"
+    },
+    "1c_counterparties": [
+      [
+        "bdd50864-4dca-11f0-894e-02006df8aab5",
+        "АЭМ-ТЕХНОЛОГИИ АО"
+      ],
+      [
+        "8bb55900-002c-11f1-8e3d-02006df8aab5",
+        "Филиал АО \"АЭМ-технологии\" \"Петрозаводскмаш\""
+      ]
+    ],
+    "1c_leads": [],
+    "1c_events_count": 4,
+    "1c_events": [
+      [
+        "00000019568",
+        "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+        [
+          "StandardODATA.Catalog_АдресатыПисем",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019121",
+        "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019117",
+        "RE: АЭМ Fronius Данил Елесов-Елена Назарова",
+        [
+          "StandardODATA.Catalog_АдресатыПисем",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019078",
+        "Re: АЭМ Fronius Данил Елесов-Елена Назарова",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "8d04139a-d115-11f1-974e-02006df8aab5",
+        "d.elesov@pzm.su",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [],
+    "b24_companies": [
+      [
+        "5322",
+        "Петрозаводский филиал АО «АЭМ-технологии»"
+      ]
+    ]
+  },
+  {
+    "candidate": {
+      "email": "ss1@kompi-proekt.ru",
+      "inn": "9718179801",
+      "name": "ООО «КОМПИ-ПРОЕКТ»"
+    },
+    "1c_counterparties": [],
+    "1c_leads": [],
+    "1c_events_count": 2,
+    "1c_events": [
+      [
+        "00000018946",
+        "RE: КОМПИ-ПРОЕКТ. АО ЗДК <Золотая звезда> ТХ",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000018918",
+        "Re: КОМПИ-ПРОЕКТ. АО ЗДК <Золотая звезда> ТХ",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "040865f8-d10d-11f1-974e-02006df8aab5",
+        "RE: КОМПИ-ПРОЕКТ. АО ЗДК <Золотая звезда> ТХ",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18664",
+        "ООО \"КОМПИ-ПРОЕКТ\" — Запрос КП (Золотая звезда)",
+        "IN_PROCESS",
+        "12572"
+      ]
+    ],
+    "b24_companies": [
+      [
+        "12572",
+        "ООО \"КОМПИ-ПРОЕКТ\""
+      ]
+    ]
+  },
+  {
+    "candidate": {
+      "email": "a.nazarenko@lgm-nvr.ru",
+      "inn": "2315219640",
+      "name": "ООО «ЛГМ»"
+    },
+    "1c_counterparties": [],
+    "1c_leads": [],
+    "1c_events_count": 0,
+    "1c_events": [],
+    "1c_address_book": [
+      [
+        "e92c5426-d42f-11f1-95a7-02006df8aab5",
+        "a.nazarenko@lgm-nvr.ru",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18826",
+        "Лид из письма от Ангелина Назаренко <a.nazarenko@lgm-nvr.ru>",
+        "CONVERTED",
+        "12596"
+      ]
+    ],
+    "b24_companies": [
+      [
+        "12596",
+        "ООО \"ЛГМ\""
+      ]
+    ]
+  },
+  {
+    "candidate": {
+      "email": "snab@samenergotrans.ru",
+      "inn": "6319183127",
+      "name": "ООО «САМЭНЕРГОТРАНС»"
+    },
+    "1c_counterparties": [],
+    "1c_leads": [],
+    "1c_events_count": 2,
+    "1c_events": [
+      [
+        "00000019665",
+        "Re: Запрос на поставку ДГУ и комплектующих",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019659",
+        "Re: Запрос на поставку ДГУ и комплектующих",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "2bb5646c-d77e-11f1-9047-02006df8aab5",
+        "Сергей Дмитриев",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18934",
+        "Запрос на поставку ДГУ и комплектующих",
+        "CONVERTED",
+        "12610"
+      ]
+    ],
+    "b24_companies": [
+      [
+        "12610",
+        "ООО \"САМЭНЕРГОТРАНС\""
+      ]
+    ]
+  },
+  {
+    "candidate": {
+      "email": "usolcev.aleksei@naz.uacrussia.ru",
+      "inn": "7708619320",
+      "name": "ПАО «ОАК» (НАЗ им. Чкалова)"
+    },
+    "1c_counterparties": [
+      [
+        "62d73c2a-d1c2-11f1-974e-02006df8aab5",
+        "ПАО \"ОАК\""
+      ]
+    ],
+    "1c_leads": [],
+    "1c_events_count": 2,
+    "1c_events": [
+      [
+        "00000019188",
+        "Re: Филиал ПАО «ОАК» - НАЗ им. В.П. Чкалова",
+        [
+          "StandardODATA.Catalog_АдресатыПисем",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019187",
+        "Re: Филиал ПАО «ОАК» - НАЗ им. В.П. Чкалова",
+        [
+          "StandardODATA.Catalog_АдресатыПисем",
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "bc09f75c-d2a7-11f1-95a7-02006df8aab5",
+        "usolcev.aleksei@naz.uacrussia.ru",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18742",
+        "Филиал ПАО «ОАК» - НАЗ им. В.П. Чкалова",
+        "PROCESSED",
+        null
+      ]
+    ],
+    "b24_companies": []
+  },
+  {
+    "candidate": {
+      "email": "ilya-centrmash@yandex.ru",
+      "inn": "622809624504",
+      "name": "ИП Бирюлин Илья Игоревич (Центрмаш)"
+    },
+    "1c_counterparties": [],
+    "1c_leads": [],
+    "1c_events_count": 1,
+    "1c_events": [
+      [
+        "00000019539",
+        "Re: Запрос",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "6e9c8414-d741-11f1-9047-02006df8aab5",
+        "ilya-centrmash@yandex.ru",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18912",
+        "Манжета DUPLOMATIC 0592322 - 6шт ИП Бирюлин Илья Игоревич",
+        "IN_PROCESS",
+        null
+      ]
+    ],
+    "b24_companies": []
+  },
+  {
+    "candidate": {
+      "email": "karbashovann@alrosa.ru",
+      "inn": "1433000147",
+      "name": "АК «АЛРОСА» (ПАО)"
+    },
+    "1c_counterparties": [
+      [
+        "b0cd6d6a-7208-11f1-81aa-02006df8aab5",
+        "ЖО УМТС АК\"АЛРОСА\"(ОАО)"
+      ],
+      [
+        "24bea3a9-3549-11ef-9692-70a8d3ba8753",
+        "АЛРОСА (ПАО) АК"
+      ]
+    ],
+    "1c_leads": [],
+    "1c_events_count": 3,
+    "1c_events": [
+      [
+        "00000019603",
+        "RE: [!] Re: Приглашение на поставку №32616531544",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019588",
+        "RE: [!] Re: Приглашение на поставку №32616531544",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019574",
+        "Приглашение на поставку №32616531544",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "58899ba2-d756-11f1-9047-02006df8aab5",
+        "Карбашова Наталья Николаевна",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18888",
+        "Приглашение на поставку №32616531544",
+        "IN_PROCESS",
+        null
+      ]
+    ],
+    "b24_companies": [
+      [
+        "12116",
+        "АК «АЛРОСА» (ПАО)"
+      ]
+    ]
+  },
+  {
+    "candidate": {
+      "email": "kostrominamm@rodinagrandvladivostok.ru",
+      "inn": "2540103577",
+      "name": "RODINA Grand Hotel Vladivostok"
+    },
+    "1c_counterparties": [],
+    "1c_leads": [],
+    "1c_events_count": 3,
+    "1c_events": [
+      [
+        "00000019136",
+        "RE: ЗАПРОС для VLADIVOSTOK Grand Hotel  & SPA",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019125",
+        "RE: ЗАПРОС для VLADIVOSTOK Grand Hotel  & SPA",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ],
+      [
+        "00000019053",
+        "Re: ЗАПРОС для VLADIVOSTOK Grand Hotel  & SPA",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "b5a7d136-d1cb-11f1-974e-02006df8aab5",
+        "kostrominamm@rodinagrandvladivostok.ru",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18700",
+        "RE: ЗАПРОС для VLADIVOSTOK Grand Hotel  & SPA бы изготовить под заказ люстру",
+        "IN_PROCESS",
+        null
+      ]
+    ],
+    "b24_companies": []
+  },
+  {
+    "candidate": {
+      "email": "steklovolokno-96@mail.ru",
+      "inn": "6670414995",
+      "name": "ООО «Стекловолокно»"
+    },
+    "1c_counterparties": [],
+    "1c_leads": [],
+    "1c_events_count": 1,
+    "1c_events": [
+      [
+        "00000019273",
+        "Re: Запрос на сотрудничество — buy12.ru",
+        [
+          "StandardODATA.Catalog_АдресатыПисем"
+        ]
+      ]
+    ],
+    "1c_address_book": [
+      [
+        "802d6ee6-d368-11f1-95a7-02006df8aab5",
+        "steklovolokno-96@mail.ru",
+        null,
+        null
+      ]
+    ],
+    "b24_leads": [
+      [
+        "18804",
+        "ООО «Стекловолокно», Саитов Сергей сотрудничество — buy12.ru",
+        "IN_PROCESS",
+        null
+      ]
+    ],
+    "b24_companies": []
+  }
+]

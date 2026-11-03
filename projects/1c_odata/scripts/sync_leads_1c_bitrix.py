@@ -1050,6 +1050,79 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
     print("-" * 90)
 
     CLIENT_SPECS = {
+        # Спецификации из выгрузки 1.mxl
+        "d.elesov@pzm.su": {
+            "query": "7817311895",
+            "name": "Филиал АО «АЭМ-технологии» «Петрозаводскмаш»",
+            "inn": "7817311895",
+            "contact_name": "Елесов Данил Валерьевич",
+            "phone": "+7 (921) 522-83-31",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Петрозаводск"
+        },
+        "usolcev.aleksei@naz.uacrussia.ru": {
+            "query": "7708619320",
+            "name": "ПАО «ОАК» (НАЗ им. В.П. Чкалова)",
+            "inn": "7708619320",
+            "contact_name": "Усольцев Алексей",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Новосибирск"
+        },
+        "karbashovann@alrosa.ru": {
+            "query": "1433000147",
+            "name": "АК «АЛРОСА» (ПАО)",
+            "inn": "1433000147",
+            "contact_name": "Карбашова Наталья Николаевна",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_LARGE],
+            "city": "Мирный"
+        },
+        "ss1@kompi-proekt.ru": {
+            "query": "9718179801",
+            "name": "ООО «КОМПИ-ПРОЕКТ»",
+            "inn": "9718179801",
+            "contact_name": "Веретененко Екатерина Сергеевна",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Москва"
+        },
+        "snab@samenergotrans.ru": {
+            "query": "6319183127",
+            "name": "ООО «САМЭНЕРГОТРАНС»",
+            "inn": "6319183127",
+            "contact_name": "Сергей Дмитриев",
+            "phone": "+7 (846) 201-08-95",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Самара"
+        },
+        "ilya-centrmash@yandex.ru": {
+            "query": "622809624504",
+            "name": "ИП Бирюлин Илья Игоревич",
+            "inn": "622809624504",
+            "contact_name": "Бирюлин Илья Игоревич",
+            "phone": "",
+            "tags": [TAG_END_BUYER],
+            "city": "Рязань"
+        },
+        "kostrominamm@rodinagrandvladivostok.ru": {
+            "query": "2540103577",
+            "name": "ООО «МГК «Золотой Рог» (RODINA Grand Hotel Владивосток)",
+            "inn": "2540103577",
+            "contact_name": "Костромина Марина",
+            "phone": "",
+            "tags": [TAG_END_BUYER],
+            "city": "Владивосток"
+        },
+        "a.nazarenko@lgm-nvr.ru": {
+            "query": "2315219640",
+            "name": "ООО «ЛГМ»",
+            "inn": "2315219640",
+            "contact_name": "Азарчугов Александр / Назаренко Ангелина",
+            "phone": "",
+            "tags": [TAG_PRODUCTION, TAG_END_BUYER],
+            "city": "Новороссийск"
+        },
         "snab@bio-media.ru": {
             "query": "ООО Биомедиа",
             "name": "ООО «БИОМЕДИА»",
@@ -1322,9 +1395,12 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             if r_bco.get("result"):
                 b24_company = r_bco["result"][0]
         if not b24_company and b24_contact and b24_contact.get("COMPANY_ID"):
-            r_co_get = call_b24("crm.company.get", {"id": b24_contact["COMPANY_ID"]})
-            if r_co_get.get("result"):
-                b24_company = r_co_get["result"]
+            try:
+                r_co_get = call_b24("crm.company.get", {"id": b24_contact["COMPANY_ID"]})
+                if r_co_get.get("result"):
+                    b24_company = r_co_get["result"]
+            except Exception as e_cget:
+                print(f"  [B24-WARN] Компания #{b24_contact.get('COMPANY_ID')} не найдена или удалена: {e_cget}")
 
         # 1C Counterparty First Guard: Поиск существующего покупателя в Catalog_Контрагенты
         onec_cp = None
@@ -1376,6 +1452,19 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                     if r_ol.status_code == 200 and r_ol.json().get("value"):
                         onec_lead = r_ol.json()["value"][0]
 
+
+        is_dummy_title = (
+            not inn and not spec and (
+                company_name == cdata.get("subject") or
+                any(company_name.lower().strip().startswith(p) for p in ["re:", "fwd:", "запрос", "заявка", "документы", "упд", "счет", "undelivered", "поставка", "участие", "инкубатор", "лид", "рассылка"]) or
+                len(company_name) > 60
+            )
+        )
+        if is_dummy_title:
+            print(f"\n[{idx}/{len(clusters)}] [ZERO-DUMMY LEAD GUARD SKIP] Создание сущностей заблокировано!")
+            print(f"  Тема письма: '{company_name}' | Email: {email}")
+            print(f"  Причина: Реквизиты/подпись компании не идентифицированы (защита от лидов-пустышек).")
+            continue
 
         tag_names = [TAG_NAME_MAP.get(t, t) for t in tags]
 
@@ -1597,23 +1686,39 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             print(f"  [1C Event #{ev['Number']}] Привязать к {onec_target_label or 'сущности 1С'} (снятие плашки [сохранить в CRM])")
             if not dry_run and onec_target_guid and onec_target_type:
                 ev_ref = ev.get("Ref_Key")
-                ev_patch = {
-                    "Участники": [{
-                        "LineNumber": "1",
-                        "КакСвязаться": email,
-                        "НомерДляОтправки": "",
-                        "ИдентификаторСообщения": "",
-                        "СтатусДоставки": "",
-                        "ТипПолучателяЭлектронногоПисьма": "ОтКого",
-                        "Контакт": onec_target_guid,
-                        "Контакт_Type": onec_target_type
-                    }]
-                }
                 try:
+                    # Получаем текущих участников события, чтобы не затереть со-получателей
+                    r_cur_ev = requests.get(f"{ODATA_BASE}/Document_Событие(guid'{ev_ref}')?$format=json", auth=auth_1c, headers=headers_1c, timeout=15)
+                    cur_participants = []
+                    if r_cur_ev.status_code == 200:
+                        cur_participants = r_cur_ev.json().get("Участники", [])
+
+                    matched = False
+                    for p in cur_participants:
+                        if email.lower() in p.get("КакСвязаться", "").lower():
+                            p["Контакт"] = onec_target_guid
+                            p["Контакт_Type"] = onec_target_type
+                            matched = True
+                    if not matched:
+                        cur_participants.append({
+                            "LineNumber": str(len(cur_participants) + 1),
+                            "КакСвязаться": email,
+                            "НомерДляОтправки": "",
+                            "ИдентификаторСообщения": "",
+                            "СтатусДоставки": "",
+                            "ТипПолучателяЭлектронногоПисьма": "ОтКого",
+                            "Контакт": onec_target_guid,
+                            "Контакт_Type": onec_target_type
+                        })
+
+                    ev_patch = {
+                        "Состояние_Key": "034f5df3-23c7-11ed-91a8-a068f8f3337c",  # Завершено
+                        "Участники": cur_participants
+                    }
                     r_evp = requests.patch(f"{ODATA_BASE}/Document_Событие(guid'{ev_ref}')?$format=json", json=ev_patch, auth=auth_1c, headers=headers_1c, timeout=20)
                     if r_evp.status_code in (200, 204):
-                        update_address_book_entry(email, company_name, contact_guid=onec_target_guid)
-                        print(f"  [1C Event OK] Событие #{ev['Number']} привязано к {onec_target_label}")
+                        update_address_book_entry(email, company_name, contact_guid=onec_target_guid, contact_type=onec_target_type)
+                        print(f"  [1C Event OK] Событие #{ev['Number']} привязано к {onec_target_label} (Состояние: Завершено)")
                 except Exception as e_lk:
                     print(f"  [1C Event WARN] Ошибка привязки события #{ev['Number']}: {e_lk}")
 
@@ -1625,12 +1730,20 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                     inn=inn,
                     b24_company_id=b24_company_id if b24_company_id and b24_company_id != 9999901 else None,
                     b24_lead_id=b24_lead_id if b24_lead_id and b24_lead_id != 9999903 else None,
-                    one_c_guid=onec_lead_guid if onec_lead_guid and onec_lead_guid != "00000000-0000-0000-0000-000000000000" else None,
+                    one_c_guid=onec_target_guid if onec_target_guid and onec_target_guid != "00000000-0000-0000-0000-000000000000" else None,
                     email=email,
                     dry_run=dry_run
                 )
             except Exception as e_sb:
                 print(f"  [СБИС-WARN] Ошибка скоринга СБИС: {e_sb}")
+
+        code_label = "-"
+        if onec_cp:
+            code_label = f"Контрагент {onec_cp.get('Code', '')}"
+        elif onec_lead:
+            code_label = f"Лид #{onec_lead.get('Code', '')}"
+        elif onec_target_guid:
+            code_label = "Создан"
 
         summary_results.append({
             "idx": idx,
@@ -1642,7 +1755,7 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
             "b24_lead_id": b24_lead["ID"] if b24_lead else (b24_lead_id or "Создать"),
             "b24_company_id": b24_company["ID"] if b24_company else (b24_company_id or "Создать"),
             "b24_contact_id": b24_contact["ID"] if b24_contact else (b24_contact_id or "Создать"),
-            "onec_lead_code": onec_lead.get("Code") if onec_lead else (onec_lead_code or "Создать"),
+            "onec_lead_code": code_label,
             "events_count": len(onec_events)
         })
         idx += 1

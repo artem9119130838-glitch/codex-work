@@ -1,0 +1,427 @@
+{
+  "deals_5322": [
+    {
+      "ID": "46",
+      "TITLE": "Заказ покупателя LWНФ-4",
+      "STAGE_ID": "WON",
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-02-18T23:17:19+03:00"
+    },
+    {
+      "ID": "330",
+      "TITLE": "АЭМ Втулка изолирующая BK Speed Clad Fronius 42,0001,4777",
+      "STAGE_ID": "WON",
+      "CONTACT_ID": "8046",
+      "DATE_CREATE": "2026-03-30T08:36:19+03:00"
+    },
+    {
+      "ID": "2648",
+      "TITLE": "АО АЭМ-ТЕХНОЛОГИИ, FRONIUS расходники 22 позиции (ЗИП)",
+      "STAGE_ID": "PREPAYMENT_INVOICE",
+      "CONTACT_ID": "16964",
+      "DATE_CREATE": "2026-10-26T10:50:17+03:00"
+    }
+  ],
+  "leads_after_20": [
+    {
+      "ID": "18490",
+      "TITLE": "Личный кабинет ИНК - Регистрация в ЭТП",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T09:13:25+03:00"
+    },
+    {
+      "ID": "18492",
+      "TITLE": "Приглашение к участию в закрытой закупочной процедуре на ЭТП ТЭК-Торг",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T09:21:33+03:00"
+    },
+    {
+      "ID": "18494",
+      "TITLE": "Входящий звонок с номера +73472620315 из приложения novofon",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12520",
+      "CONTACT_ID": "16868",
+      "DATE_CREATE": "2026-10-20T09:59:59+03:00"
+    },
+    {
+      "ID": "18500",
+      "TITLE": "Уведомление OnlineContract о новых процедурах",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": "11410",
+      "CONTACT_ID": "15228",
+      "DATE_CREATE": "2026-10-20T12:25:35+03:00"
+    },
+    {
+      "ID": "18504",
+      "TITLE": "Лид #18504",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T13:10:34+03:00"
+    },
+    {
+      "ID": "18506",
+      "TITLE": "Re: 00-00008158 - оринал или аналог Danfoss для",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12558",
+      "CONTACT_ID": "16984",
+      "DATE_CREATE": "2026-10-20T13:10:48+03:00"
+    },
+    {
+      "ID": "18514",
+      "TITLE": "RE: Добрый день! Не могли бы вы подсказать, где можно...",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": "16708",
+      "DATE_CREATE": "2026-10-20T15:04:03+03:00"
+    },
+    {
+      "ID": "18516",
+      "TITLE": "Материалы для капремонта сетей связи для ООО \"ИНФОРМ\" (г. Пермь)",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T15:24:13+03:00"
+    },
+    {
+      "ID": "18518",
+      "TITLE": "Прошу дать обратную связь об участии в запросе на ЭТП BIDZAAR!",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T15:24:14+03:00"
+    },
+    {
+      "ID": "18520",
+      "TITLE": "Исходящий звонок на номер +79062312714 из приложения novofon",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T15:36:09+03:00"
+    },
+    {
+      "ID": "18522",
+      "TITLE": "Исходящий звонок на номер +74012466729 из приложения novofon",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T15:36:34+03:00"
+    },
+    {
+      "ID": "18524",
+      "TITLE": "RE: Request 4075",
+      "STATUS_ID": "NEW",
+      "COMPANY_ID": "12128",
+      "CONTACT_ID": "16622",
+      "DATE_CREATE": "2026-10-20T15:47:07+03:00"
+    },
+    {
+      "ID": "18530",
+      "TITLE": "Fwd: Акт сверки за 3-й квартал / ООО \"ЦИ ЛИНЬ\"",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": "15380",
+      "DATE_CREATE": "2026-10-20T16:49:27+03:00"
+    },
+    {
+      "ID": "18536",
+      "TITLE": "Рассылка закупочных процедур: Для поставщиков и подрядчиков \"Северстали\"",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-20T21:40:49+03:00"
+    },
+    {
+      "ID": "18538",
+      "TITLE": "ИНК ЛКК",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T04:20:48+03:00"
+    },
+    {
+      "ID": "18542",
+      "TITLE": "Заказ ИП Погребняк В.В.",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12526",
+      "CONTACT_ID": "16888",
+      "DATE_CREATE": "2026-10-21T08:35:11+03:00"
+    },
+    {
+      "ID": "18546",
+      "TITLE": "АО НПП «Уником -Сервис» Подовая (керамическая) плита (лещадка)",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12524",
+      "CONTACT_ID": "16886",
+      "DATE_CREATE": "2026-10-21T09:53:27+03:00"
+    },
+    {
+      "ID": "18548",
+      "TITLE": "Заявка",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12528",
+      "CONTACT_ID": "16890",
+      "DATE_CREATE": "2026-10-21T10:23:51+03:00"
+    },
+    {
+      "ID": "18550",
+      "TITLE": "GEMU",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12522",
+      "CONTACT_ID": "16884",
+      "DATE_CREATE": "2026-10-21T11:25:07+03:00"
+    },
+    {
+      "ID": "18552",
+      "TITLE": "Входящий звонок с номера +73512101148 из приложения novofon",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": null,
+      "CONTACT_ID": "16712",
+      "DATE_CREATE": "2026-10-21T11:52:17+03:00"
+    },
+    {
+      "ID": "18554",
+      "TITLE": "Undeliverable: Re: 2000517390. Срок подачи предложений подходит к концу (24ч)",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T12:06:28+03:00"
+    },
+    {
+      "ID": "18556",
+      "TITLE": "Статус обращения",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T12:06:31+03:00"
+    },
+    {
+      "ID": "18558",
+      "TITLE": "Уведомление OnlineContract о новых процедурах",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": "11410",
+      "CONTACT_ID": "15228",
+      "DATE_CREATE": "2026-10-21T12:06:31+03:00"
+    },
+    {
+      "ID": "18560",
+      "TITLE": "ООО \"МАКРОС+\" — Запрос на поставку",
+      "STATUS_ID": "NEW",
+      "COMPANY_ID": "12574",
+      "CONTACT_ID": "17000",
+      "DATE_CREATE": "2026-10-21T12:58:46+03:00"
+    },
+    {
+      "ID": "18564",
+      "TITLE": "Лид #18564",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T13:27:18+03:00"
+    },
+    {
+      "ID": "18570",
+      "TITLE": "Исходящий звонок на номер +79201150649 из приложения novofon",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T15:28:55+03:00"
+    },
+    {
+      "ID": "18572",
+      "TITLE": "RE:",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T15:41:41+03:00"
+    },
+    {
+      "ID": "18576",
+      "TITLE": "Максим Владимирович Ваулин - Открытая линия",
+      "STATUS_ID": "NEW",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T17:25:28+03:00"
+    },
+    {
+      "ID": "18578",
+      "TITLE": "Рассылка закупочных процедур: Для поставщиков и подрядчиков \"Северстали\"",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-21T20:43:27+03:00"
+    },
+    {
+      "ID": "18580",
+      "TITLE": "Документы для ООО \"ЦИ ЛИНЬ\" от ООО \"ЗСА\"",
+      "STATUS_ID": "NEW",
+      "COMPANY_ID": "11722",
+      "CONTACT_ID": "16990",
+      "DATE_CREATE": "2026-10-21T21:00:28+03:00"
+    },
+    {
+      "ID": "18582",
+      "TITLE": "РН61003890 Электротехнического оборудования и двигателя",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": "11098",
+      "CONTACT_ID": "14780",
+      "DATE_CREATE": "2026-10-22T05:04:39+03:00"
+    },
+    {
+      "ID": "18586",
+      "TITLE": "Пришлите КП — разберем стоимость поставки",
+      "STATUS_ID": "NEW",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-22T07:10:47+03:00"
+    },
+    {
+      "ID": "18590",
+      "TITLE": "Поделимся опытом реального поставщика - новый вебинар bidzaar",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-22T12:35:32+03:00"
+    },
+    {
+      "ID": "18592",
+      "TITLE": "Запрос",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12536",
+      "CONTACT_ID": "16912",
+      "DATE_CREATE": "2026-10-22T13:13:32+03:00"
+    },
+    {
+      "ID": "18594",
+      "TITLE": "Опубликован новый тендер: Закупка инструмента и расходных материалов на строительный объект.",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-22T13:36:21+03:00"
+    },
+    {
+      "ID": "18596",
+      "TITLE": "Личный кабинет ИНК - Код подтверждения",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-22T14:13:03+03:00"
+    },
+    {
+      "ID": "18600",
+      "TITLE": "Приглашаем вас принять участие в закупке Наконечники (Биотех) для лабораторий от заказчика Solopharm",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-22T15:47:47+03:00"
+    },
+    {
+      "ID": "18604",
+      "TITLE": "Re: заявка на Блок подготовки воздуха+манометр+шпильки для Торговый Дом ГЕФЕСТ",
+      "STATUS_ID": "NEW",
+      "COMPANY_ID": "12510",
+      "CONTACT_ID": "16854",
+      "DATE_CREATE": "2026-10-22T20:38:11+03:00"
+    },
+    {
+      "ID": "18606",
+      "TITLE": "Рассылка закупочных процедур: Для поставщиков и подрядчиков \"Северстали\"",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-23T03:08:26+03:00"
+    },
+    {
+      "ID": "18608",
+      "TITLE": "Заканчивается срок сбора оферт (ДС-3679-26)",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-23T03:28:37+03:00"
+    },
+    {
+      "ID": "18610",
+      "TITLE": "Константин Сорокин - Открытая линия",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-23T06:26:16+03:00"
+    },
+    {
+      "ID": "18612",
+      "TITLE": "Опубликован новый тендер: Закупка электротехнической и кабельной продукции для устройства освещения на благоустраиваемом участке строительного объекта.",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-23T08:05:03+03:00"
+    },
+    {
+      "ID": "18614",
+      "TITLE": "RE: FW: Приглашение для участия в тендере",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12098",
+      "CONTACT_ID": "16538",
+      "DATE_CREATE": "2026-10-23T08:26:24+03:00"
+    },
+    {
+      "ID": "18616",
+      "TITLE": "запрос датчик POG10DN (13612)",
+      "STATUS_ID": "CONVERTED",
+      "COMPANY_ID": "12538",
+      "CONTACT_ID": "16914",
+      "DATE_CREATE": "2026-10-23T08:26:25+03:00"
+    },
+    {
+      "ID": "18618",
+      "TITLE": "Не удается доставить: Re: запрос на доставку маринаторов из Китая для Артемий Гришин Достаевский",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-23T09:35:43+03:00"
+    },
+    {
+      "ID": "18622",
+      "TITLE": "388-244 Поставка лазерных дальномеров для ООО \"СК \"Согласие\"",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-23T10:07:09+03:00"
+    },
+    {
+      "ID": "18624",
+      "TITLE": "Уведомление OnlineContract о новых процедурах",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": "11410",
+      "CONTACT_ID": "15228",
+      "DATE_CREATE": "2026-10-23T10:13:04+03:00"
+    },
+    {
+      "ID": "18626",
+      "TITLE": "Уведомление о новом запросе на присоединение пользователя к организации",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": null,
+      "CONTACT_ID": null,
+      "DATE_CREATE": "2026-10-23T10:18:20+03:00"
+    },
+    {
+      "ID": "18632",
+      "TITLE": "Уведомление OnlineContract о новых процедурах по шаблонам поиска",
+      "STATUS_ID": "JUNK",
+      "COMPANY_ID": "11410",
+      "CONTACT_ID": "15228",
+      "DATE_CREATE": "2026-10-23T13:32:00+03:00"
+    },
+    {
+      "ID": "18636",
+      "TITLE": "Счет-фактуры на авансы / ООО \"ЦИ ЛИНЬ\"",
+      "STATUS_ID": "NEW",
+      "COMPANY_ID": null,
+      "CONTACT_ID": "15380",
+      "DATE_CREATE": "2026-10-23T14:05:20+03:00"
+    }
+  ]
+}
