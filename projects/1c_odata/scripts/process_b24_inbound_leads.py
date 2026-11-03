@@ -1719,7 +1719,7 @@ def evaluate_reseller_and_ghost_signals(dadata_info: dict, saby_info: dict, cont
 # ----------------------------------------------------------------------
 # Единый универсальный обработчик любого лида (Universal Lead Pipeline)
 # ----------------------------------------------------------------------
-def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, deadline_tomorrow: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4) -> dict:
+def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, deadline_tomorrow: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4, no_deal: bool = False) -> dict:
     lead = call_b24("crm.lead.get", {"id": lead_id})
     if not lead:
         print(f"[ERROR] Лид #{lead_id} не найден в Битрикс24")
@@ -2451,6 +2451,16 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600])
     )
 
+    if no_deal and dry_run:
+        print(f"\n[DRY-RUN NO-DEAL] ПЛАН КВАЛИФИКАЦИИ БЕЗ СОЗДАНИЯ СДЕЛКИ:")
+        print(f"  1. Компания: '{company_title}', ИНН: '{inn or 'НЕТ'}'")
+        print(f"  2. Контакт: '{contact_name}', Email: '{contact_email or 'НЕТ'}', Телефон: '{contact_phone or 'НЕТ'}'")
+        print(f"  3. Привязка всех дел лида ({len(acts)} шт.) к Компании и Контакту, закрытие дел")
+        print(f"  4. Перевод Лида #{lead_id} в статус CONVERTED (без создания сделки)")
+        print(f"  5. Синхронизация Лида и Контакта в 1С:УНФ (Zero-Blank Lead Protocol & Event Linking)")
+        print(f"  6. Сделка и задачи снабжению: КАТЕГОРИЧЕСКИ НЕ СОЗДАЮТСЯ")
+        return {"lead_id": lead_id, "branch": "No-Deal Qualification", "title_naming": title_naming}
+
     if dry_run:
         print(f"\n[DRY-RUN] ДЕТАЛЬНЫЙ ПЛАН ДЕЙСТВИЙ ДЛЯ ВЕТКИ А:")
         print(f"  1. Сделка в CRM: '{title_naming}' (Стадия: PREPARATION)")
@@ -2492,6 +2502,29 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         except Exception as e:
             print(f"  [B24-WARN] Не удалось обогатить карточки в Б24: {e}")
 
+
+    if no_deal:
+        print(f"  [NO-DEAL] Режим квалификации без создания сделки и задачи снабжению.")
+        for a in acts:
+            aid = a.get("ID")
+            call_b24("crm.activity.binding.add", {"activityId": aid, "entityTypeId": 4, "entityId": cid})
+            call_b24("crm.activity.binding.add", {"activityId": aid, "entityTypeId": 3, "entityId": cnt_id})
+            call_b24("crm.activity.update", {"id": aid, "fields": {"COMPLETED": "Y", "STATUS": 2}})
+        call_b24("crm.lead.update", {"id": lead_id, "fields": {"STATUS_ID": "CONVERTED", "COMPANY_ID": cid, "CONTACT_ID": cnt_id}})
+        print(f"  [B24] Лид #{lead_id} переведен в CONVERTED с привязкой к Компании #{cid} и Контакту #{cnt_id}")
+        try:
+            from sync_leads_1c_bitrix import sync_lead_record
+            sync_lead_record(lead_id, dry_run=False)
+        except Exception as e_1c:
+            print(f"  [1C-WARN] Ошибка синхронизации 1С: {e_1c}")
+        return {
+            "lead_id": lead_id,
+            "company": company_title,
+            "title_naming": title_naming,
+            "status": "CONVERTED_NO_DEAL",
+            "company_id": cid,
+            "contact_id": cnt_id
+        }
 
     # Создание Сделки в стадии PREPARATION
     deal_id = create_b24_deal(title_naming, cid, cnt_id, lead_id=lead_id, assigned_by_id=assigned_by_id, stage_id="PREPARATION")
@@ -2970,6 +3003,7 @@ def main():
     parser.add_argument("--responsible", type=str, default="azat", help="Ответственный за задачу снабжения: azat (20) или wang (30)")
     parser.add_argument("--deadline-days", type=int, default=4, help="Количество рабочих дней на дедлайн задачи снабжения (по умолчанию 4)")
     parser.add_argument("--csv", "--csv-file", dest="csv_file", type=str, help="Путь к выгруженному CSV-файлу со списком лидов")
+    parser.add_argument("--no-deal", "--no-deals", dest="no_deal", action="store_true", default=False, help="Квалификация лида без создания сделки и задач снабжению (только Компания, Контакт, конвертация лида и синк в 1С)")
     args = parser.parse_args()
 
     dry_run = args.dry_run
@@ -3029,7 +3063,8 @@ def main():
             send_reply=(not args.no_reply),
             force=args.force,
             responsible_id=resp_id,
-            deadline_days=args.deadline_days
+            deadline_days=args.deadline_days,
+            no_deal=args.no_deal
         )
         results.append(res)
 
