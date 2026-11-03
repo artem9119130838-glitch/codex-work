@@ -90,6 +90,7 @@
 | **Интеграционный** | `build_rod_matrix.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/Price creating/scripts/build_rod_matrix.py` | Simply delegate to the canonical root script | 1 |
 | **Интеграционный** | `build_rod_matrix.py` | `D:/Soft/Codex Backup/projects/Price creating/scripts/build_rod_matrix.py` | Simply delegate to the canonical root script | 0 |
 | **Канонический** | `format_universal_word_kp.py` | `scripts/format_universal_word_kp.py` | Универсальный генератор и форматировщик КП в Word (DOCX/PDF): 100% табличная шапка в колонтитуле (логотип + ИНН), w:tblHeader, cantSplit, защита от наезда шапки при любой ориентации | 0 |
+| **Канонический** | `generate_contract_disagreement.py` | `scripts/generate_contract_disagreement.py` | Генератор протоколов разногласий к договорам поставки (Word DOCX): табличная верстка с цветовой дифференциацией статусов, валидация реквизитов подписантов по ЕГРЮЛ, защита от кабальных штрафов и безакцептных зачетов | 0 |
 
 ---
 
