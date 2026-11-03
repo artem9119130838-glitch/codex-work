@@ -91,6 +91,7 @@
 | **Интеграционный** | `build_rod_matrix.py` | `D:/Soft/Codex Backup/projects/Price creating/scripts/build_rod_matrix.py` | Simply delegate to the canonical root script | 0 |
 | **Канонический** | `format_universal_word_kp.py` | `scripts/format_universal_word_kp.py` | Универсальный генератор и форматировщик КП в Word (DOCX/PDF): 100% табличная шапка в колонтитуле (логотип + ИНН), w:tblHeader, cantSplit, защита от наезда шапки при любой ориентации | 0 |
 | **Канонический** | `generate_contract_disagreement.py` | `scripts/generate_contract_disagreement.py` | Генератор протоколов разногласий к договорам поставки (Word DOCX): табличная верстка с цветовой дифференциацией статусов, валидация реквизитов подписантов по ЕГРЮЛ, защита от кабальных штрафов и безакцептных зачетов | 0 |
+| **Канонический** | `build_package_itog_2.py` | `projects/Price creating/Договор_62230426_Штоки_и_Трубы/scripts/build_package_itog_2.py` | Генератор чистового пакета урегулирования «Итог номер два» по Договору № 62230426: ДС № 6 (трубы 32 шт. — 669 011 CNY), ДС № 7 (штоки 16 шт. — 535 680 CNY), Соглашение по инспекции, доверенность, вызов, критерии годности с резьбовыми калибрами М170х4-6g и фин. модель для юриста | 0 |
 
 ---
 
