@@ -191,6 +191,17 @@ def create_summary(summary_path, summary_paragraph, completed_tasks, modified_fi
 
 
 def main():
+    if any(arg in ('-h', '--help') for arg in sys.argv[1:]):
+        print(
+            "Использование: py scripts/session_compress.py [ОПЦИИ] [SUMMARY] [COMPLETED] [FILES] [ISSUES] [LESSONS]\n\n"
+            "Опции:\n"
+            "  -h, --help                Показать эту справку и выйти без изменений\n"
+            "  --keep-summary            Сохранить текущий .ai/SESSION_SUMMARY.md без перезаписи\n"
+            "  --preserve-summary        Синоним --keep-summary\n"
+            "  --interactive             Интерактивный ввод полей сводки\n"
+            "  -m, --commit-msg TEXT     Пользовательское сообщение Git-коммита"
+        )
+        return
     paths = get_paths()
     
     keep_summary = ('--keep-summary' in sys.argv or '--preserve-summary' in sys.argv)
