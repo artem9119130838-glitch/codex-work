@@ -44,12 +44,13 @@ CRM Битрикс24 (Сделки, Контакты, Компании)
 * **`docs/`**:
   * [METABASE_GUIDE.md](file:///C:/Codex/projects/metabase_analytics/docs/METABASE_GUIDE.md) — пошаговое руководство администратора и менеджера.
   * [LLM_ANALYTICS_AUDIT_AND_FIX_REPORT.md](file:///C:/Codex/projects/metabase_analytics/docs/LLM_ANALYTICS_AUDIT_AND_FIX_REPORT.md) — отчет об аудите и устранении ошибок в отчетах коммерции и мониторинга LLM (05.10.2026).
+  * [TENDER_STATISTICS_DEEP_DIVE_2026.md](file:///C:/Codex/projects/metabase_analytics/docs/TENDER_STATISTICS_DEEP_DIVE_2026.md) — сводная аналитика сквозной воронки тендеров (июнь–ноябрь 2026), аудит переноса побед и разбор причин отказов (10.11.2026).
 * **`sql/`**:
   * [schema.sql](file:///C:/Codex/projects/metabase_analytics/sql/schema.sql) — DDL-схемы витрин данных.
 * **`workflows/`**:
   * `n8n_analytics_sync_production.json` — сценарий n8n для real-time синхронизации сделок по вебхукам.
 * **`scripts/`**:
-  * `manage_metabase_dashboards.py` (v2.4) — единый боевой CLI-скрипт деплоя карточек, дашбордов (включая 3-уровневую группировку LLM) и управления правами через Metabase REST API. Включает встроенные режимы самодиагностики `--action test-queries` (аппаратный тест выполнения всех карточек) и `--action db-stats` (сводка DWH). Поддерживает `--dry-run`.
+  * `manage_metabase_dashboards.py` (v2.8) — единый боевой CLI-скрипт деплоя карточек, дашбордов (включая 3-уровневую группировку LLM) и управления правами через Metabase REST API. Включает встроенные режимы самодиагностики `--action test-queries` (аппаратный тест выполнения всех карточек) и `--action db-stats` (сводка DWH), а также учет `C4:PREPAYMENT_INVOICE` в Карточках 54 и 61. Поддерживает `--dry-run`.
   * `audit_llm_keys.py` (v2.1) — боевой скрипт тестирования пула API-ключей Gemini и DeepSeek, синхронизации статусов в DWH (`llm_keys_status`) с автоочисткой устаревших алиасов (`--cleanup-obsolete`) и отправкой алертов в чат Битрикс24 без автоудаления. Запущен в crontab на VPS.
   * `search_session_wishes.py` (v1.0) — канонический скрипт поиска по всей истории сессий диалогов (brain transcripts) с кластеризацией запросов, экспортом и фильтрацией.
   * `sync_analytics_dwh.py` — боевой ETL-скрипт синхронизации данных из CRM в PostgreSQL (инкремент / полный бэкфилл, `--dry-run`).
