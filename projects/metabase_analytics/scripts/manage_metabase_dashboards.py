@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Canonical Metabase BI Management Pipeline: manage_metabase_dashboards.py
-Version: 2.7 (2026-10-22)
+Version: 2.8 (2026-11-10)
 
 Single canonical script for managing Metabase dashboards, analytical cards,
 global formatting/localization, user permissions, and LLM Token Analytics.
@@ -169,8 +169,8 @@ def update_cards(base_url, session_id, dry_run=False):
         date_create,
         COALESCE(tender_amount, our_offer_amount, 0) as amount,
         CASE 
-            WHEN close_reason = 'Выигран в тендере' THEN '3_WON'
-            WHEN raw_data->>'STAGE_ID' = 'C4:LOSE' THEN '2_BID'
+            WHEN is_won = true OR close_reason = 'Выигран в тендере' THEN '3_WON'
+            WHEN raw_data->>'STAGE_ID' IN ('C4:LOSE', 'C4:PREPAYMENT_INVOICE') THEN '2_BID'
             ELSE '1_REJECT'
         END as group_type
     FROM analytics_closed_deals
@@ -205,6 +205,66 @@ ORDER BY "Этап" ASC;"""
     }
     print("Updating Card 54: Сквозная воронка...")
     api_call(base_url, session_id, "PUT", "/card/54", card54_payload, dry_run)
+
+    # 1b. Update Card 61: Динамика сквозной воронки по периодам (помесячно)
+    sql_monthly_funnel = """WITH tender_data AS (
+    SELECT 
+        deal_id,
+        DATE_TRUNC('month', date_create) as month_dt,
+        COALESCE(tender_amount, our_offer_amount, 0) as amount,
+        CASE 
+            WHEN is_won = true OR close_reason = 'Выигран в тендере' THEN '3_WON'
+            WHEN raw_data->>'STAGE_ID' IN ('C4:LOSE', 'C4:PREPAYMENT_INVOICE') THEN '2_BID'
+            ELSE '1_REJECT'
+        END as group_type
+    FROM analytics_closed_deals
+    WHERE pipeline_name = 'Тендеры'
+),
+monthly_agg AS (
+    SELECT 
+        month_dt,
+        TO_CHAR(month_dt, 'YYYY-MM') as "Месяц",
+        COUNT(*) as total_count,
+        ROUND(SUM(amount)::numeric, 2) as total_sum,
+        COUNT(*) FILTER (WHERE group_type = '1_REJECT') as reject_count,
+        COUNT(*) FILTER (WHERE group_type IN ('2_BID', '3_WON')) as bid_count,
+        ROUND(SUM(amount) FILTER (WHERE group_type IN ('2_BID', '3_WON'))::numeric, 2) as bid_sum,
+        COUNT(*) FILTER (WHERE group_type = '3_WON') as won_count,
+        ROUND(SUM(amount) FILTER (WHERE group_type = '3_WON')::numeric, 2) as won_sum
+    FROM tender_data
+    GROUP BY month_dt
+)
+SELECT 
+    "Месяц",
+    total_count as "Рассмотрено (шт)",
+    total_sum as "Рассмотрено (руб)",
+    reject_count as "Отсев (шт)",
+    bid_count as "Подались (шт)",
+    bid_sum as "Подались (руб)",
+    won_count as "Выиграли (шт)",
+    COALESCE(won_sum, 0) as "Выиграли (руб)",
+    ROUND((won_count::numeric / NULLIF(bid_count, 0)) * 100, 1) || '%' as "Win Rate (% от поданных)",
+    COALESCE(won_count - LAG(won_count) OVER (ORDER BY month_dt), 0) as "Динамика побед (Δ шт)",
+    CASE 
+        WHEN LAG(won_sum) OVER (ORDER BY month_dt) > 0 THEN 
+            ROUND(((won_sum - LAG(won_sum) OVER (ORDER BY month_dt)) / LAG(won_sum) OVER (ORDER BY month_dt)) * 100, 1) || '%'
+        ELSE '-'
+    END as "Прирост суммы побед (%)"
+FROM monthly_agg
+ORDER BY month_dt DESC;"""
+
+    card61_payload = {
+        "dataset_query": {
+            "type": "native",
+            "native": {
+                "query": sql_monthly_funnel,
+                "template-tags": {}
+            },
+            "database": db_id
+        }
+    }
+    print("Updating Card 61: Динамика сквозной воронки по периодам (помесячно)...")
+    api_call(base_url, session_id, "PUT", "/card/61", card61_payload, dry_run)
 
     # 2. Update Card 49: Выигранные тендеры - Детали
     sql_won = """SELECT 
