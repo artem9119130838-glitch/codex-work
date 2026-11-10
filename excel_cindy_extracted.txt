@@ -1,0 +1,44 @@
+Sheets: Sheet1, 油缸筒信息
+
+=== Sheet: Sheet1 (max_row=26, max_col=31) ===
+R01: First supplier：物流公司 | 示例 |  |  | First supplier：物流公司 | 泰达兴 |  |  | First supplier：物流公司 |  |  |  | First supplier：物流公司 | 深圳市远航达 |  |  | First supplier：物流公司 | 深圳畅航 |  |  | First supplier：物流公司 | 深圳畅航 |  |  | First supplier：物流公司 | 上海金佳 |  |  | First supplier/公司 | 上海金佳 | 
+R02: Weight, kg/重量 | 37.5 |  |  | Weight, kg/重量 | 37.5 |  |  | Weight, kg/重量 | 37.5 |  |  | Weight, kg/重量 | 37.5 |  |  | Weight, kg/重量 | 37.5 |  |  | Weight, kg/重量 | 37.5 |  |  | Weight, kg/重量 | 37.5 | 可能分2个柜发货 |  | Weight, kg/重量 | 37.5 | 
+R03: Volume, m3/体积 | 32 | 2个小柜 |  | Volume, m3/体积 | 32 | 2个小柜 |  | Volume, m3/体积 | 32 | 2个小柜 |  | Volume, m3/体积 | 32 | 2个小柜 |  | Volume, m3/体积 | 32 | 2个小柜 |  | Volume, m3/体积 | 32 | 2个小柜 |  | Volume, m3/体积 | 32 |  |  | Volume, m3/体积 | 32 | 
+R04: Packing/包装 | no need |  |  | Packing/包装 | no need |  |  | Packing/包装 | no need |  |  | Packing/包装 | no need |  |  | Packing/包装 | no need |  |  | Packing/包装 | no need |  |  | Packing/包装 | no need |  |  | Packing/包装 | no need | 
+R05: Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 没有油，就是钢桶 |  | Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 没有油，就是钢桶 |  | Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 没有油，就是钢桶 |  | Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 没有油，就是钢桶 |  | Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 没有油，就是钢桶 |  | Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 没有油，就是钢桶 |  | Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 没有油，就是钢桶 |  | Type of cargo/货物名称 | 液压油缸筒&活塞杆 | 
+R06: Insurance/保险 | needed |  |  | Insurance/保险 | needed |  |  | Insurance/保险 | needed |  |  | Insurance/保险 | needed |  |  | Insurance/保险 | needed |  |  | Insurance/保险 | needed |  |  | Insurance/保险 | needed |  |  | Insurance/保险 | needed | 
+R07: Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 |  |  | Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 |  |  | Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 |  |  | Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 |  |  | Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 |  |  | Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 |  |  | Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 |  |  | Adress of pick up cargo/收发货地址 | 始发地：中国聊城
+- 目的地：圣彼得堡 | 
+R09: Exchange rate CNY/USD | 6.69 |  |  | Exchange rate CNY/USD | 6.9 |  |  | Exchange rate CNY/USD | 6.9 |  |  | Exchange rate CNY/USD | 6.69 |  |  | Exchange rate CNY/USD | 6.69 |  |  | Exchange rate CNY/USD | 6.69 |  |  | Exchange rate CNY/USD | 6.69 |  |  | Exchange rate CNY/USD | 6.69 | 
+R10:  |  |  |  |  | 铁路 |  |  |  | 海运 |  |  |  | 海运 |  |  |  | 火车需要发2个小柜 | 不能单独发1个柜 |  |  | 卡车 |  |  |  | 必须2个小柜一起发 | 铁路 |  |  | 海运 | 
+R11: Avia |  |  |  | Avia | 铁路不能单独发1个小柜 |  |  | Avia |  |  |  | Avia |  |  |  | Avia |  |  |  |  |  |  |  | Avia |  |  |  | Avia |  | 
+R12:  | Price | Total |  |  | Price | Total |  |  | Price | Total |  |  | Price | Total |  |  | Price | Total |  |  | Price | Total |  |  | Price | Total |  |  | Price | Total
+R13: Freight $/20' /运费 |  |  |  | Freight $/20' /运费*2，美元 | 11200 | 11200 |  | Freight $/20' /运费，美金 | 5050 | 5050 |  | Freight $/20' /运费 | 4710 | 4710 |  | Freight $/20' /运费 | 76000RMB | 76000RMB | 2个柜子的价格 | Freight $/20' /运费 | 14500USD | 14500USD |  | Freight $/20' /运费人民币 | 69000 | 69000 |  | Freight $/20' /运费，美金 | 4800小柜/7100大柜 | 4800小柜/7100大柜
+R14: Handle fee/操作费 |  |  |  | Handle fee/操作费 |  |  |  | Handle fee/操作费，美金 | 500 | 500 |  | Local charges/本地费 | 450 | 450 |  | Handle fee/操作费 |  |  |  | Handle fee/操作费 |  |  |  | Handle fee/操作费 |  |  |  | Handle fee/操作费 | 3000 | 
+R15: Customs clearance fee/报关费 |  |  |  | Customs clearance fee/报关费 |  |  |  | Customs clearance fee/报关费 |  |  |  | Handle fee/操作费 |  |  |  | Customs clearance fee/报关费 |  |  |  | Customs clearance fee/报关费 |  |  |  | Customs clearance fee/报关费 |  |  |  | Customs clearance fee/报关费 |  | 
+R16: DOC/单据费 |  |  |  | DOC/单据费 |  |  |  | DOC/单据费 |  |  |  | Customs clearance fee/报关费 | 35 | 35 |  | DOC/单据费 |  |  |  | DOC/单据费 |  |  |  | DOC/单据费 |  |  |  | DOC/单据费 |  | 
+R17: Pick fee (optional)装卸费 |  |  |  | Pick fee (optional)装卸费 |  |  |  | Pick fee (optional)装卸费 |  |  |  | DOC/单据费 |  |  |  | Pick fee (optional)装卸费 |  |  |  | Pick fee (optional)装卸费 |  |  |  | Pick fee (optional)装卸费 |  |  |  | Pick fee (optional)装卸费 |  | 
+R18: trank fee (optional)CNY/拖车费 |  |  |  | trank fee (optional)CNY/拖车费 |  |  |  | trank fee (optional)CNY/拖车费 | 4200 | 4200 |  | Pick fee (optional)装卸费 |  |  |  | trank fee (optional)CNY/拖车费 |  |  |  | trank fee (optional)CNY/拖车费 |  |  |  | trank fee (optional)CNY/拖车费 | 4500 | 4500 |  | trank fee (optional)CNY/拖车费 | 4500？ | 4500
+R19: Total USD |  |  |  | Total USD |  | 11200 |  | Total USD | 5550 | 5550 |  | trank fee (optional)CNY/拖车费 | 700 | 700 |  | Total USD |  |  |  | Total USD |  |  |  | Total USD |  |  |  | Total USD |  | 
+R20: Total CNY |  |  |  | Total CNY |  | 77280 |  | Total CNY |  | 42495 |  | Total USD | 5895 | 5895 |  | Total CNY |  |  |  | Total CNY |  |  |  | Total CNY |  |  |  | Total CNY |  | 73500
+R21: ETD: |  |  |  | ETD: | 11月19日，后续班列未定 |  |  | ETD: | 2026/11/24前送货 |  |  | Total CNY |  | 39437.55 |  | ETD: |  |  |  | ETD: |  |  |  | ETD: | 11月/19/26，暂定，需排队 |  |  | ETD: | 2026/11/23送到货 | 
+R22: TT: | 30days |  |  | TT: | 35 days |  |  | TT: | 45days |  |  | ETD: | 11月 |  |  | TT: | 28-30DAYS |  |  | TT: | 22-24DAYS |  |  | TT: | 30days |  |  | TT: | 45days | 
+R23: Transit way/运输方式 |  | 2*20’，个人认为需要2个小柜 |  | Transit way/运输方式 | 济南至圣彼得堡（铁路运输） | 2*20’，个人认为需要2个小柜 |  | Transit way/运输方式 | 青岛海运至圣彼得堡（麦迪航运，直达） | 2*20’，个人认为需要2个小柜 |  | TT: | 40-45days |  |  | Transit way/运输方式 | 铁路（门到站） | 2*20gp |  | Transit way/运输方式 | 卡车到门 | 2车 |  | Transit way/运输方式 | 聊城--济南--满洲里--圣彼得堡/火车 | 2*20’，要2个小柜 |  | Transit way/运输方式 | 海运，聊城-青岛-太仓-俄罗斯 | SAFETRANS（中转船）,ocean
+R24: include/报价包含 |  |  |  | include/报价包含 | 门-站的费用，租箱 、海运、港杂，C&F价格，一票报关 |  |  | include/报价包含 | 租箱 、海运、港杂，C&F价格，一票报关，国内的全部费用 |  |  | Transit way/运输方式 | 海运，聊城-青岛-太仓-俄罗斯 | 1*20’， |  | include/报价包含 | 拖车，报关，租箱，运输费用 |  |  | include/报价包含 | 国内提货+口岸仓储装卸+一票报关+境外转关+境外运输 |  |  | include/报价包含 | 门-站的费用，所有费用 |  |  | include/报价包含 | 国内全含 | 
+R25: no include/报价不包含 |  |  |  | no include/报价不包含 | 查验，偏载，保险（客人务必自行购买保险） |  |  | no include/报价不包含 | 不含国外费用，查验，偏载，保险（客人务必自行购买保险） |  |  | include/报价包含 | 含中国所有费用 |  |  | no include/报价不包含 | 不含国外加固费用、货物保险、查验费、清关缴税、运输费等额外费用 |  |  | no include/报价不包含 | 不含加固费用、货物保险、查验费、清关缴税、等额外费用 |  |  | no include/报价不包含 | 不含俄罗斯国外的其他费用 |  |  | no include/报价不包含 | 国外费用不含，查验，关税，保险 | 
+R26:  |  |  |  |  |  |  |  |  |  |  |  | no include/报价不包含 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 
+
+=== Sheet: 油缸筒信息 (max_row=7, max_col=10) ===
+R02: NO. | Name and Description | Net weight of cargo | Gross weight of cargo | Package | Package size | Volume-CBM | PackingType |  | 
+R03:  |  |  |  | QTY |  |  |  |  | 
+R04: 1 | 液压油缸筒1 | 15776 | 16176 | 2 | 230x110x63 | 12.751 | wooden box/木箱 |  | 16个，每8个放1个包装
+R05: 2 | 液压油缸筒2 | 12320 | 12720 | 2 | 183x110x63 | 10.146 | wooden box/木箱 |  | 16个，每8个放1个包装
+R06: 3 | 活塞杆 | 8160 | 8560 | 4 | 283x72x55 | 8.965 | wooden box/木箱 | 4*4 | 16个，每4个放1个包装
+R07:  |  |  | 37456 | 8 |  | 31.862 |  |  | 
