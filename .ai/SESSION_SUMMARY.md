@@ -1,50 +1,49 @@
 # SESSION SUMMARY — Итоги сессии и handoff-контекст
 
-**Дата и время сжатия (DT):** 2026-11-10 16:32:00
+**Дата и время сжатия (DT):** 2026-11-10 16:52:30
 
 ---
 
 ## 🔍 Итог сессии в один абзац
-В ходе сессии была полностью решена проблема неработающего WireGuard и резервного VPN **Happ** на HP Victus и подготовлен бесшовный перенос среды на MateBook: вскрыта первопричина повторяющихся сбоев (`O+Connect Service` / `devicespace.exe`, который при каждом старте Windows создает адаптер `vgate0` с метрикой 5 и принудительно включает `IPv4 Forwarding: Enabled` на `Ethernet`), разработан единый автономный Pure-ASCII скрипт `scripts/fix_windows_routing_loops.bat` (продублирован на Рабочий стол как `Fix_WireGuard.bat`), протестирован чистый пир `10.10.0.12` на VPS с сохранением всех маршрутов 1С на Keenetic, наведен порядок на диске `C:\` (удалена фантомная папка `C:\Codex_Personal` и поправлены профили FreeFileSync), а также проведен онлайн-аудит **Happ (`Xray TUN`)**, подтвердивший штатную работу обхода блокировок через Финляндию и создавший офлайн-диагностику `scripts/diag_happ_tun.bat`.
+В ходе сессии проверен статус открытых задач снабжения КНР (`#5644` и `#5674` завершены; `#5672` и `#5688` в работе), последовательно обработаны 7 целевых лидов в Битрикс24 и 1С:УНФ (`#19036`, `#19042`, `#6454`, `#19040`, `#19034`, `#19030`, `#16184`) с предварительным `--dry-run` согласованием, созданием сделок в `PREPARATION`, двуязычных спецификаций Excel и задач снабжению КНР ([Азат Денишов](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/), [Miss Wang](https://b24-g4wfjq.bitrix24.ru/company/personal/user/30/)). По итогам аудита `--dry-run` выявлены и устранены дефекты парсинга (инцидент `INC-2026-11-10-03`), обновлены канонический конвейер `process_b24_inbound_leads.py` (снимок `v24` в архиве), регламент `LEAD_PROCESSING_POLICY.md` и скилл `session_management/SKILL.md`. Сессия завершена штатно; продолжение требуется только для контроля открытых задач снабжения КНР и планового техдолга по гигиене размеров `AGENTS.md` и `SCRIPTS_CATALOG.md`.
 
 ---
 
 ## 1. Выполненные задачи (Успехи)
-- **Окончательное устранение рецидивов WireGuard и Wintun (`O+Connect` + `Forwarding`):**
-  - Локализован источник возвращения `vgate0` и `Forwarding: Enabled` на обоих ПК — фоновая служба `O+Connect Service` (`C:\Program Files\O+Connect\daemon\devicespace.exe`, лог `2026-11-03_core-daemon.log`).
-  - Разработан автономный Pure-ASCII скрипт `scripts/fix_windows_routing_loops.bat` (копия на Рабочем столе: `Fix_WireGuard.bat`), который переводит `O+Connect Service` и `OplusRemoteService` в ручной режим (`Manual`), убирает скрытый автозапуск, отключает `vgate0` и сбрасывает `Forwarding: Disabled` на всех IPv4-интерфейсах.
-  - На VPS `109.248.170.181` поднят и проверен чистый пир `10.10.0.12/32` (`Vvne0a+SMxl3DTF+Vh1AyeSKz70eil7v8APluNXSeVA=`), очищен синтаксический артефакт в `/etc/wireguard/wg0.conf`; маршруты Keenetic и 1С не затронуты.
-- **Аудит и запуск резервного VPN Happ (`Xray TUN`):**
-  - После изоляции `O+Connect` адаптер `happ-xray` заработал штатно; проверена доступность заблокированных сервисов (`youtube.com`, `instagram.com`, `discord.com`, `x.com`, `chatgpt.com` — `HTTP/1.1 200 OK`) через Финляндию при сохранении прямого выхода для РФ и 1С через Keenetic (`providerRoutingDisabled: false` в `routing.json`).
-  - Создан инструмент офлайн-диагностики `scripts/diag_happ_tun.bat` (+ `diag_happ_tun.ps1`).
-- **Порядок на диске и эстафета Victus ⮂ MateBook:**
-  - Удалена пустая фантомная папка `C:\Codex_Personal`, исправлены конфиги FreeFileSync (`2_External_to_Victus.ffs_gui`, `2_External_to_MateBook.ffs_gui`), создан ярлык `1_Victus_to_External.lnk`, сверены хеши SSH-ключей в `E:\Mirror_E_Home\.ssh`.
-- **Фиксация опыта (`/learn`):**
-  - Обновлен глобальный навык `C:\Users\Артем\.gemini\config\skills\windows\SKILL.md` (раздел 10), добавлен раздел Anti-Recidivism Log в `codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md`, обновлен `codex_kb/SCRIPTS_CATALOG.md`, устаревшие черновики перенесены в `scripts/archive/`.
+- **Ревизия открытых задач КНР:** `#5644` (Flender) и `#5674` (Caterpillar) зафиксированы в статусе `5` (Завершена); `#5672` (Fronius, `user/44`, дедлайн `10.11.2026 18:00`) и `#5688` (HYDAC, `user/30`, дедлайн `11.11.2026 18:00`) остаются в статусе `2`.
+- **[Лид № 19036](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19036/) (НПЦАП / Козлова Ольга):** Контакт [#17264](https://b24-g4wfjq.bitrix24.ru/crm/contact/details/17264/) обновлен (`+7 (48235) 44 733`) и привязан к [Компании № 5198](https://b24-g4wfjq.bitrix24.ru/crm/company/details/5198/) (`НПЦАП АО`), лид переведен в `CONVERTED`; в 1С дубль не создавался (контакт `000000525` и Лид `000000819` уже были).
+- **[Лид № 19042](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19042/) (АЛРОСА, ИНН `1433000147`):** Обогащена [Компания № 6828](https://b24-g4wfjq.bitrix24.ru/crm/company/details/6828/), создана [Сделка № 2888](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2888/) (6 поз., 10 шт. Atlas Copco из `Спецификация.XLSX`), [Задача № 5734](https://b24-g4wfjq.bitrix24.ru/company/personal/user/30/tasks/task/view/5734/) на Miss Wang (`12.11.2026 18:00`), обновлен контрагент 1С (`b0cd6d6a-7208-11f1-81aa-02006df8aab5`).
+- **[Лид № 6454](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/6454/) (ООО «ПМЦ», ИНН `6452100876`):** С согласованным обходом `Reseller Guard` созданы [Компания № 12636](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12636/), Контакт `#17276`, [Сделка № 2890](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2890/) (Gemu 650, 5 шт.), [Задача № 5736](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/tasks/task/view/5736/) на Азата (`10.11.2026 18:00`), обновлен Лид 1С `000002098` (`ca66e69c-f2e8-11f0-95af-02006df8aab5`).
+- **[Лид № 19040](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19040/) (ООО «СЛАВЯНКА-СНАБ», ИНН `3128051340`):** Созданы [Компания № 12638](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12638/), Контакт `#17278`, [Сделка № 2892](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2892/) (GEMU `687 - 600 40M13 880228799`, 4 шт.), [Задача № 5738](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/tasks/task/view/5738/) на Азата (`10.11.2026 18:00`), Лид 1С (`54029624-dcf6-11f1-9047-02006df8aab5`).
+- **[Лид № 19034](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19034/) (ПАО «ИЭК ХОЛДИНГ», ИНН `5074092485`):** Созданы [Компания № 12640](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12640/), Контакт `#17280`, [Сделка № 2894](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2894/) (Omron `E6B2-CWZ6C 2500P/R`, 2 шт.), [Задача № 5740](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/tasks/task/view/5740/) на Азата (`10.11.2026 18:00`), Лид 1С (`7dd7daf4-dcf6-11f1-9047-02006df8aab5`).
+- **[Лид № 19030](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19030/) (ООО «КОАЛИЦИЯ», ИНН `7708382751`):** Созданы [Компания № 12642](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12642/), Контакт `#17282` с пометкой `Перепродажники`, Лид 1С `000002504` (`782dbcba-dcf9-11f1-9047-02006df8aab5`) с тегом `Перепродажники` и контактом `Амелин Олег Витальевич` (`7e777d54-dcf9-11f1-9047-02006df8aab5`).
+- **[Лид № 16184](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/16184/) (ООО «СИНЕРГИЯ», ИНН `3445119239`):** Созданы [Компания № 12644](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12644/), Контакт `#17284`, [Сделка № 2896](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2896/) (5 поз., 5 шт. Siemens строго оригинал), [Задача № 5742](https://b24-g4wfjq.bitrix24.ru/company/personal/user/30/tasks/task/view/5742/) на Miss Wang (`13.11.2026 18:00`), обновлен Лид 1С `000001712` (`45d27584-7da6-11f0-9136-02006df8aab5`).
 
 ---
 
 ## 2. Измененные и новые файлы
-- `scripts/fix_windows_routing_loops.bat` — канонический автономный Pure-ASCII скрипт сброса Forwarding и изоляции `O+Connect` (копия на Рабочем столе: `C:\Users\Артем\Desktop\Fix_WireGuard.bat`).
-- `scripts/diag_happ_tun.bat` / `scripts/diag_happ_tun.ps1` — офлайн-сборщик снимка сетевого стека для Happ TUN.
-- `scripts/archive/disable_vgate0.bat` / `scripts/archive/disable_forwarding.ps1` — перенесены в архив (зафиксировано в `scripts/archive/README.md`).
-- `codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md` — Anti-Recidivism Log и регламент Happ `Xray TUN`.
-- `codex_kb/SCRIPTS_CATALOG.md` — актуализация реестра скриптов Windows Diagnostics.
-- `C:\Users\Артем\.gemini\config\skills\windows\SKILL.md` — обновление раздела 10 (первопричина `O+Connect`, Happ `Xray TUN`, Pure ASCII инвариант).
-- `.ai/SESSION_SUMMARY.md` — итоговая сводка сессии.
+- `projects/1c_odata/scripts/process_b24_inbound_leads.py` — `is_valid_russian_inn`, чтение PDF-карт партнеров (`pymupdf`/`pypdf` с очисткой `\u200b`/`\xa0`), `strip_email_reply_quotes`, защита ведущих цифр артикулов (`1PH`, `6SL`), `extract_items_from_xlsx_bytes`, многострочное количество `шт \n 2`, флаг `--force-rfq`.
+- `projects/1c_odata/scripts/archive/2026-11-10_process_b24_inbound_leads_v24_before_inn_pdf_quote_xlsx_guards.py` и `projects/1c_odata/scripts/archive/README.md` — архивный снимок и запись.
+- `projects/1c_odata/LEAD_PROCESSING_POLICY.md` — добавлены п. 27–29 антирецидивного лога.
+- `codex_kb/00_control/INCIDENTS_LOG.md` — зарегистрирован инцидент `INC-2026-11-10-03`.
+- `C:\Users\Артем\.gemini\config\skills\session_management\SKILL.md` — унифицированы пороги `AGENTS.md`, добавлены `Substantive Dry-Run Gate` и `PowerShell Redirection Encoding Trap`.
 
 ---
 
-## 3. Критические уроки (Lessons Learned)
-- **Рецидив `O+Connect Service` (devicespace.exe):** При автозапуске служба `O+Connect` на каждом старте Windows создает Wintun-адаптер `vgate0` и вызывает `enable_ip_forwarding` на всех картах, что отправляет WireGuard в петлю и ломает Wintun-туннели. Решение: перевод служб в `Manual` и `Forwarding: Disabled` через `Fix_WireGuard.bat`.
-- **Wintun Kill-Switch Loop & Keenetic MTU:** Включение галочки Kill-Switch в WireGuard GUI дробит маску на `/1` (`0.0.0.0/1, 128.0.0.0/1`) и блокирует Ethernet WFP-файрволом; для работы поверх Keenetic (`ip mtu 1324`) требуется `AllowedIPs = 0.0.0.0/0`, снятая галочка Kill-Switch и `MTU = 1240` (учесть для `Matebook.conf`).
-- **OEM 866 Batch Encoding Trap:** В `.bat`-скриптах с UAC-элевацией запрещена кириллица и `chcp 65001` — код пишется строго в 7-bit ASCII.
-- **Дисциплина двух VPN:** Никогда не запускать одновременно WireGuard и Happ в режиме `Xray TUN`.
+## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
+- **INC-2026-11-10-03 (Ложный ИНН из артикула, срез цифр моделей и смещение колонок `.xlsx`):** В `#16184` артикул `JJY:023464020001` захватывался как ИНН (реальный ИНН `3445119239` был в PDF с невидимыми `\u200b`), ведущие цифры `1PH`/`6SL` срезались, а старая рассылка в цитате включала `equivalents_allowed=True`. В `#19042` пустой столбец `A` в `.xlsx` скрывал 6 позиций, а в `#19034` перенос `шт \n 2` терял количество. Все исправления бэкпортированы в канонический скрипт.
+- **PowerShell Redirection (`>`):** Перенаправление `>` в PowerShell пишет `UTF-16LE` и ломает кириллицу — отчеты должны сохраняться напрямую в UTF-8 средствами Python.
 
 ---
 
-## 4. Промпт для старта следующей сессии на MateBook
+## 4. Открытые вопросы и следующие шаги
+- **Контроль задач снабжения КНР:** Отследить расчеты по задачам `#5672` (`user/44`), `#5688` (`user/30`), `#5734` (`user/30`, срок `12.11`), `#5736` (`user/20`), `#5738` (`user/20`), `#5740` (`user/20`) и `#5742` (`user/30`, срок `13.11`).
+- **Техдолг гигиены контура:** В отдельной задаче сжать `AGENTS.md` (`23 239` > `23 000` байт) и расчистить `codex_kb/SCRIPTS_CATALOG.md` (`330 347` > `50 000` байт).
+
+---
+
+## 🚀 Промпт для быстрого старта нового чата (Скопируйте в новый чат)
 
 ```text
-Я перешел на MateBook: подтяни обновления командой git pull origin master и сверь статус с опорой на .ai/SESSION_SUMMARY.md и VICTUS_HARDWARE_POLICY.md. Перед проверкой WireGuard и Happ учти перенесенный с Рабочего стола автономный скрипт Fix_WireGuard.bat и проверь в профиле Matebook.conf наличие MTU = 1240 (без изменения настроек роутера Keenetic).
+Ознакомься со сводкой `.ai/SESSION_SUMMARY.md` и проверь статус открытых задач снабжения КНР в Битрикс24 (`#5672`, `#5688`, `#5734`, `#5736`, `#5738`, `#5740`, `#5742`) либо приступай к новым лидам по регламенту `projects/1c_odata/LEAD_PROCESSING_POLICY.md`. Соблюдай pre-flight дисциплину контура (`--dry-run` и сверку 5 содержательных инвариантов перед записью в CRM и 1С).
 ```

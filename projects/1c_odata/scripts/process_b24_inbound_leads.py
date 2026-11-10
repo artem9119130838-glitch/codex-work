@@ -1026,6 +1026,99 @@ def extract_phone_and_signature_details(text: str) -> dict:
         "sig_name": sig_name
     }
 
+def is_valid_russian_inn(inn_str: str) -> bool:
+    """Проверяет контрольную сумму 10- или 12-значного ИНН РФ."""
+    s = re.sub(r'\D', '', str(inn_str or ""))
+    if len(s) not in (10, 12) or s.startswith("0000") or len(set(s)) == 1:
+        return False
+    digits = [int(c) for c in s]
+    if len(digits) == 10:
+        w = [2, 4, 10, 3, 5, 9, 4, 6, 8]
+        return (sum(a * b for a, b in zip(digits[:9], w)) % 11) % 10 == digits[9]
+    w1 = [7, 2, 4, 10, 3, 5, 9, 4, 6, 8]
+    w2 = [3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]
+    c1 = (sum(a * b for a, b in zip(digits[:10], w1)) % 11) % 10
+    c2 = (sum(a * b for a, b in zip(digits[:11], w2)) % 11) % 10
+    return c1 == digits[10] and c2 == digits[11]
+
+
+def strip_email_reply_quotes(text: str) -> str:
+    """Отсекает цитаты предыдущей переписки (включая старые рассылки) до анализа позиций и флага аналогов."""
+    if not text:
+        return ""
+    quote_splitters = [
+        r'(?m)^-{4,}\s*\r?\n\s*(?:Кому|От кого|From|Sent|Дата|To|Subject)\s*:',
+        r'(?m)^-{5,}\s*Original Message\s*-{5,}',
+        r'(?m)^\d{2}\.\d{2}\.\d{4},?\s+\d{2}:\d{2},?\s+[^\n]{1,80}написал\(а\)\s*:',
+        r'(?m)^От кого:\s*[^\n]+\r?\nКому:\s*',
+        r'(?m)^From:\s*[^\n]+\r?\nSent:\s*',
+    ]
+    res = text
+    for pat in quote_splitters:
+        parts = re.split(pat, res, maxsplit=1, flags=re.IGNORECASE)
+        if len(parts) > 1 and parts[0].strip():
+            res = parts[0]
+    return res.strip()
+
+
+def extract_items_from_xlsx_bytes(content: bytes, default_brand: str = "OEM") -> list:
+    """Динамически извлекает позиции из вложенного .xlsx/.xls с учетом смещенных колонок."""
+    import io, openpyxl
+    items = []
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    ws = wb.active
+    header_idx = None
+    col_map = {}
+    for r_i, row in enumerate(ws.iter_rows(max_row=20, values_only=True), start=1):
+        vals = [str(c or "").strip().lower() for c in row]
+        if any("наименован" in v or "товар" in v or "продукц" in v for v in vals) and any("колич" in v or "кол-во" in v or "qty" in v for v in vals):
+            header_idx = r_i
+            for c_i, v in enumerate(vals):
+                if "наименован" in v or "товар" in v or "продукц" in v:
+                    col_map.setdefault("name", c_i)
+                elif "колич" in v or "кол-во" in v or "qty" in v:
+                    col_map.setdefault("qty", c_i)
+                elif "принадлеж" in v or "оборуд" in v:
+                    col_map.setdefault("belong", c_i)
+                elif "характер" in v or "артикул" in v or "модел" in v or "part" in v:
+                    col_map.setdefault("chars", c_i)
+                elif "бренд" in v or "производ" in v or "brand" in v:
+                    col_map.setdefault("brand", c_i)
+            break
+    if header_idx is None or "name" not in col_map:
+        return []
+    idx = 1
+    for row in ws.iter_rows(min_row=header_idx + 1, values_only=True):
+        if not row or col_map["name"] >= len(row):
+            continue
+        name_ru = str(row[col_map["name"]] or "").strip()
+        if not name_ru or len(name_ru) < 2:
+            continue
+        qty_raw = row[col_map["qty"]] if "qty" in col_map and col_map["qty"] < len(row) else 1
+        try:
+            qty = int(round(float(str(qty_raw).replace(",", "."))))
+            if qty <= 0:
+                qty = 1
+        except Exception:
+            qty = 1
+        belong = str(row[col_map["belong"]] or "").strip() if "belong" in col_map and col_map["belong"] < len(row) else ""
+        chars = str(row[col_map["chars"]] or "").strip() if "chars" in col_map and col_map["chars"] < len(row) else ""
+        brand_val = str(row[col_map["brand"]] or "").strip() if "brand" in col_map and col_map["brand"] < len(row) else ""
+        full_ru = f"{name_ru} ({belong})" if belong else name_ru
+        m_b = re.search(r'\b(Atlas\s+Copco|ABB|Siemens|Schneider|SMC|Festo|Omron|Danfoss|Gemu|Hydac|Caterpillar|Cummins|Wilo|Fronius)\b', f"{brand_val} {name_ru} {chars}", re.I)
+        brand = m_b.group(1) if m_b else (brand_val or default_brand)
+        items.append({
+            "num": idx,
+            "brand": brand,
+            "pname_cn": "",
+            "model": chars[:80] if chars else name_ru[:80],
+            "name_ru": full_ru,
+            "qty": qty
+        })
+        idx += 1
+    return items
+
+
 def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand: str = "") -> list:
     """
     Универсальный парсер позиций заявки из текста письма или комментариев BitrixGPT
@@ -1042,8 +1135,12 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
         "подогреватель": "加热器", "прокладка": "垫片", "свеча": "火花塞", "свечи": "火花塞",
         "кольцо": "密封圈", "уплотнение": "密封垫", "фильтр": "滤清器"
     }
-    clean_lines = [l.strip() for l in text.split('\n') if l.strip()]
+    text_no_quotes = strip_email_reply_quotes(text)
+    # Поддержка табличного переноса: <наименование> \n шт \n <число>
+    text_no_quotes = re.sub(r'([^\n]+)\r?\n\s*(?:шт|pcs|pc|ед)\.?\s*\r?\n\s*(\d+(?:[.,]\d+)?)\b', r'\1 - \2 шт.', text_no_quotes, flags=re.IGNORECASE)
+    clean_lines = [l.strip() for l in text_no_quotes.split('\n') if l.strip()]
     idx = 1
+    seen_items = set()
     for line in clean_lines:
         m_qty = re.search(r'[-–—:]?\s*(\d+(?:[.,]\d+)?)\s*(?:шт(?:ук[иа]?)?|pcs|pc|ед|units?|台|个)\b', line, re.IGNORECASE)
         if not m_qty:
@@ -1053,7 +1150,8 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
             qty = int(round(qty_val)) if qty_val > 0 else 1
         except Exception:
             qty = 1
-        raw_name = re.sub(r'^\s*[-*•\d]+[.)]?\s*', '', line)
+        # Не срезаем ведущие цифры артикулов без разделителя (например, 1PH8228, 6SL3246)
+        raw_name = re.sub(r'^\s*(?:[-*•]+|\d+[.)]+|\d+\s+[-–—]?\s*)', '', line)
         raw_name = raw_name[:m_qty.start()].strip(' -–—:;,')
         if len(raw_name) < 3:
             continue
@@ -1075,6 +1173,10 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
             model = re.sub(r'(?i)\b' + re.escape(k) + r'\b', '', model).strip(' -–—:;,')
         if not model:
             model = raw_name
+        dedup_key = (model.upper(), qty)
+        if dedup_key in seen_items:
+            continue
+        seen_items.add(dedup_key)
         pname_cn = f"{cn_cat} {model}".strip() if cn_cat else raw_name
         items.append({
             "num": idx, "brand": brand, "pname_cn": pname_cn,
@@ -1143,9 +1245,11 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     - Очищенный оригинальный текст запроса клиента
     - Список распарсенных позиций (items)
     """
-    # Изолируем блоки цитирования предыдущей переписки
+    # Изолируем блоки цитирования предыдущей переписки (HTML + plain-text, сохраняя разделенные <hr/> письма треда)
     email_desc_no_quotes = re.sub(r'<(?:blockquote|div class=["\']mail-quote[^"\']*["\'])[^>]*>.*?</(?:blockquote|div)>', ' ', email_desc or '', flags=re.DOTALL | re.IGNORECASE)
-    clean_lines_text = sanitize_html_email_text(email_desc_no_quotes or email_desc or "")
+    hr_segments = re.split(r'<hr\s*/?>', email_desc_no_quotes or email_desc or "", flags=re.IGNORECASE)
+    clean_segments = [strip_email_reply_quotes(sanitize_html_email_text(seg)) for seg in hr_segments if seg and seg.strip()]
+    clean_lines_text = "\n".join(s for s in clean_segments if s)
     clean_text = " ".join(clean_lines_text.split())
 
     # 1. Извлечение оригинального текста запроса клиента (до подписи)
@@ -1211,6 +1315,8 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
         quantity_str = f"{tot_qty} шт. ({len(items)} позиции / {len(items)}项)"
     else:
         qty_matches = re.findall(r'(\d+)\s*(?:шт(?:ук[иа]?)?|ед(?:иниц[ыа]?)?|unit|units|pcs|pc|компл(?:ект[а-я]*)?|set|sets|台|个|件)', combined)
+        if not qty_matches:
+            qty_matches = re.findall(r'(?:шт|pcs|ед)\.?\s+(\d+)\b', combined, re.IGNORECASE)
         if qty_matches:
             quantity_str = f"{qty_matches[0]} шт. ({qty_matches[0]} unit / {qty_matches[0]}台)"
         else:
@@ -1748,7 +1854,7 @@ def evaluate_reseller_and_ghost_signals(dadata_info: dict, saby_info: dict, cont
 # ----------------------------------------------------------------------
 # Единый универсальный обработчик любого лида (Universal Lead Pipeline)
 # ----------------------------------------------------------------------
-def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, deadline_tomorrow: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4, no_deal: bool = False) -> dict:
+def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, deadline_tomorrow: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4, no_deal: bool = False, force_rfq: bool = False) -> dict:
     lead = call_b24("crm.lead.get", {"id": lead_id})
     if not lead:
         print(f"[ERROR] Лид #{lead_id} не найден в Битрикс24")
@@ -1912,10 +2018,20 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                 else:
                     raw_company_title = ""
 
-    # Поиск ИНН в тексте, комментариях или теле письма
+    # Поиск ИНН в тексте, комментариях или теле письма (с проверкой контрольной суммы ИНН РФ)
     combined_text = f"{lead_title} {raw_company_title} {clean_comments_text} {email_subject} {clean_desc_text}"
-    inn_matches = re.findall(r'(?:\b|\D)(\d{10}|\d{12})(?:\b|\D)', combined_text)
-    inn = inn_matches[0] if inn_matches else None
+    inn = None
+    explicit_text_inns = re.findall(r'(?:инн|inn)[\s:№]{1,10}(\d{10}|\d{12})\b', combined_text, flags=re.IGNORECASE)
+    for cand_inn in explicit_text_inns:
+        if is_valid_russian_inn(cand_inn):
+            inn = cand_inn
+            break
+    if not inn:
+        inn_matches = re.findall(r'(?<![A-Za-z0-9:_-])(\d{10}|\d{12})(?![A-Za-z0-9_-])', combined_text)
+        for cand_inn in inn_matches:
+            if is_valid_russian_inn(cand_inn):
+                inn = cand_inn
+                break
 
     # Динамическое определение компании и ИНН через DaData (без хардкода названий и доменов)
     if "гидросистемы" in full_search_text.lower():
@@ -1943,6 +2059,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     lead_file_ids = []
     file_names = []
     is_huge_excel_bulk = False
+    attached_xlsx_items = []
     for a in acts:
         # Исключаем файлы из исходящих писем сотрудника LongWang
         if str(a.get("DIRECTION")) == "2":
@@ -1965,10 +2082,15 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                             if tot_rows > 30:
                                 is_huge_excel_bulk = True
                                 print(f"  [BULK-SPECIFICATION] Обнаружена объемная спецификация во вложении '{fname}' ({tot_rows} строк)")
+                            elif not attached_xlsx_items:
+                                parsed_xl = extract_items_from_xlsx_bytes(r_xl.content)
+                                if parsed_xl:
+                                    attached_xlsx_items = parsed_xl
+                                    print(f"  [XLSX-SPECIFICATION] Извлечено позиций из вложения '{fname}': {len(parsed_xl)}")
                     except Exception:
                         pass
 
-    # Извлечение ИНН из вложенных карточек предприятий (Requisition Attachment INN Guard)
+    # Извлечение ИНН из вложенных карточек предприятий (Requisition Attachment INN Guard + PDF)
     if not inn and lead_file_ids:
         for fid, fname in lead_file_ids:
             fn_low = fname.lower()
@@ -1979,22 +2101,43 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                         r_f = requests.get(df["DOWNLOAD_URL"], timeout=12)
                         if r_f.status_code == 200:
                             content_bytes = r_f.content
+                            text_candidates = []
+                            if fn_low.endswith(".pdf"):
+                                import io
+                                try:
+                                    import pymupdf
+                                    doc = pymupdf.open(stream=content_bytes, filetype="pdf")
+                                    text_candidates.append("\n".join(page.get_text() for page in doc))
+                                except Exception:
+                                    try:
+                                        from pypdf import PdfReader
+                                        reader = PdfReader(io.BytesIO(content_bytes))
+                                        text_candidates.append("\n".join(pg.extract_text() or "" for pg in reader.pages))
+                                    except Exception:
+                                        pass
                             for enc in ['utf-16le', 'cp1251', 'utf-8']:
-                                dec = content_bytes.decode(enc, errors='ignore')
-                                explicit_inns = re.findall(r'(?:инн|инн/кпп)[\s:]{1,10}(\d{10}|\d{12})', dec, flags=re.IGNORECASE)
-                                if explicit_inns:
-                                    inn = explicit_inns[0]
-                                    print(f"  [INN-ATTACHMENT] Извлечен точный ИНН {inn} из реквизитов файла '{fname}'")
+                                text_candidates.append(content_bytes.decode(enc, errors='ignore'))
+                            for dec in text_candidates:
+                                if not dec:
+                                    continue
+                                dec = re.sub(r'[\u200b-\u200d\ufeff\xa0]+', ' ', dec)
+                                explicit_inns = re.findall(r'(?:инн|инн/кпп)[\s:]{1,15}(\d{10}|\d{12})', dec, flags=re.IGNORECASE)
+                                for cand in explicit_inns:
+                                    if is_valid_russian_inn(cand):
+                                        inn = cand
+                                        print(f"  [INN-ATTACHMENT] Извлечен точный ИНН {inn} из реквизитов файла '{fname}'")
+                                        break
+                                if inn:
                                     break
                                 found_inns = re.findall(r'(?:\b|\D)(\d{10})(?:\b|\D)', dec)
                                 for fi in found_inns:
-                                    if len(fi) == 10 and not fi.startswith('0000'):
+                                    if is_valid_russian_inn(fi):
                                         inn = fi
                                         print(f"  [INN-ATTACHMENT] Извлечен ИНН {inn} из файла '{fname}'")
                                         break
                                 if inn:
                                     break
-                except Exception as e:
+                except Exception:
                     pass
             if inn:
                 break
@@ -2187,7 +2330,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     # Принудительные пользовательские исключения (User Override Guard)
     USER_APPROVED_RFQ_LEADS = {17838, 18188, 18108, 8534}
-    if force or int(lead_id) in USER_APPROVED_RFQ_LEADS:
+    if force or force_rfq or int(lead_id) in USER_APPROVED_RFQ_LEADS:
         is_rfq = True
         rfq_reason = "Принудительный допуск в Clear RFQ по прямому указанию пользователя (создание Сделки и Задачи снабжению)"
 
@@ -2319,6 +2462,11 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     # Извлечение параметров ТЗ и позиций
     rfq_details = extract_rfq_procurement_details(lead_title, email_subject, email_desc, lead_comments=lead_comments)
     rfq_items = rfq_details.get("items", [])
+    if not has_known_spec and attached_xlsx_items and len(attached_xlsx_items) >= len(rfq_items):
+        for it in attached_xlsx_items:
+            if not it.get("pname_cn"):
+                it["pname_cn"] = translate_nomenclature_to_chinese(it.get("name_ru", ""), "", f"{it.get('brand', '')} {it.get('model', '')} {it.get('name_ru', '')}")
+        rfq_items = attached_xlsx_items
 
     is_multi_item_rfq = has_known_spec or (len(rfq_items) >= 2) or (gpt_items_count >= 2) or (len(re.findall(r'(?:^|\n)\s*[-*•\d]+[.)]?\s*[A-Za-zА-Яа-я]', email_desc)) >= 2) or (len(re.findall(r'\b\d+\s*(?:шт|pcs|компл)\b', email_desc, re.I)) >= 2)
 
@@ -2398,7 +2546,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             if b_val and b_val.upper() not in seen_b and b_val.upper() != 'OEM':
                 seen_b.add(b_val.upper())
                 unique_brands.append(b_val.title() if b_val.isupper() and len(b_val) > 4 else b_val)
-        brand_model_part = " / ".join(unique_brands) if unique_brands else ((detected_brand.title() if len(detected_brand) > 4 else detected_brand) or brand_extracted or "OEM")
+        brand_model_part = " / ".join(unique_brands) if unique_brands else ((brand_extracted.title() if len(brand_extracted) > 4 else brand_extracted) or "OEM")
         tot_qty = sum(it.get('qty', 1) for it in rfq_items) if rfq_items else 1
         pos_cnt = len(rfq_items) if rfq_items else 1
         cn_part = f"{brand_model_part}发动机配件及耗材 ({pos_cnt}项)" if "cummins" in brand_model_part.lower() else f"{brand_model_part}配件清单 ({pos_cnt}项)"
@@ -3038,6 +3186,7 @@ def main():
     parser.add_argument("--limit", type=int, default=10, help="Ограничение количества обрабатываемых лидов")
     parser.add_argument("--no-reply", action="store_true", default=False, help="Отключить отправку автоответа Шаблон № 66")
     parser.add_argument("--force", action="store_true", default=False, help="Принудительная обработка даже если лид в статусе CONVERTED")
+    parser.add_argument("--force-rfq", dest="force_rfq", action="store_true", default=False, help="Принудительный допуск в Ветку А (обход Reseller Guard по указанию пользователя)")
     parser.add_argument("--responsible", type=str, default="azat", help="Ответственный за задачу снабжения: azat (20) или wang (30)")
     parser.add_argument("--deadline-days", type=int, default=4, help="Количество рабочих дней на дедлайн задачи снабжения (по умолчанию 4)")
     parser.add_argument("--csv", "--csv-file", dest="csv_file", type=str, help="Путь к выгруженному CSV-файлу со списком лидов")
@@ -3102,7 +3251,8 @@ def main():
             force=args.force,
             responsible_id=resp_id,
             deadline_days=args.deadline_days,
-            no_deal=args.no_deal
+            no_deal=args.no_deal,
+            force_rfq=args.force_rfq
         )
         results.append(res)
 
