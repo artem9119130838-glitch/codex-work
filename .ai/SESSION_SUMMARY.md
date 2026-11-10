@@ -1,50 +1,50 @@
 # SESSION SUMMARY — Итоги сессии и handoff-контекст
 
-**Дата и время сжатия (DT):** 2026-11-10 13:14:00
+**Дата и время сжатия (DT):** 2026-11-10 16:32:00
 
 ---
 
 ## 🔍 Итог сессии в один абзац
-В ходе сессии проведены проверка учетных данных Saby (СБИС) в `.env` и последовательная обработка 4 входящих лидов в Битрикс24 и 1С:УНФ (`#18978`, `#19012`, `#8170`, `#19006`) с созданием компаний, контактов, сделок в стадии `PREPARATION`, двуязычных Excel-спецификаций и задач снабжению КНР ([Азат Денишов](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/), [Miss Wang](https://b24-g4wfjq.bitrix24.ru/company/personal/user/30/)). Также расследован и устранен инцидент `INC-2026-11-10-02` по Сделке № 2852 (потеря первого письма цепочки и галлюцинация моделью Gemini артикула `0063R010BN` вместо 20 гидроаккумуляторов `HYDAC SB330-2,5A1/112U-330A`), обновлены данные в CRM/1С и исправлен конвейер `process_b24_inbound_leads.py` с фиксацией в логах. Сессия завершена штатно; продолжение не требуется, за исключением контроля исполнения открытых задач снабжения КНР.
+В ходе сессии была полностью решена проблема неработающего WireGuard и резервного VPN **Happ** на HP Victus и подготовлен бесшовный перенос среды на MateBook: вскрыта первопричина повторяющихся сбоев (`O+Connect Service` / `devicespace.exe`, который при каждом старте Windows создает адаптер `vgate0` с метрикой 5 и принудительно включает `IPv4 Forwarding: Enabled` на `Ethernet`), разработан единый автономный Pure-ASCII скрипт `scripts/fix_windows_routing_loops.bat` (продублирован на Рабочий стол как `Fix_WireGuard.bat`), протестирован чистый пир `10.10.0.12` на VPS с сохранением всех маршрутов 1С на Keenetic, наведен порядок на диске `C:\` (удалена фантомная папка `C:\Codex_Personal` и поправлены профили FreeFileSync), а также проведен онлайн-аудит **Happ (`Xray TUN`)**, подтвердивший штатную работу обхода блокировок через Финляндию и создавший офлайн-диагностику `scripts/diag_happ_tun.bat`.
 
 ---
 
 ## 1. Выполненные задачи (Успехи)
-- **Учетные данные Saby (СБИС):** Проверены и выданы `SABY_LOGIN` и `SABY_USER_PASSWORD` из `projects/1c_odata/.env`.
-- **[Лид № 18978](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/18978/) (ООО «СНАБЖЕНИЕ РЕГИОНОВ», ИНН `7727196380`):** Проведен аудит дублей (отграничен от созвучной компании № 12066 «КОМПАНИЯ СНАБ-РЕГИОН», ИНН `9715425199`), создан Лид в 1С (`GUID 50c4419a-d9ce-11f1-9047-02006df8aab5`), [Компания № 12626](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12626/), [Сделка № 2836](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2836/) (Flender H3SH19, 18 поз.), двуязычный Excel (Диск группы 14, ID `123882`) и [Задача № 5644](https://b24-g4wfjq.bitrix24.ru/company/personal/user/1/tasks/task/view/5644/) на Азата.
-- **[Лид № 19012](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19012/) (ООО «ЭСК ВОРОНЕЖ», ИНН `3665803973`):** Создан Лид в 1С (`GUID 96e8dfb6-dc1f-11f1-9047-02006df8aab5`), [Компания № 12628](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12628/), [Сделка № 2842](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2842/) (пром. ПК Fronius + 6 фото/шильдиков), [Задача № 5672](https://b24-g4wfjq.bitrix24.ru/company/personal/user/1/tasks/task/view/5672/) на Азата.
-- **[Лид № 8170](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/8170/) (ИП Нагорнова Е.В., ИНН `366317083959`):** Обогащен найденный Лид 1С (`000001319`, `GUID b01d6224-e1f6-11ef-8db0-02006df8aab5`), созданы [Компания № 12630](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12630/), [Сделка № 2844](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2844/) (Caterpillar 3136974, 1 шт.), [Задача № 5674](https://b24-g4wfjq.bitrix24.ru/company/personal/user/1/tasks/task/view/5674/) на Азата.
-- **[Лид № 19006](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19006/) ➔ [Сделка № 2852](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2852/) (ООО «ОМСНАБ», ИНН `5507170538`):** Созданы [Компания № 12632](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12632/), Лид 1С (`GUID d2e1163e-dc45-11f1-9047-02006df8aab5`), [Задача № 5688](https://b24-g4wfjq.bitrix24.ru/company/personal/user/1/tasks/task/view/5688/). После выявления ошибки распознавания перепривязаны письма `#52468` и `#52474` к Сделке № 2852, исправлены заголовок Сделки/Задачи и Лид 1С, перегенерирован Excel (`HYDAC 蓄能器 SB330-2,5A1/112U-330A`, 20 шт., аналоги допустимы, Диск ID `124534`), Задача № 5688 возобновлена (дедлайн `11.11.2026 18:00`) с уведомлением в `chat9022`.
+- **Окончательное устранение рецидивов WireGuard и Wintun (`O+Connect` + `Forwarding`):**
+  - Локализован источник возвращения `vgate0` и `Forwarding: Enabled` на обоих ПК — фоновая служба `O+Connect Service` (`C:\Program Files\O+Connect\daemon\devicespace.exe`, лог `2026-11-03_core-daemon.log`).
+  - Разработан автономный Pure-ASCII скрипт `scripts/fix_windows_routing_loops.bat` (копия на Рабочем столе: `Fix_WireGuard.bat`), который переводит `O+Connect Service` и `OplusRemoteService` в ручной режим (`Manual`), убирает скрытый автозапуск, отключает `vgate0` и сбрасывает `Forwarding: Disabled` на всех IPv4-интерфейсах.
+  - На VPS `109.248.170.181` поднят и проверен чистый пир `10.10.0.12/32` (`Vvne0a+SMxl3DTF+Vh1AyeSKz70eil7v8APluNXSeVA=`), очищен синтаксический артефакт в `/etc/wireguard/wg0.conf`; маршруты Keenetic и 1С не затронуты.
+- **Аудит и запуск резервного VPN Happ (`Xray TUN`):**
+  - После изоляции `O+Connect` адаптер `happ-xray` заработал штатно; проверена доступность заблокированных сервисов (`youtube.com`, `instagram.com`, `discord.com`, `x.com`, `chatgpt.com` — `HTTP/1.1 200 OK`) через Финляндию при сохранении прямого выхода для РФ и 1С через Keenetic (`providerRoutingDisabled: false` в `routing.json`).
+  - Создан инструмент офлайн-диагностики `scripts/diag_happ_tun.bat` (+ `diag_happ_tun.ps1`).
+- **Порядок на диске и эстафета Victus ⮂ MateBook:**
+  - Удалена пустая фантомная папка `C:\Codex_Personal`, исправлены конфиги FreeFileSync (`2_External_to_Victus.ffs_gui`, `2_External_to_MateBook.ffs_gui`), создан ярлык `1_Victus_to_External.lnk`, сверены хеши SSH-ключей в `E:\Mirror_E_Home\.ssh`.
+- **Фиксация опыта (`/learn`):**
+  - Обновлен глобальный навык `C:\Users\Артем\.gemini\config\skills\windows\SKILL.md` (раздел 10), добавлен раздел Anti-Recidivism Log в `codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md`, обновлен `codex_kb/SCRIPTS_CATALOG.md`, устаревшие черновики перенесены в `scripts/archive/`.
 
 ---
 
 ## 2. Измененные и новые файлы
-- `projects/1c_odata/scripts/process_b24_inbound_leads.py` — привязка всех писем лида к сделке (`bind_lead_activities_triple`), хронологическая агрегация входящих писем и `lead_comments`, `Anti-Hallucination Guard` в `translate_nomenclature_to_chinese`, целочисленный `qty` в однопозиционном Excel.
-- `projects/1c_odata/scripts/archive/2026-11-10_process_b24_inbound_leads_v19_before_multi_email_bind_and_hallucination_guard.py` и `projects/1c_odata/scripts/archive/README.md` — архивный снимок и запись.
-- `codex_kb/00_control/INCIDENTS_LOG.md` — зарегистрирован инцидент `INC-2026-11-10-02`.
-- `projects/1c_odata/LEAD_PROCESSING_POLICY.md` — добавлен п. 26 в реестр повторяющихся ошибок.
-- `scripts/session_compress.py`, `scripts/archive/2026-11-10_session_compress_v1_1_before_help_guard.py`, `scripts/archive/README.md` — добавлена обработка `-h`/`--help` без перезаписи сводки и коммита.
+- `scripts/fix_windows_routing_loops.bat` — канонический автономный Pure-ASCII скрипт сброса Forwarding и изоляции `O+Connect` (копия на Рабочем столе: `C:\Users\Артем\Desktop\Fix_WireGuard.bat`).
+- `scripts/diag_happ_tun.bat` / `scripts/diag_happ_tun.ps1` — офлайн-сборщик снимка сетевого стека для Happ TUN.
+- `scripts/archive/disable_vgate0.bat` / `scripts/archive/disable_forwarding.ps1` — перенесены в архив (зафиксировано в `scripts/archive/README.md`).
+- `codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md` — Anti-Recidivism Log и регламент Happ `Xray TUN`.
+- `codex_kb/SCRIPTS_CATALOG.md` — актуализация реестра скриптов Windows Diagnostics.
+- `C:\Users\Артем\.gemini\config\skills\windows\SKILL.md` — обновление раздела 10 (первопричина `O+Connect`, Happ `Xray TUN`, Pure ASCII инвариант).
+- `.ai/SESSION_SUMMARY.md` — итоговая сводка сессии.
 
 ---
 
-## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
-- **INC-2026-11-10-02 (Потеря первого письма цепочки и галлюцинация артикула LLM):**
-  - *Причина 1:* Сортировка `ID DESC` брала только последний короткий ответ («Реквизиты во вложении»), а `target_email_id` отсекал от Сделки первое письмо с ТЗ и ответ менеджера.
-  - *Причина 2:* В `translate_nomenclature_to_chinese` не передавались ранние письма и сводка BitrixGPT (`lead_comments`), а обрезка HTML до 500 симв. оставляла VML-стили Outlook, из-за чего Gemini додумывала типовой артикул (`0063R010BN`).
-  - *Защита:* Все письма лида привязываются к Сделке; тексты входящих писем агрегируются хронологически + очищаются через `sanitize_html_email_text`; `Anti-Hallucination Guard` удаляет отсутствующие в заявке артикулы.
-- **CLI-ловушка `session_compress.py --help`:** Скрипт без обработки `--help` воспринимал флаг справки как текст сводки и выполнял коммит/пуш. Исправлено добавлением явной проверки `-h`/`--help`.
+## 3. Критические уроки (Lessons Learned)
+- **Рецидив `O+Connect Service` (devicespace.exe):** При автозапуске служба `O+Connect` на каждом старте Windows создает Wintun-адаптер `vgate0` и вызывает `enable_ip_forwarding` на всех картах, что отправляет WireGuard в петлю и ломает Wintun-туннели. Решение: перевод служб в `Manual` и `Forwarding: Disabled` через `Fix_WireGuard.bat`.
+- **Wintun Kill-Switch Loop & Keenetic MTU:** Включение галочки Kill-Switch в WireGuard GUI дробит маску на `/1` (`0.0.0.0/1, 128.0.0.0/1`) и блокирует Ethernet WFP-файрволом; для работы поверх Keenetic (`ip mtu 1324`) требуется `AllowedIPs = 0.0.0.0/0`, снятая галочка Kill-Switch и `MTU = 1240` (учесть для `Matebook.conf`).
+- **OEM 866 Batch Encoding Trap:** В `.bat`-скриптах с UAC-элевацией запрещена кириллица и `chcp 65001` — код пишется строго в 7-bit ASCII.
+- **Дисциплина двух VPN:** Никогда не запускать одновременно WireGuard и Happ в режиме `Xray TUN`.
 
 ---
 
-## 4. Открытые вопросы и следующие шаги
-- **Контроль расчетов снабжения КНР:** Отследить ответы по задачам № 5644 (Flender), № 5672 (Fronius), № 5674 (Caterpillar) и № 5688 (HYDAC SB330-2,5A1/112U-330A).
-- **SMTP для `sales@longwang.ru`:** В конвейере фиксируется `[WARN] Пароль SMTP sales@longwang.ru не задан` — при необходимости автоответов по Шаблону № 66 настроить пароль в `.env`.
-- **Техдолг гигиены контура (Hygiene Linter):** В отдельной задаче сократить размер `AGENTS.md` (`23 239` > `23 000` байт) и `codex_kb/SCRIPTS_CATALOG.md` (`330 347` > `50 000` байт).
-
----
-
-## 🚀 Промпт для быстрого старта нового чата (Скопируйте в новый чат)
+## 4. Промпт для старта следующей сессии на MateBook
 
 ```text
-Ознакомься со сводкой `.ai/SESSION_SUMMARY.md` и проверь статус открытых задач снабжения КНР в Битрикс24 (№ 5644, № 5672, № 5674, № 5688) либо приступай к новым лидам по регламенту `projects/1c_odata/LEAD_PROCESSING_POLICY.md`. Соблюдай pre-flight дисциплину контура (`--dry-run` перед любой записью в CRM и 1С).
+Я перешел на MateBook: подтяни обновления командой git pull origin master и сверь статус с опорой на .ai/SESSION_SUMMARY.md и VICTUS_HARDWARE_POLICY.md. Перед проверкой WireGuard и Happ учти перенесенный с Рабочего стола автономный скрипт Fix_WireGuard.bat и проверь в профиле Matebook.conf наличие MTU = 1240 (без изменения настроек роутера Keenetic).
 ```
