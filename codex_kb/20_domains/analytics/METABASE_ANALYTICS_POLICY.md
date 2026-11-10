@@ -20,7 +20,7 @@
 | **5. Бэкапы и пароли H2** | metabase.db.mv.db, сброс паролей через jar CLI |
 | **6. Боевые скрипты & Dry-Run** | manage_metabase_dashboards.py, sync_analytics_dwh.py |
 | **7. Учет токенов LLM** | llm_usage_logs, Дашборд 8, Integer Field ID Invariant |
-| **8. Ночной cron DWH** | Реконсилиация за 3 дня (03:00 ночи на VPS) |
+| **8. Регламент cron DWH** | Инкремент каждые 6ч, полная 04/12/18 МСК, `flock+timeout` |
 | **9. Планерки директоров** | Dashboard 10, карточки 81–86, Group 14 Supply Attribution Invariant |
 
 ---
@@ -152,13 +152,15 @@
 
 ---
 
-## 8. Регламент ночной реконсилиации DWH (Nightly Reconciliation Cron)
+## 8. Регламент синхронизации DWH (`sync_analytics_dwh.py` Cron & Pagination Guard)
 
-1. **Назначение:** Довыгрузка сделок за последние 3 дня на случай сбоев или таймаутов входящих вебхуков n8n.
+1. **Актуальное расписание на VPS (`UTC`, МСК − 3 ч) с общим lock-файлом `/tmp/sync_dwh.lock`:** Инкрементальная довыгрузка `--days 3` выполняется каждые 6 часов (`03:00`, `09:00`, `15:00`, `21:00` МСК), полная выгрузка — в `04:00`, `12:00` и `18:00` МСК (`0 1,9,15 * * *` UTC).
+2. **Pagination Safety Guard:** Все циклы пагинации при выгрузке из Битрикс24 (`fetch_all_items`, `fetch_group14_supply_tasks`) обязаны ограничивать число страниц (`max_pages=500`) и отслеживать `seen_ids`, немедленно прерывая цикл при повторе курсора `start`.
 2. **Расписание на сервере VPS:**
    ```bash
-   # Выполняется ежедневно в 03:00 ночи
-   0 3 * * * /usr/bin/python3 /Storage/scripts/sync_analytics_dwh.py --days 3 >> /var/log/sync_analytics_dwh.log 2>&1
+   # Инкрементально каждые 6 часов и полная выгрузка в 04:00 / 12:00 / 18:00 МСК
+   0 */6 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 300 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py --days 3 >> /var/log/b24_analytics_sync.log 2>&1
+   0 1,9,15 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 900 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py >> /var/log/b24_analytics_sync.log 2>&1
    ```
 ---
 

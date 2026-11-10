@@ -15,6 +15,7 @@
 7. [Проверка восстановления после сбоев](#7-проверка-восстановления-после-сбоев-post-failure-verification)
 8. [Unix LF & Tar Live-Log Invariant](#8-unix-lf--tar-live-log-invariant)
 9. [Аварийное восстановление VPS за 20–30 минут (DRP)](#9-аварийное-восстановление-vps-за-2030-минут-drp)
+10. [Защита Cron (`flock` + `timeout`) и часовой пояс VPS](#10-защита-cron-flock--timeout-и-часовой-пояс-vps-cron-hardening-invariant)
 
 ---
 
@@ -85,3 +86,11 @@
 - Полный аварийный снимок сервера снимается каждое воскресенье в 02:00 через `/Storage/run_server_backup.sh` и выгружается на локальный диск `D:\server-backups` через `scripts/download_vps_backup.ps1`.
 - Подробный пошаговый регламент разворота (восстановление сети и VPN за 5 мин, параллельный импорт баз 1С в 4 потока за 12 мин, запуск Docker и AI-проектов за 5 мин) зафиксирован в:  
   👉 [VPS_DISASTER_RECOVERY_RUNBOOK.md](file:///C:/Codex/codex_kb/30_runbooks/VPS_DISASTER_RECOVERY_RUNBOOK.md).
+
+---
+
+## 10. Защита Cron (`flock` + `timeout`) и часовой пояс VPS (Cron Hardening Invariant)
+- **Обязательная двойная обёртка Cron:** Каждая периодическая сетевая/API/LLM-задача в `crontab` обязана запускаться строго через `/usr/bin/flock -n <lockfile>` (запрет параллельных дублей) и `/usr/bin/timeout -k 15 <sec>` (принудительное снятие при зависании).
+- **Исключение для бэкапов:** Ночные бэкапы (`/Storage/run_server_backup.sh`, `/Storage/backup-sql.sh`) защищаются через `flock -n`, но без короткого `timeout`, чтобы не оборвать архивацию БД.
+- **Контейнерное правило (`docker exec`):** Для задач, запускаемых через `docker exec` (например, `onec_sync_daemon`), `timeout -k 15 <sec>` обязан ставиться **внутри контейнера** (`docker exec ... timeout -k 15 600 python3 ...`), иначе по таймауту умрёт только CLI-обёртка на хосте, а Python-процесс продолжит висеть внутри контейнера.
+- **Часовой пояс сервера:** VPS работает в **UTC (`+0000`, МСК − 3 часа)**. При настройке расписания cron по Москве обязательно сверять `date +%z` и переводить время в UTC.

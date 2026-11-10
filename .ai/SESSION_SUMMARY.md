@@ -1,49 +1,54 @@
 # SESSION SUMMARY — Итоги сессии и handoff-контекст
 
-**Дата и время сжатия (DT):** 2026-11-10 16:52:30
+**Дата и время сжатия (DT):** 2026-11-10 21:47:30
 
 ---
 
 ## 🔍 Итог сессии в один абзац
-В ходе сессии проверен статус открытых задач снабжения КНР (`#5644` и `#5674` завершены; `#5672` и `#5688` в работе), последовательно обработаны 7 целевых лидов в Битрикс24 и 1С:УНФ (`#19036`, `#19042`, `#6454`, `#19040`, `#19034`, `#19030`, `#16184`) с предварительным `--dry-run` согласованием, созданием сделок в `PREPARATION`, двуязычных спецификаций Excel и задач снабжению КНР ([Азат Денишов](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/), [Miss Wang](https://b24-g4wfjq.bitrix24.ru/company/personal/user/30/)). По итогам аудита `--dry-run` выявлены и устранены дефекты парсинга (инцидент `INC-2026-11-10-03`), обновлены канонический конвейер `process_b24_inbound_leads.py` (снимок `v24` в архиве), регламент `LEAD_PROCESSING_POLICY.md` и скилл `session_management/SKILL.md`. Сессия завершена штатно; продолжение требуется только для контроля открытых задач снабжения КНР и планового техдолга по гигиене размеров `AGENTS.md` и `SCRIPTS_CATALOG.md`.
+В ходе сессии настроена актуальная конфигурация резервного копирования HP Victus на внешний диск (`E:\Mirror_E_Home\1_Victus_to_External.ffs_gui`, 26 пар папок в режиме `Update`, с добавлением `Desktop`, `Documents`, `Downloads`), проверены активные VPN-каналы VPS (`WireGuard 51820`, `OpenVPN 1194`, `VLESS 2053`; L2TP/PPTP не активны) и отобраны гигабитные модели роутеров в DNS (`Cudy WR1300 / WR1300S` с WireGuard и `VPN Policy` из коробки, либо `Cudy WR3000` для 200–350 Мбит/с в VPN). Также диагностирован и устранён своп-коллапс VPS (`109.248.170.181`), вызывавший тормоза 1С: снят зависший на 6 ч процесс `sync_analytics_dwh.py --days 3` (`PID 1379105`, 8.0 ГБ RAM+Swap, освобождено >4.3 ГБ RAM), все 11 задач `crontab` защищены через `flock -n` + `timeout`, расписание DWH оптимизировано (`0 */6 * * *` инкремент, `04:00 / 12:00 / 18:00 MSK` полная), скрипт `sync_analytics_dwh.py` обновлён до `v2.3` с защитой пагинации (`seen_ids` + `max_pages=500`) и выкачен на VPS, а новые правила закреплены в регламентах и `linux/SKILL.md`.
 
 ---
 
 ## 1. Выполненные задачи (Успехи)
-- **Ревизия открытых задач КНР:** `#5644` (Flender) и `#5674` (Caterpillar) зафиксированы в статусе `5` (Завершена); `#5672` (Fronius, `user/44`, дедлайн `10.11.2026 18:00`) и `#5688` (HYDAC, `user/30`, дедлайн `11.11.2026 18:00`) остаются в статусе `2`.
-- **[Лид № 19036](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19036/) (НПЦАП / Козлова Ольга):** Контакт [#17264](https://b24-g4wfjq.bitrix24.ru/crm/contact/details/17264/) обновлен (`+7 (48235) 44 733`) и привязан к [Компании № 5198](https://b24-g4wfjq.bitrix24.ru/crm/company/details/5198/) (`НПЦАП АО`), лид переведен в `CONVERTED`; в 1С дубль не создавался (контакт `000000525` и Лид `000000819` уже были).
-- **[Лид № 19042](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19042/) (АЛРОСА, ИНН `1433000147`):** Обогащена [Компания № 6828](https://b24-g4wfjq.bitrix24.ru/crm/company/details/6828/), создана [Сделка № 2888](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2888/) (6 поз., 10 шт. Atlas Copco из `Спецификация.XLSX`), [Задача № 5734](https://b24-g4wfjq.bitrix24.ru/company/personal/user/30/tasks/task/view/5734/) на Miss Wang (`12.11.2026 18:00`), обновлен контрагент 1С (`b0cd6d6a-7208-11f1-81aa-02006df8aab5`).
-- **[Лид № 6454](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/6454/) (ООО «ПМЦ», ИНН `6452100876`):** С согласованным обходом `Reseller Guard` созданы [Компания № 12636](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12636/), Контакт `#17276`, [Сделка № 2890](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2890/) (Gemu 650, 5 шт.), [Задача № 5736](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/tasks/task/view/5736/) на Азата (`10.11.2026 18:00`), обновлен Лид 1С `000002098` (`ca66e69c-f2e8-11f0-95af-02006df8aab5`).
-- **[Лид № 19040](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19040/) (ООО «СЛАВЯНКА-СНАБ», ИНН `3128051340`):** Созданы [Компания № 12638](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12638/), Контакт `#17278`, [Сделка № 2892](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2892/) (GEMU `687 - 600 40M13 880228799`, 4 шт.), [Задача № 5738](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/tasks/task/view/5738/) на Азата (`10.11.2026 18:00`), Лид 1С (`54029624-dcf6-11f1-9047-02006df8aab5`).
-- **[Лид № 19034](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19034/) (ПАО «ИЭК ХОЛДИНГ», ИНН `5074092485`):** Созданы [Компания № 12640](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12640/), Контакт `#17280`, [Сделка № 2894](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2894/) (Omron `E6B2-CWZ6C 2500P/R`, 2 шт.), [Задача № 5740](https://b24-g4wfjq.bitrix24.ru/company/personal/user/20/tasks/task/view/5740/) на Азата (`10.11.2026 18:00`), Лид 1С (`7dd7daf4-dcf6-11f1-9047-02006df8aab5`).
-- **[Лид № 19030](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/19030/) (ООО «КОАЛИЦИЯ», ИНН `7708382751`):** Созданы [Компания № 12642](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12642/), Контакт `#17282` с пометкой `Перепродажники`, Лид 1С `000002504` (`782dbcba-dcf9-11f1-9047-02006df8aab5`) с тегом `Перепродажники` и контактом `Амелин Олег Витальевич` (`7e777d54-dcf9-11f1-9047-02006df8aab5`).
-- **[Лид № 16184](https://b24-g4wfjq.bitrix24.ru/crm/lead/details/16184/) (ООО «СИНЕРГИЯ», ИНН `3445119239`):** Созданы [Компания № 12644](https://b24-g4wfjq.bitrix24.ru/crm/company/details/12644/), Контакт `#17284`, [Сделка № 2896](https://b24-g4wfjq.bitrix24.ru/crm/deal/details/2896/) (5 поз., 5 шт. Siemens строго оригинал), [Задача № 5742](https://b24-g4wfjq.bitrix24.ru/company/personal/user/30/tasks/task/view/5742/) на Miss Wang (`13.11.2026 18:00`), обновлен Лид 1С `000001712` (`45d27584-7da6-11f0-9136-02006df8aab5`).
+- **Резервное копирование HP Victus ➔ `E:\Mirror_E_Home`:**
+  - Создана и валидирована конфигурация FreeFileSync [1_Victus_to_External.ffs_gui](file:///E:/Mirror_E_Home/1_Victus_to_External.ffs_gui) (26 пар, `XmlFormat="23"`, режим `Update`) и синхронизирована в `D:\Save\Victus_to_External.ffs_gui` (бэкап старой версии в `Victus_to_External.ffs_gui.bak_2026-09-29`).
+- **Аудит VPN VPS и выбор роутера в DNS:**
+  - Проверены активные каналы VPS (`109.248.170.181`): `wg0` (UDP `51820`), `openvpn@server` (UDP `1194`), `3x-ui` VLESS-Reality (TCP `2053`); `xl2tpd`/`strongswan` не активны.
+  - Проанализированы модели DNS: отсеяны `Huawei AX1 Plus`, `Xiaomi Mesh AC1200 (RD13)`, `Netis N3`, `Digma DWR-AC1202`, `Mercusys AC12 V2`, базовая `Tenda TX12 [2x LAN]` (риск ревизии без WireGuard); рекомендованы `Cudy WR1300 / WR1300S` (1 Гбит/с, MT7621AT, WireGuard + `VPN Policy` из коробки) и `Cudy WR3000` (ARM, 200–350 Мбит/с в VPN).
+- **Устранение своп-коллапса 1С и харденинг VPS (`109.248.170.181`):**
+  - Завершён зависший `PID 1379105` (`sync_analytics_dwh.py --days 3`, 4.1 ГБ RAM + 3.9 ГБ Swap), освобождено >4.3 ГБ RAM, остановлен сброс в Swap (`vmstat so = 0`).
+  - В `crontab` VPS (бэкап `/root/crontab.bak_2026-11-10_2`) все 11 задач обёрнуты в `flock -n` и `timeout -k 15` (для `onec_sync_daemon` `timeout` помещён внутрь `docker exec`).
+  - Расписание DWH переведено на `0 */6 * * *` (`--days 3`, каждые 6 ч) и `0 1,9,15 * * *` UTC (`04:00 / 12:00 / 18:00 MSK`, полная выгрузка) с общим `/tmp/sync_dwh.lock`.
+  - [sync_analytics_dwh.py](file:///C:/Codex/projects/metabase_analytics/scripts/sync_analytics_dwh.py) обновлён до `v2.3` (`seen_ids`, `max_pages=500`, `flush=True`), протестирован `--check-db` (`1308 deals | 690 supply | 271 advance`) и `--dry-run --days 3` локально и на VPS.
 
 ---
 
 ## 2. Измененные и новые файлы
-- `projects/1c_odata/scripts/process_b24_inbound_leads.py` — `is_valid_russian_inn`, чтение PDF-карт партнеров (`pymupdf`/`pypdf` с очисткой `\u200b`/`\xa0`), `strip_email_reply_quotes`, защита ведущих цифр артикулов (`1PH`, `6SL`), `extract_items_from_xlsx_bytes`, многострочное количество `шт \n 2`, флаг `--force-rfq`.
-- `projects/1c_odata/scripts/archive/2026-11-10_process_b24_inbound_leads_v24_before_inn_pdf_quote_xlsx_guards.py` и `projects/1c_odata/scripts/archive/README.md` — архивный снимок и запись.
-- `projects/1c_odata/LEAD_PROCESSING_POLICY.md` — добавлены п. 27–29 антирецидивного лога.
-- `codex_kb/00_control/INCIDENTS_LOG.md` — зарегистрирован инцидент `INC-2026-11-10-03`.
-- `C:\Users\Артем\.gemini\config\skills\session_management\SKILL.md` — унифицированы пороги `AGENTS.md`, добавлены `Substantive Dry-Run Gate` и `PowerShell Redirection Encoding Trap`.
+- [sync_analytics_dwh.py](file:///C:/Codex/projects/metabase_analytics/scripts/sync_analytics_dwh.py) (`v2.3`) и архив [2026-11-10_sync_analytics_dwh_v2_2_before_pagination_guard.py](file:///C:/Codex/projects/metabase_analytics/scripts/archive/2026-11-10_sync_analytics_dwh_v2_2_before_pagination_guard.py) + [archive/README.md](file:///C:/Codex/projects/metabase_analytics/scripts/archive/README.md).
+- [INFRA_VPS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md) — Раздел 10 (`Cron Lock + Timeout Invariant`, `UTC`).
+- [METABASE_ANALYTICS_POLICY.md](file:///C:/Codex/codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md) — Раздел 8 (новое расписание DWH cron + `Pagination Safety Guard`).
+- [INCIDENTS_LOG.md](file:///C:/Codex/codex_kb/00_control/INCIDENTS_LOG.md) — инцидент `INC-2026-11-10-04`.
+- [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md) — Раздел 9 (канонический FreeFileSync и аудит роутеров под VPS/VPN).
+- [linux/SKILL.md](file:///C:/Users/Артем/.gemini/config/skills/linux/SKILL.md) — Раздел 11 (диагностика Swap Thrashing и шаблон `PowerShell -> scp -> .sh`).
+- Внешний диск и локально: `E:\Mirror_E_Home\1_Victus_to_External.ffs_gui`, `D:\Save\Victus_to_External.ffs_gui`.
 
 ---
 
 ## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
-- **INC-2026-11-10-03 (Ложный ИНН из артикула, срез цифр моделей и смещение колонок `.xlsx`):** В `#16184` артикул `JJY:023464020001` захватывался как ИНН (реальный ИНН `3445119239` был в PDF с невидимыми `\u200b`), ведущие цифры `1PH`/`6SL` срезались, а старая рассылка в цитате включала `equivalents_allowed=True`. В `#19042` пустой столбец `A` в `.xlsx` скрывал 6 позиций, а в `#19034` перенос `шт \n 2` терял количество. Все исправления бэкпортированы в канонический скрипт.
-- **PowerShell Redirection (`>`):** Перенаправление `>` в PowerShell пишет `UTF-16LE` и ломает кириллицу — отчеты должны сохраняться напрямую в UTF-8 средствами Python.
+- **INC-2026-11-10-04 (Бесконечная пагинация + cron без таймаута):** Отсутствие `flock -n` / `timeout` в `crontab` и `seen_ids` / `max_pages` в `sync_analytics_dwh.py` привело к 6-часовому зависанию и съеданию 8.0 ГБ RAM+Swap с тормозами 1С.
+- **Проверка моделей роутеров и PowerShell-SSH:** Поиск смешивает базовые и `Pro`-модели (`Tenda TX12` vs `TX12 Pro v2.0`), а сложные однострочники со знаком `$` из PowerShell в `ssh` нужно выносить в `.sh` через `scp` с удалением `\r` и `bash -n`.
 
 ---
 
 ## 4. Открытые вопросы и следующие шаги
-- **Контроль задач снабжения КНР:** Отследить расчеты по задачам `#5672` (`user/44`), `#5688` (`user/30`), `#5734` (`user/30`, срок `12.11`), `#5736` (`user/20`), `#5738` (`user/20`), `#5740` (`user/20`) и `#5742` (`user/30`, срок `13.11`).
-- **Техдолг гигиены контура:** В отдельной задаче сжать `AGENTS.md` (`23 239` > `23 000` байт) и расчистить `codex_kb/SCRIPTS_CATALOG.md` (`330 347` > `50 000` байт).
+- Запустить сравнение и синхронизацию FreeFileSync по [1_Victus_to_External.ffs_gui](file:///E:/Mirror_E_Home/1_Victus_to_External.ffs_gui) на диске `E:\`.
+- После покупки `Cudy WR1300 / WR1300S` (или `WR3000`) — создать WireGuard-пир на VPS и настроить `VPN Policy` на роутере.
+- Плановый техдолг гигиены контура (из предыдущих сессий): сократить `AGENTS.md` (сейчас `23 239 > 23 000` байт) и архивировать устаревшие записи `SCRIPTS_CATALOG.md`.
 
 ---
 
 ## 🚀 Промпт для быстрого старта нового чата (Скопируйте в новый чат)
 
 ```text
-Ознакомься со сводкой `.ai/SESSION_SUMMARY.md` и проверь статус открытых задач снабжения КНР в Битрикс24 (`#5672`, `#5688`, `#5734`, `#5736`, `#5738`, `#5740`, `#5742`) либо приступай к новым лидам по регламенту `projects/1c_odata/LEAD_PROCESSING_POLICY.md`. Соблюдай pre-flight дисциплину контура (`--dry-run` и сверку 5 содержательных инвариантов перед записью в CRM и 1С).
+Ознакомься со сводкой в `.ai/SESSION_SUMMARY.md` и регламентом `AGENTS.md`. Помоги настроить купленный роутер Cudy под WireGuard-канал нашего VPS (`109.248.170.181:51820`) с раздельным туннелированием `VPN Policy` (или проверь работу 1С/DWH на VPS). Перед любыми изменениями на VPS выполни пассивную диагностику и согласуй план в `--dry-run`.
 ```

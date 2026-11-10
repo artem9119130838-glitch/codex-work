@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Canonical DWH Sync Pipeline: sync_analytics_dwh.py
-Version: 2.2 (2026-10-22)
+Version: 2.3 (2026-11-10)
 
 Synchronizes closed deals and stage transition history from Bitrix24 CRM
 into PostgreSQL DWH (marketing_db) for Metabase BI dashboards.
@@ -234,8 +234,9 @@ def b24_call(method, params=None):
             time.sleep(2 * (attempt + 1))
     return {}
 
-def fetch_all_items(method, select_fields=None, filter_params=None):
+def fetch_all_items(method, select_fields=None, filter_params=None, max_pages=500):
     items = []
+    seen_ids = set()
     start = 0
     params = {"order": {"ID": "DESC"}, "start": start}
     if select_fields:
@@ -243,7 +244,7 @@ def fetch_all_items(method, select_fields=None, filter_params=None):
     if filter_params:
         params["filter"] = filter_params
 
-    while True:
+    for page in range(max_pages):
         params["start"] = start
         res = b24_call(method, params)
         if isinstance(res, list):
@@ -255,14 +256,29 @@ def fetch_all_items(method, select_fields=None, filter_params=None):
 
         if not chunk:
             break
-        items.extend(chunk)
+
+        new_in_page = 0
+        for item in chunk:
+            item_id = str(item.get("ID") or item.get("id") or "")
+            if item_id:
+                if item_id in seen_ids:
+                    continue
+                seen_ids.add(item_id)
+            items.append(item)
+            new_in_page += 1
+
+        if new_in_page == 0:
+            print(f"[WARNING] {method} pagination stalled at start={start} (no new IDs); stopping loop.", flush=True)
+            break
         if len(chunk) < 50:
             break
         start += len(chunk)
         time.sleep(0.15)
+    else:
+        print(f"[WARNING] {method} reached max_pages={max_pages}; stopping loop.", flush=True)
     return items
 
-def fetch_group14_supply_tasks(b24_url):
+def fetch_group14_supply_tasks(b24_url, max_pages=500):
     """
     Fetches all tasks from Bitrix24 Group 14 (Снабжение КНР) and maps deals
     via UF_CRM_TASK (e.g. 'D_1234') to the responsible supply specialist.
@@ -270,9 +286,10 @@ def fetch_group14_supply_tasks(b24_url):
     """
     url = f"{b24_url.rstrip('/')}/tasks.task.list.json"
     deal_to_supply = {}
+    seen_task_ids = set()
     start = 0
 
-    while True:
+    for page in range(max_pages):
         payload = {
             "filter": {"GROUP_ID": 14},
             "select": ["ID", "TITLE", "RESPONSIBLE_ID", "UF_CRM_TASK", "CREATED_DATE"],
@@ -287,23 +304,34 @@ def fetch_group14_supply_tasks(b24_url):
                 tasks = res.get("result", {}).get("tasks", [])
                 if not tasks:
                     break
+                new_in_page = 0
                 for t in tasks:
+                    task_id = str(t.get("id") or "")
+                    if task_id:
+                        if task_id in seen_task_ids:
+                            continue
+                        seen_task_ids.add(task_id)
+                    new_in_page += 1
                     crm_list = t.get("ufCrmTask") or []
                     resp_id = str(t.get("responsibleId") or "")
                     resp_name = SUPPLY_USER_MAP.get(resp_id, USER_MAP.get(resp_id, f"Закупщик ID {resp_id}"))
-                    task_id = t.get("id")
                     for crm_item in crm_list:
                         if isinstance(crm_item, str) and crm_item.startswith("D_"):
                             d_id = crm_item[2:]
                             if d_id not in deal_to_supply:
                                 deal_to_supply[d_id] = (resp_name, task_id)
+                if new_in_page == 0:
+                    print(f"[WARNING] tasks.task.list pagination stalled at start={start}; stopping loop.", flush=True)
+                    break
                 if len(tasks) < 50:
                     break
                 start += len(tasks)
                 time.sleep(0.1)
         except Exception as e:
-            print(f"[WARNING] Failed to fetch chunk at start={start} for Group 14: {e}")
+            print(f"[WARNING] Failed to fetch chunk at start={start} for Group 14: {e}", flush=True)
             break
+    else:
+        print(f"[WARNING] tasks.task.list reached max_pages={max_pages}; stopping loop.", flush=True)
 
     return deal_to_supply
 
