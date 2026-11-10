@@ -858,13 +858,21 @@ def get_llm_api_keys() -> list[str]:
                     keys.append(k)
     return keys
 
-def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email_desc: str = "") -> str:
+def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email_desc: str = "", lead_comments: str = "") -> str:
     keys = get_llm_api_keys()
     if not keys:
         return title
 
-    desc_sample = re.sub(r'<[^>]+>', ' ', email_desc or "")
-    desc_sample = " ".join(desc_sample.split())[:500]
+    desc_sample = sanitize_html_email_text(email_desc or "")
+    desc_sample = " ".join(desc_sample.split())[:1500]
+    clean_comments = ""
+    if lead_comments:
+        clean_comments = re.sub(r'\[СБИС[^\]]*\].*?(?=\[p\]BitrixGPT|\Z)', '', lead_comments, flags=re.DOTALL | re.IGNORECASE)
+        clean_comments = re.sub(r'[•\*\-]?\s*(?:Выручка|ОКВЭД|Торги|Структура|Вердикт):[^\n]*', '', clean_comments, flags=re.IGNORECASE)
+        clean_comments = sanitize_html_email_text(clean_comments)
+        clean_comments = " ".join(clean_comments.split())[:800]
+
+    source_blob_lower = f"{title} {email_subject} {desc_sample} {clean_comments}".lower()
 
     prompt = f"""Ты — главный технический эксперт по закупкам промышленного оборудования в Китае (ВЭД, отдел снабжения).
 Переведи номенклатуру из заявки клиента на китайский язык для отдела снабжения.
@@ -877,13 +885,14 @@ def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email
 - 'Компрессор BITZER 4NES-20Y' -> 'BITZER 压缩机 4NES-20Y'
 
 ЖЕСТКИЕ ПРАВИЛА:
-1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО додумывать артикулы или бренды, которых нет в заявке клиента!
-2. Зарубежные бренды (GEMU, Danfoss, SMC, Bitzer и др.) оставляй на латинице.
+1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО додумывать артикулы или бренды, которых нет в заявке клиента! Если артикул не указан, напиши только бренд и категорию.
+2. Зарубежные бренды (GEMU, Danfoss, SMC, Bitzer, HYDAC и др.) оставляй на латинице.
 3. Верни СТРОГО одну строку с итоговым наименованием. Без кавычек, без русских пояснений.
 
 ДАННЫЕ ЗАЯВКИ:
 Заголовок: {title}
 Тема письма: {email_subject}
+Сводка комментария: {clean_comments}
 Фрагмент текста: {desc_sample}
 """
     models = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
@@ -900,7 +909,17 @@ def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email
                     clean_text = text.replace('"', '').replace("'", "").replace("`", "").strip()
                     clean_text = " / ".join([line.strip() for line in clean_text.splitlines() if line.strip()])
                     if clean_text:
-                        return clean_text
+                        # Anti-Hallucination Guard: удаляем алфавитно-цифровые артикулы, отсутствующие в исходной заявке
+                        tokens = clean_text.split()
+                        filtered_tokens = []
+                        for tok in tokens:
+                            if len(tok) >= 5 and re.search(r'[A-Za-z]', tok) and re.search(r'\d', tok):
+                                norm_tok = re.sub(r'^[^\w]+|[^\w]+$', '', tok).lower()
+                                if norm_tok and norm_tok not in source_blob_lower:
+                                    continue
+                            filtered_tokens.append(tok)
+                        final_text = " ".join(filtered_tokens).strip()
+                        return final_text or clean_text
             except Exception:
                 continue
     return title
@@ -1135,8 +1154,13 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     if len(clean_inquiry) < 20:
         clean_inquiry = clean_lines_text[:600] or email_subject or title
 
-    # 2. Допустимость аналога
-    combined = f"{title} {email_subject} {clean_text}".lower()
+    # 2. Допустимость аналога (учитываем также сводку BitrixGPT без блока СБИС)
+    gpt_clean_for_rfq = ""
+    if lead_comments:
+        gpt_clean_for_rfq = re.sub(r'\[СБИС[^\]]*\].*?(?=\[p\]BitrixGPT|\Z)', '', lead_comments, flags=re.DOTALL | re.IGNORECASE)
+        gpt_clean_for_rfq = re.sub(r'[•\*\-]?\s*(?:Выручка|ОКВЭД|Торги|Структура|Вердикт):[^\n]*', '', gpt_clean_for_rfq, flags=re.IGNORECASE)
+        gpt_clean_for_rfq = sanitize_html_email_text(gpt_clean_for_rfq)
+    combined = f"{title} {email_subject} {clean_text} {gpt_clean_for_rfq}".lower()
     eq_markers = ["аналог", "либо аналог", "или аналог", "замен", "equivalent", "or equivalent", "alternat", "同等替代"]
     equivalents_allowed = any(m in combined for m in eq_markers)
 
@@ -1145,7 +1169,7 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     if email_subject and any(w in email_subject.lower() for w in ["запчаст", "вентил", "клапан", "подшипник", "датчик", "насос", "пресс", "flender", "gemu", "omron", "зип"]):
         raw_subject_lead = email_subject
 
-    cn_nomenclature = translate_nomenclature_to_chinese(raw_subject_lead, email_subject, email_desc)
+    cn_nomenclature = translate_nomenclature_to_chinese(raw_subject_lead, email_subject, email_desc, lead_comments=lead_comments)
 
     # 4. Бренд и модель
     KNOWN_BRANDS = [
@@ -1155,7 +1179,7 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     ]
     detected_brand = ""
     for kb in KNOWN_BRANDS:
-        if re.search(r'\b' + re.escape(kb) + r'\b', f"{title} {email_subject} {clean_text}", re.IGNORECASE):
+        if re.search(r'\b' + re.escape(kb) + r'\b', f"{title} {email_subject} {clean_text} {gpt_clean_for_rfq}", re.IGNORECASE):
             detected_brand = kb
             break
 
@@ -1354,14 +1378,19 @@ def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_
     """
     acts_dict = {}
 
-    # 1. Сбор активностей с Лида
+    lead_email_act_ids = set()
+
+    # 1. Сбор активностей с Лида (вся цепочка писем этого лида принадлежит сделке)
     if lead_id:
         r_lead_acts = call_b24("crm.activity.list", {
             "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id},
             "select": ["ID", "TYPE_ID", "PROVIDER_ID", "SUBJECT", "COMMUNICATIONS"]
         }) or []
         for a in r_lead_acts:
-            acts_dict[int(a["ID"])] = a
+            aid_int = int(a["ID"])
+            acts_dict[aid_int] = a
+            if a.get("PROVIDER_ID") == "CRM_EMAIL" or str(a.get("TYPE_ID")) == "4":
+                lead_email_act_ids.add(aid_int)
 
     # 2. Сбор активностей со Сделки
     if deal_id:
@@ -1406,11 +1435,11 @@ def bind_lead_activities_triple(lead_id, deal_id=None, contact_id=None, company_
             if lead_id and (1, int(lead_id)) not in existing_set:
                 call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 1, "entityId": lead_id})
 
-            # 1. Привязка к Сделке — СТРОГО ТОЛЬКО ЦЕЛЕВОЕ ПИСЬМО ДАННОЙ ЗАЯВКИ!
+            # 1. Привязка к Сделке — все письма текущего Лида + целевое письмо (при fallback с Контакта)
             should_bind_deal = deal_id and (2, int(deal_id)) not in existing_set
             if should_bind_deal:
                 if target_email_id:
-                    if int(act_id) == int(target_email_id):
+                    if int(act_id) == int(target_email_id) or (is_email and int(act_id) in lead_email_act_ids):
                         call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 2, "entityId": deal_id})
                 else:
                     call_b24("crm.activity.binding.add", {"activityId": act_id, "entityTypeId": 2, "entityId": deal_id})
@@ -1796,7 +1825,13 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     main_email_act = email_acts[0] if email_acts else (acts[0] if acts else {})
 
     email_subject = main_email_act.get("SUBJECT", "")
-    email_desc = main_email_act.get("DESCRIPTION", "")
+    # Если у лида несколько входящих писем в ветке (например, 1-е письмо с заказом, 2-е — «Реквизиты во вложении»),
+    # объединяем их хронологически (с самого раннего), чтобы не потерять исходное ТЗ, но сохраняем main_email_act для ответа.
+    incoming_emails_chron = [a for a in reversed(email_acts) if str(a.get("DIRECTION")) != "2"]
+    if len(incoming_emails_chron) >= 2:
+        email_desc = "\n<hr/>\n".join([(a.get("DESCRIPTION") or "") for a in incoming_emails_chron if a.get("DESCRIPTION")])
+    else:
+        email_desc = main_email_act.get("DESCRIPTION", "")
     email_message_id = main_email_act.get("SETTINGS", {}).get("MESSAGE_ID") if isinstance(main_email_act.get("SETTINGS"), dict) else None
 
     # Извлечение телефонов (мобильный сотрудника vs общий компании), добавочного и должности из подписи
@@ -2307,7 +2342,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             item_labels.append(label)
         cn_nomenclature = ", ".join(item_labels)
     else:
-        cn_nomenclature = rfq_details.get("cn_nomenclature") or translate_nomenclature_to_chinese(lead_title, email_subject, email_desc)
+        cn_nomenclature = rfq_details.get("cn_nomenclature") or translate_nomenclature_to_chinese(lead_title, email_subject, email_desc, lead_comments=lead_comments)
 
     company_title = re.sub(r'^(ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК)(["«])', r'\1 \2', company_title)
     clean_company = re.sub(r'[«»"“”\']', '', company_title).strip()
@@ -2541,13 +2576,16 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     # Генерация и загрузка Excel-спецификации по мастер-шаблону (Bilingual Excel Specification Guard)
     try:
+        raw_qty_str = str(rfq_details.get('quantity', 1))
+        m_q_num = re.search(r'(\d+)', raw_qty_str)
+        excel_qty_val = int(m_q_num.group(1)) if m_q_num else 1
         excel_items = rfq_items if (rfq_items and len(rfq_items) >= 2) else [{
             'num': 1,
             'brand': rfq_details.get('brand', 'OEM'),
             'pname_cn': cn_nomenclature,
             'model': rfq_details.get('model', lead_title),
             'name_ru': lead_title or cn_nomenclature,
-            'qty': rfq_details.get('quantity', 1)
+            'qty': excel_qty_val
         }]
         excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=excel_items, dry_run=False)
         if excel_path and os.path.exists(excel_path):
