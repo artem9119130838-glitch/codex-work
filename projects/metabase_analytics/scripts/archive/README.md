@@ -23,3 +23,4 @@ esponsible_name в DWH.
 
 * `2026-11-10` — Снимок `2026-11-10_manage_metabase_dashboards_v2_7_before_prepayment_bid_fix.py` перед исправлением логики Карточек 54 и 61 в `v2.8`: включение стадии `C4:PREPAYMENT_INVOICE` («Заявка подана / Ожидание») в метрику поданных заявок (`2_BID`) вместо отсева и добавление `is_won = true` для побед (`3_WON`).
 * `2026-11-10` — Снимок `2026-11-10_sync_analytics_dwh_v2_2_before_pagination_guard.py` перед обновлением `sync_analytics_dwh.py` до `v2.3` (после инцидента `INC-2026-11-10-04`): добавлены защита пагинации Bitrix24 (`seen_ids` + `max_pages=500`) и `flush=True` в `fetch_all_items` и `fetch_group14_supply_tasks`; скрипт выкачен на VPS.
+* `2026-11-11` — Снимок `2026-11-11_manage_metabase_dashboards_v2_8_before_product_analytics.py` перед добавлением действия `--action deploy-product-analytics` (дашборд товарных групп, брендов и пулов поставщиков по витрине `analytics_deal_products`).

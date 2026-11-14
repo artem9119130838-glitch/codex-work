@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Canonical Metabase BI Management Pipeline: manage_metabase_dashboards.py
-Version: 2.8 (2026-11-10)
+Version: 2.9 (2026-11-11)
 
 Single canonical script for managing Metabase dashboards, analytical cards,
 global formatting/localization, user permissions, and LLM Token Analytics.
@@ -61,7 +61,7 @@ def get_session(base_url, email, password):
     payload = json.dumps({"username": email, "password": password}).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("id")
     except urllib.error.HTTPError as e:
@@ -90,7 +90,7 @@ def api_call(base_url, session_id, method, path, data=None, dry_run=False):
     }
     req = urllib.request.Request(url, data=req_data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             body = resp.read().decode("utf-8")
             return json.loads(body) if body else {}
     except urllib.error.HTTPError as e:
@@ -1175,6 +1175,307 @@ ORDER BY date_close DESC, deal_id DESC;"""
     print(f"URL: {base_url}/dashboard/{dash_id}")
 
 
+def deploy_product_analytics_dashboard(base_url, session_id, dry_run=False):
+    """
+    Deploys the Product Groups, Brands & Supplier Pools Analytics Dashboard:
+    'Аналитика товарных групп, брендов и пулов поставщиков (с мая 2026)'
+    based on PostgreSQL DWH table `analytics_deal_products`.
+    Supports 1C-style column sorting, interactive dimension filters, and two grouping axes.
+    """
+    import time
+    print("=== Deploying Product Groups & Supplier Pools Analytics Dashboard ===")
+    db_id = get_database_id(base_url, session_id, "marketing_db", dry_run) or 2
+    collection_id = get_or_create_collection(base_url, session_id, "Тендеры и Снабжение: Управление и Синхронизация", "#509EE3", dry_run)
+    print(f"[OK] Target Collection ID: {collection_id}")
+
+    if not dry_run and session_id != "dry-run-token":
+        print("Syncing Metabase schema for marketing_db...")
+        api_call(base_url, session_id, "POST", f"/database/{db_id}/sync_schema", None, dry_run=False)
+        time.sleep(2)
+
+    date_create_id = get_field_id(base_url, session_id, db_id, "analytics_deal_products", "date_create", dry_run, 1001)
+    pipeline_id = get_field_id(base_url, session_id, db_id, "analytics_deal_products", "pipeline_name", dry_run, 1002)
+    wide_group_id = get_field_id(base_url, session_id, db_id, "analytics_deal_products", "wide_group", dry_run, 1003)
+    nature_id = get_field_id(base_url, session_id, db_id, "analytics_deal_products", "procurement_nature", dry_run, 1004)
+    pool_type_id = get_field_id(base_url, session_id, db_id, "analytics_deal_products", "supplier_pool_type", dry_run, 1005)
+    outcome_id = get_field_id(base_url, session_id, db_id, "analytics_deal_products", "outcome_label", dry_run, 1006)
+    print(f"[OK] Resolved Field IDs: date={date_create_id}, pipe={pipeline_id}, wide={wide_group_id}, nature={nature_id}, pool={pool_type_id}, outcome={outcome_id}")
+
+    def make_tag(tid, name, dname, fid, wtype="string/="):
+        return {
+            "id": tid,
+            "name": name,
+            "display-name": dname,
+            "type": "dimension",
+            "dimension": ["field", fid, None],
+            "widget-type": wtype,
+        }
+
+    common_tags = {
+        "date_range": make_tag("tag_date_range", "date_range", "Период дат", date_create_id, "date/all-options"),
+        "pipeline": make_tag("tag_pipeline", "pipeline", "Воронка", pipeline_id),
+        "wide_group": make_tag("tag_wide_group", "wide_group", "Широкая группа", wide_group_id),
+        "nature": make_tag("tag_nature", "nature", "Характер закупки", nature_id),
+        "pool_type": make_tag("tag_pool_type", "pool_type", "Тип пула поставщика", pool_type_id),
+        "outcome": make_tag("tag_outcome", "outcome", "Итоговый статус", outcome_id),
+    }
+
+    where_block = """WHERE 1=1
+      [[AND {{date_range}}]]
+      [[AND {{pipeline}}]]
+      [[AND {{wide_group}}]]
+      [[AND {{nature}}]]
+      [[AND {{pool_type}}]]
+      [[AND {{outcome}}]]"""
+
+    sql_kpi = f"""SELECT
+    COUNT(DISTINCT deal_id) AS "Уникальных сделок",
+    COUNT(*) AS "Товарных позиций",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS') AS "Успех / Оплата / Победа",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '2_REVIEW') AS "Согласование / Ожидание",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '3_LOST_PRICE') AS "Проигрыш по цене",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '4_LOST_OTHER') AS "Отклонение / Прочее",
+    ROUND(
+        COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS')::numeric
+        / NULLIF(COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket IN ('1_SUCCESS', '3_LOST_PRICE', '4_LOST_OTHER')), 0) * 100,
+        1
+    ) || '%' AS "% Успеха (от заверш.)"
+FROM analytics_deal_products
+{where_block};"""
+
+    sql_by_product = f"""SELECT
+    wide_group AS "Широкая группа",
+    narrow_group AS "Узкая подгруппа",
+    procurement_nature AS "Характер закупки",
+    COUNT(*) AS "Позиций",
+    COUNT(DISTINCT deal_id) AS "Сделок",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS') AS "Успех / Оплата",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '2_REVIEW') AS "Согласование / Ожидание",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '3_LOST_PRICE') AS "Проигрыш (цена)",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '4_LOST_OTHER') AS "Отклонение / Прочее",
+    ROUND(
+        COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS')::numeric
+        / NULLIF(COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket IN ('1_SUCCESS', '3_LOST_PRICE', '4_LOST_OTHER')), 0) * 100,
+        1
+    ) AS "% Успеха (заверш.)",
+    ROUND(
+        COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS')::numeric
+        / NULLIF(COUNT(DISTINCT deal_id), 0) * 100,
+        1
+    ) AS "% Успеха (всего)"
+FROM analytics_deal_products
+{where_block}
+GROUP BY wide_group, narrow_group, procurement_nature
+ORDER BY "Успех / Оплата" DESC, "Сделок" DESC;"""
+
+    sql_by_supplier_pool = f"""SELECT
+    supplier_pool_type AS "Тип пула поставщика",
+    supplier_profile AS "Профиль / Направление поставщика",
+    wide_group AS "Широкая группа",
+    COUNT(*) AS "Позиций",
+    COUNT(DISTINCT deal_id) AS "Сделок",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS') AS "Успех / Оплата",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '2_REVIEW') AS "Согласование / Ожидание",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '3_LOST_PRICE') AS "Проигрыш (цена)",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '4_LOST_OTHER') AS "Отклонение / Прочее",
+    ROUND(
+        COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS')::numeric
+        / NULLIF(COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket IN ('1_SUCCESS', '3_LOST_PRICE', '4_LOST_OTHER')), 0) * 100,
+        1
+    ) AS "% Успеха (заверш.)",
+    ROUND(
+        COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS')::numeric
+        / NULLIF(COUNT(DISTINCT deal_id), 0) * 100,
+        1
+    ) AS "% Успеха (всего)"
+FROM analytics_deal_products
+{where_block}
+GROUP BY supplier_pool_type, supplier_profile, wide_group
+ORDER BY "Успех / Оплата" DESC, "Сделок" DESC;"""
+
+    sql_by_brand = f"""SELECT
+    brand_or_spec AS "Бренд / Изделие",
+    procurement_nature AS "Характер закупки",
+    wide_group AS "Широкая группа",
+    narrow_group AS "Узкая подгруппа",
+    supplier_pool_type AS "Тип пула поставщика",
+    COUNT(DISTINCT deal_id) AS "Сделок",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS') AS "Успех / Оплата",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '2_REVIEW') AS "Согласование / Ожидание",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '3_LOST_PRICE') AS "Проигрыш (цена)",
+    COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '4_LOST_OTHER') AS "Отклонение / Прочее",
+    ROUND(
+        COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket = '1_SUCCESS')::numeric
+        / NULLIF(COUNT(DISTINCT deal_id) FILTER (WHERE outcome_bucket IN ('1_SUCCESS', '3_LOST_PRICE', '4_LOST_OTHER')), 0) * 100,
+        1
+    ) AS "% Успеха (заверш.)"
+FROM analytics_deal_products
+{where_block}
+GROUP BY brand_or_spec, procurement_nature, wide_group, narrow_group, supplier_pool_type
+ORDER BY "Успех / Оплата" DESC, "Сделок" DESC;"""
+
+    sql_register = f"""SELECT
+    deal_id AS "ID сделки",
+    b24_url AS "Ссылка в CRM",
+    date_create::date AS "Дата создания",
+    pipeline_name AS "Воронка",
+    outcome_label AS "Итоговый статус",
+    close_reason AS "Причина закрытия",
+    wide_group AS "Широкая группа",
+    narrow_group AS "Узкая подгруппа",
+    procurement_nature AS "Характер закупки",
+    brand_or_spec AS "Бренд / Изделие",
+    raw_item_name AS "Наименование позиции",
+    supplier_pool_type AS "Тип пула поставщика",
+    supplier_profile AS "Профиль поставщика",
+    actual_supplier AS "Факт. поставщик",
+    supplier_interaction_comment AS "Комментарий взаимодействия",
+    customer_name AS "Заказчик",
+    responsible_name AS "Ответственный",
+    supply_responsible_name AS "Снабжение КНР",
+    reached_stage_max AS "Пройденные стадии"
+FROM analytics_deal_products
+{where_block}
+ORDER BY date_create DESC, deal_id DESC, item_index ASC;"""
+
+    link_settings = {
+        "column_settings": {
+            '["name", "Ссылка в CRM"]': {
+                "link_url": "https://b24-g4wfjq.bitrix24.ru/crm/deal/details/{{ID сделки}}/",
+                "link_text": "Открыть в CRM ↗",
+                "view_as": "link"
+            }
+        }
+    }
+
+    cards_def = [
+        {
+            "name": "Товары и поставщики 1. Сводные KPI выборки (с мая 2026)",
+            "sql": sql_kpi,
+            "display": "table",
+            "vis": {},
+            "pos": {"row": 0, "col": 0, "size_x": 24, "size_y": 3},
+        },
+        {
+            "name": "Товары и поставщики 2. Группировка по товарным группам и подгруппам",
+            "sql": sql_by_product,
+            "display": "table",
+            "vis": {},
+            "pos": {"row": 3, "col": 0, "size_x": 24, "size_y": 9},
+        },
+        {
+            "name": "Товары и поставщики 3. Группировка по типу и профилю поставщиков",
+            "sql": sql_by_supplier_pool,
+            "display": "table",
+            "vis": {},
+            "pos": {"row": 12, "col": 0, "size_x": 24, "size_y": 9},
+        },
+        {
+            "name": "Товары и поставщики 4. Рейтинг брендов и кастомных изделий",
+            "sql": sql_by_brand,
+            "display": "table",
+            "vis": {},
+            "pos": {"row": 21, "col": 0, "size_x": 24, "size_y": 8},
+        },
+        {
+            "name": "Товары и поставщики 5. Детальный сортируемый реестр (с комментариями)",
+            "sql": sql_register,
+            "display": "table",
+            "vis": link_settings,
+            "pos": {"row": 29, "col": 0, "size_x": 24, "size_y": 11},
+        },
+    ]
+
+    existing_cards = [] if (dry_run and session_id == "dry-run-token") else (api_call(base_url, session_id, "GET", "/card", dry_run=False) or [])
+
+    def sync_card(name, payload):
+        target = next((c for c in existing_cards if c.get("name") == name and not c.get("archived")), None)
+        if target:
+            cid = target["id"]
+            print(f"Updating existing Card {cid}: '{name}'...")
+            api_call(base_url, session_id, "PUT", f"/card/{cid}", payload, dry_run)
+            return cid
+        print(f"Creating new Card: '{name}'...")
+        res = api_call(base_url, session_id, "POST", "/card", payload, dry_run)
+        return res.get("id") if res else None
+
+    deployed_cards = []
+    for cdef in cards_def:
+        card_payload = {
+            "name": cdef["name"],
+            "dataset_query": {
+                "type": "native",
+                "native": {"query": cdef["sql"], "template-tags": common_tags},
+                "database": db_id,
+            },
+            "display": cdef["display"],
+            "collection_id": collection_id,
+            "archived": False,
+            "visualization_settings": cdef["vis"],
+        }
+        cdef["cid"] = sync_card(cdef["name"], card_payload)
+        deployed_cards.append(cdef)
+
+    dash_name = "Аналитика товарных групп, брендов и пулов поставщиков (с мая 2026)"
+    existing_dashes = [] if (dry_run and session_id == "dry-run-token") else (api_call(base_url, session_id, "GET", "/dashboard", dry_run=False) or [])
+    target_dash = next((d for d in existing_dashes if d.get("name") == dash_name and not d.get("archived")), None)
+
+    dash_params = [
+        {"id": "param_period", "name": "Период дат", "slug": "date_range", "type": "date/all-options", "sectionId": "date"},
+        {"id": "param_pipeline", "name": "Воронка", "slug": "pipeline", "type": "string/=", "sectionId": "string"},
+        {"id": "param_wide", "name": "Широкая группа", "slug": "wide_group", "type": "string/=", "sectionId": "string"},
+        {"id": "param_nature", "name": "Характер закупки", "slug": "nature", "type": "string/=", "sectionId": "string"},
+        {"id": "param_pool", "name": "Тип пула поставщика", "slug": "pool_type", "type": "string/=", "sectionId": "string"},
+        {"id": "param_outcome", "name": "Итоговый статус", "slug": "outcome", "type": "string/=", "sectionId": "string"},
+    ]
+    dash_payload = {
+        "name": dash_name,
+        "description": "Сквозная аналитика товаров, брендов и направлений поставщиков по сделкам Заказчиков и Тендеров с мая 2026.",
+        "parameters": dash_params,
+    }
+
+    if target_dash:
+        dash_id = target_dash["id"]
+        print(f"[OK] Updating existing Dashboard {dash_id}: '{dash_name}'...")
+        api_call(base_url, session_id, "PUT", f"/dashboard/{dash_id}", dash_payload, dry_run)
+    else:
+        print(f"Creating new Dashboard: '{dash_name}' in Collection {collection_id}...")
+        dash_payload["collection_id"] = collection_id
+        res = api_call(base_url, session_id, "POST", "/dashboard", dash_payload, dry_run)
+        dash_id = res.get("id") if res else None
+
+    dashcards_payload = []
+    param_to_tag = [
+        ("param_period", "date_range"),
+        ("param_pipeline", "pipeline"),
+        ("param_wide", "wide_group"),
+        ("param_nature", "nature"),
+        ("param_pool", "pool_type"),
+        ("param_outcome", "outcome"),
+    ]
+    for idx, cdef in enumerate(deployed_cards):
+        cid = cdef["cid"]
+        pos = cdef["pos"]
+        mappings = [
+            {"parameter_id": pid, "card_id": cid, "target": ["dimension", ["template-tag", tname]]}
+            for pid, tname in param_to_tag
+        ]
+        dashcards_payload.append({
+            "id": -(idx + 400),
+            "card_id": cid,
+            "row": pos["row"],
+            "col": pos["col"],
+            "size_x": pos["size_x"],
+            "size_y": pos["size_y"],
+            "parameter_mappings": mappings,
+            "visualization_settings": cdef.get("vis", {}),
+        })
+
+    api_call(base_url, session_id, "PUT", f"/dashboard/{dash_id}/cards", {"cards": dashcards_payload}, dry_run)
+    print(f"[SUCCESS] Product Analytics Dashboard {dash_id} deployed with {len(dashcards_payload)} cards.")
+    print(f"URL: {base_url}/dashboard/{dash_id}")
+
+
 def deploy_token_analytics(base_url, session_id, dry_run=False):
     """Deploys or updates the LLM Token Economics & Key Health Dashboard and Cards."""
     print("=== Deploying LLM Token Analytics & Key Health Cards ===")
@@ -1695,7 +1996,7 @@ def tender_report(base_url, session_id, period="month", filter_by="create", dry_
 def main():
     parser = argparse.ArgumentParser(description="Metabase BI Management and Dashboard Pipeline")
     parser.add_argument("--action", required=True, 
-                        choices=["update-cards", "tender-report", "deploy-tender-ops", "deploy-weekly-sync", "token-analytics", "setup-all", "patch-locale", "create-user", "test-queries", "db-stats", "grant-permissions", "test-access", "test-card", "inspect-groups"],
+                        choices=["update-cards", "tender-report", "deploy-tender-ops", "deploy-weekly-sync", "deploy-product-analytics", "token-analytics", "setup-all", "patch-locale", "create-user", "test-queries", "db-stats", "grant-permissions", "test-access", "test-card", "inspect-groups"],
                         help="Action to perform on Metabase")
     parser.add_argument("--dry-run", action="store_true", help="Simulate API calls without modifying state")
     parser.add_argument("--url", default=DEFAULT_METABASE_URL, help="Metabase instance URL")
@@ -1717,7 +2018,7 @@ def main():
 
     print(f"=== Starting Metabase Manager [{args.action}] (Dry-Run: {args.dry_run}) ===")
     
-    session_id = "dry-run-token" if args.dry_run and not args.password else get_session(args.url, args.email, args.password)
+    session_id = "dry-run-token" if args.dry_run else get_session(args.url, args.email, args.password)
     if not session_id and not args.dry_run:
         print("[FATAL] Could not obtain Metabase session. Terminating.")
         sys.exit(1)
@@ -1740,6 +2041,8 @@ def main():
         deploy_tender_ops_dashboard(args.url, session_id, args.dry_run)
     elif args.action == "deploy-weekly-sync":
         deploy_weekly_sync_dashboard(args.url, session_id, args.dry_run)
+    elif args.action == "deploy-product-analytics":
+        deploy_product_analytics_dashboard(args.url, session_id, args.dry_run)
     elif args.action == "inspect-groups":
         inspect_groups(args.url, session_id, args.dry_run)
     elif args.action == "grant-permissions":

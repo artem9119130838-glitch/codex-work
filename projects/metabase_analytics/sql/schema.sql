@@ -93,3 +93,47 @@ CREATE TABLE IF NOT EXISTS llm_keys_status (
     total_errors INT DEFAULT 0,
     consecutive_errors INT DEFAULT 0
 );
+
+-- 5. Детальная товарная и поставщиковая аналитика по сделкам (с мая 2026)
+CREATE TABLE IF NOT EXISTS analytics_deal_products (
+    deal_id VARCHAR(50) NOT NULL,
+    item_index INT NOT NULL DEFAULT 1,
+    pipeline_name VARCHAR(100),
+    title VARCHAR(500),
+    tender_number VARCHAR(255),
+    customer_name VARCHAR(255),
+    date_create TIMESTAMP,
+    date_close TIMESTAMP,
+    current_stage_id VARCHAR(50),
+    current_stage_name VARCHAR(120),
+    reached_stage_max VARCHAR(120),
+    outcome_bucket VARCHAR(50),
+    outcome_label VARCHAR(120),
+    close_reason VARCHAR(255),
+    responsible_name VARCHAR(255),
+    supply_responsible_name VARCHAR(255),
+    deal_amount NUMERIC DEFAULT 0,
+    is_multi_item BOOLEAN DEFAULT FALSE,
+    raw_item_name TEXT,
+    wide_group VARCHAR(150),
+    narrow_group VARCHAR(180),
+    procurement_nature VARCHAR(80),
+    brand_or_spec VARCHAR(180),
+    supplier_pool_type VARCHAR(150),
+    supplier_profile VARCHAR(200),
+    actual_supplier VARCHAR(255),
+    supplier_interaction_comment TEXT,
+    extraction_source VARCHAR(50),
+    b24_url VARCHAR(500),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (deal_id, item_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deal_prod_wide ON analytics_deal_products(wide_group);
+CREATE INDEX IF NOT EXISTS idx_deal_prod_narrow ON analytics_deal_products(narrow_group);
+CREATE INDEX IF NOT EXISTS idx_deal_prod_pool ON analytics_deal_products(supplier_pool_type);
+CREATE INDEX IF NOT EXISTS idx_deal_prod_nature ON analytics_deal_products(procurement_nature);
+CREATE INDEX IF NOT EXISTS idx_deal_prod_outcome ON analytics_deal_products(outcome_bucket);
+CREATE INDEX IF NOT EXISTS idx_deal_prod_pipeline ON analytics_deal_products(pipeline_name);
+CREATE INDEX IF NOT EXISTS idx_deal_prod_date_create ON analytics_deal_products(date_create);
+
