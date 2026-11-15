@@ -1,8 +1,11 @@
-0 2 * * 0 /bin/bash /Storage/run_server_backup.sh >/dev/null 2>&1
-0 2 * * 1-6 /bin/sh /Storage/backup-sql.sh >/dev/null 2>&1
-0 * * * * docker exec -u root -i onec_sync_daemon python3 -m app.run_imap --since-days 1 >/dev/null 2>&1
-10 * * * * docker exec -u root -i onec_sync_daemon python3 -m app.run_summaries_batch >/dev/null 2>&1
-0 9 * * * docker exec -u root -i onec_sync_daemon python3 -m app.run_daily_reactivation >/dev/null 2>&1
-0 */4 * * * /bin/bash /Storage/monitor_disk.sh >/dev/null 2>&1
-*/2 * * * * /root/tender-rag-api/scripts/auto_deploy.sh > /dev/null 2>&1
-0 4 * * * /usr/bin/python3 /Storage/scripts/b24_daily_analytics_sync.py >> /var/log/b24_analytics_sync.log 2>&1
+0 2 * * 0 /usr/bin/flock -n /tmp/server_backup.lock /bin/bash /Storage/run_server_backup.sh >/dev/null 2>&1
+0 2 * * 1-6 /usr/bin/flock -n /tmp/backup_sql.lock /bin/sh /Storage/backup-sql.sh >/dev/null 2>&1
+0 * * * * /usr/bin/flock -n /tmp/run_imap.lock docker exec -u root -i onec_sync_daemon timeout -k 15 600 python3 -m app.run_imap --since-days 1 >/dev/null 2>&1
+10 * * * * /usr/bin/flock -n /tmp/run_summaries.lock docker exec -u root -i onec_sync_daemon timeout -k 15 600 python3 -m app.run_summaries_batch >> /var/log/run_summaries_cron.log 2>&1
+0 9 * * * /usr/bin/flock -n /tmp/run_reactivation.lock docker exec -u root -i onec_sync_daemon timeout -k 15 900 python3 -m app.run_daily_reactivation --limit 10 --cold-limit 5 --max-daily-drafts 15 >> /var/log/reactivation_cron.log 2>&1
+0 * * * * /usr/bin/flock -n /tmp/monitor_disk.lock /usr/bin/timeout -k 10 60 /bin/bash /Storage/monitor_disk.sh >/dev/null 2>&1
+*/2 * * * * /usr/bin/flock -n /tmp/auto_deploy.lock /usr/bin/timeout -k 10 90 /root/tender-rag-api/scripts/auto_deploy.sh > /dev/null 2>&1
+0 */6 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 300 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py --days 3 >> /var/log/b24_analytics_sync.log 2>&1
+0 1,9,15 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 900 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py >> /var/log/b24_analytics_sync.log 2>&1
+0 8 * * * /usr/bin/flock -n /tmp/audit_llm.lock /usr/bin/timeout -k 15 180 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/audit_llm_keys.py --env-file /Storage/scripts/metabase_analytics/.env --db-sync --notify-b24 >> /var/log/audit_llm_keys.log 2>&1
+30 5 * * * /usr/bin/flock -n /tmp/run_radar.lock /usr/bin/timeout -k 15 600 /opt/longwang_trend_radar/run_radar.sh > /dev/null 2>&1
