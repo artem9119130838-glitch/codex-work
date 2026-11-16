@@ -27,6 +27,7 @@ projects/1c_odata/scripts/sync_leads_1c_bitrix.py
 
 import os
 import sys
+sys.path.insert(0, r"c:\Codex\projects\1c_odata\scripts")
 import re
 import json
 import argparse
@@ -42,16 +43,19 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 def _load_env():
-    env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-    if os.path.exists(env_file):
-        with open(env_file, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    k, v = k.strip(), v.strip().strip("'\"")
-                    if k and k not in os.environ:
-                        os.environ[k] = v
+    for env_file in [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+        r"c:\Codex\projects\1c_odata\.env",
+    ]:
+        if os.path.exists(env_file):
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k, v = k.strip(), v.strip().strip("'\"")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
 
 _load_env()
 
@@ -170,15 +174,58 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
     comments = lead.get("COMMENTS", "")
     assigned_by = int(lead.get("ASSIGNED_BY_ID", 1))
 
-    # Извлечение email и телефонов
-    emails = [e.get("VALUE") for e in lead.get("EMAIL", []) if e.get("VALUE")]
-    phones = [p.get("VALUE") for p in lead.get("PHONE", []) if p.get("VALUE")]
+    # Чтение входящих писем лида (crm.activity.list) для извлечения ИНН, подписи, компании и телефона
+    email_texts = []
+    try:
+        r_acts = call_b24("crm.activity.list", {
+            "filter": {"OWNER_TYPE_ID": 1, "OWNER_ID": lead_id, "PROVIDER_ID": "CRM_EMAIL"},
+            "order": {"ID": "DESC"},
+            "select": ["ID", "DIRECTION", "SUBJECT", "DESCRIPTION"]
+        })
+        for act in r_acts.get("result", []):
+            if str(act.get("DIRECTION")) == "1":  # Входящее письмо
+                raw_desc = act.get("DESCRIPTION") or ""
+                clean_d = re.sub(r'<[^>]+>', ' ', raw_desc)
+                clean_d = re.sub(r'&nbsp;|&#43;', lambda m: ' ' if m.group(0) == '&nbsp;' else '+', clean_d)
+                clean_d = re.split(r'(?:From:\s*Long\s*Wang|\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2},\s*Long\s*Wang|longwang\.ru)', clean_d, maxsplit=1, flags=re.IGNORECASE)[0]
+                email_texts.append(clean_d)
+    except Exception:
+        pass
+    email_body_all = "\n".join(email_texts)
+
+    # Извлечение email и телефонов (включая переадресации, письма и номера в COMMENTS)
+    emails = [e.get("VALUE").strip() for e in lead.get("EMAIL", []) if e.get("VALUE")]
+    phones = [p.get("VALUE").strip() for p in lead.get("PHONE", []) if p.get("VALUE")]
+    for em_c in re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', f"{comments or ''}\n{email_body_all}"):
+        em_l = em_c.lower()
+        if "longwang.ru" not in em_l and em_l not in [x.lower() for x in emails]:
+            emails.append(em_c)
+    for m_ph in re.finditer(r'(?:(?:\+7|8)[\s\-]?\(?\d{3,5}\)?|\b9\d{2})[\s\-]?\d{2,3}[\s\-]?\d{2}[\s\-]?\d{2,4}', f"{comments or ''}\n{email_body_all}"):
+        d_ph = re.sub(r'\D', '', m_ph.group(0))
+        if len(d_ph) == 10 and d_ph.startswith("9"):
+            d_ph = "7" + d_ph
+        if len(d_ph) == 11 and d_ph != "78125091245":
+            fmt_ph = f"+7 ({d_ph[1:4]}) {d_ph[4:7]}-{d_ph[7:9]}-{d_ph[9:11]}"
+            if d_ph[-10:] not in [re.sub(r'\D', '', p)[-10:] for p in phones]:
+                phones.append(fmt_ph)
     primary_email = emails[0].strip() if emails else ""
     primary_phone = phones[0].strip() if phones else ""
 
-    # Поиск ИНН
-    inn_match = re.search(r'\b(ИНН\s*[:№]?\s*)?(\d{10}|\d{12})\b', f"{title} {company_title} {comments}", re.IGNORECASE)
-    inn = inn_match.group(2) if inn_match else ""
+    # Извлечение ФИО из подписи письма, если в лиде имя заглушка или email
+    if (not name or "@" in name) and email_body_all:
+        m_sig_fio = re.search(r'С\s+уважением[,\s\r\n]+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)?)', email_body_all)
+        if not m_sig_fio:
+            m_sig_fio = re.search(r'([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)\s*/\s*[A-Z][a-z]+\s+[A-Z][a-z]+', email_body_all)
+        if m_sig_fio:
+            name = m_sig_fio.group(1).strip()
+
+    # Поиск явного ИНН в письмах, комментариях и заголовке
+    inn_match = re.search(r'\bИНН\s*[:№]?\s*(\d{10}|\d{12})\b', f"{email_body_all}\n{comments}\n{title}\n{company_title}", re.IGNORECASE)
+    inn = inn_match.group(1) if inn_match else ""
+    if not inn:
+        inn_match2 = re.search(r'\b(\d{10}|\d{12})\b', f"{title} {company_title} {comments}", re.IGNORECASE)
+        if inn_match2 and not any(re.sub(r'\D', '', p).endswith(inn_match2.group(1)) for p in phones):
+            inn = inn_match2.group(1)
 
     # Каскадное обогащение ИНН из связанной Компании / Контакта Б24
     b24_company_id = lead.get("COMPANY_ID")
@@ -215,27 +262,71 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
         except Exception:
             pass
 
-    # Поиск ИНН через DaData по названию компании в заголовке / контакте / домену
-    if not inn and DADATA_TOKEN:
-        clean_name = re.sub(r'^(Запрос предложений компанией|Запрос КП на поставку|Запрос|запрос|Re:|RE:|Fwd:)\s*', '', title, flags=re.IGNORECASE).strip()
-        m_org = re.search(r'(?:ООО|АО|ПАО|ЗАО)\s*["«]?[^"»\r\n]+["»]?', f"{clean_name} {name}")
-        search_query = m_org.group(0).strip() if m_org else company_title
-        if "gislaved.su" in primary_email:
-            search_query = "АО КОРДИАНТ"
-        if search_query and search_query not in ["Без названия", ""]:
+    # Предварительное извлечение названия компании из подписи письма и из 1С (до DaData!)
+    if (not company_title or company_title.strip() in ["Без названия", "", "无标题"]) and email_body_all:
+        m_ip = re.search(r'\bИП\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.', email_body_all)
+        m_org_sig = re.search(r'(?:ООО|АО|ПАО|ЗАО)\s*[«"][^"»\r\n]{2,50}[»"]', email_body_all)
+        if m_ip:
+            company_title = re.sub(r'\s+', ' ', m_ip.group(0)).strip()
+        elif m_org_sig:
+            company_title = re.sub(r'\s+', ' ', m_org_sig.group(0)).strip()
+
+    # Предварительный поиск Лида в 1С по email для подтягивания ИНН и названия компании
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    auth = (ODATA_USER, ODATA_PASS)
+    if not inn and emails:
+        try:
+            f_pre = " or ".join(f"substringof('{e.strip().lower()}',АдресЭПДляПоиска)" for e in emails if e.strip())
+            if f_pre:
+                r_pre = requests.get(f"{ODATA_BASE}/Catalog_Лиды?$format=json&$top=1&$filter={f_pre}", auth=auth, headers=headers, timeout=15)
+                if r_pre.status_code == 200 and r_pre.json().get("value"):
+                    pre_l = r_pre.json()["value"][0]
+                    pre_tema = (pre_l.get("Тема") or "").strip()
+                    m_pre_inn = re.search(r'\b(\d{10}|\d{12})\b', pre_tema)
+                    if m_pre_inn:
+                        inn = m_pre_inn.group(1)
+                        pre_desc = (pre_l.get("Description") or "").strip()
+                        if pre_desc and (not company_title or company_title.strip() in ["Без названия", "", "无标题"] or company_title == title):
+                            company_title = pre_desc
+                        print(f"  [1C-PRE] Из существующего Лида 1С {pre_l.get('Code')} подтянут ИНН {inn} ('{company_title}')")
+        except Exception:
+            pass
+
+    # Поиск ИНН/официального названия через DaData
+    if (not inn or company_title == title) and DADATA_TOKEN:
+        if inn:
             try:
                 h_dd = {"Authorization": f"Token {DADATA_TOKEN}", "Content-Type": "application/json"}
-                r_dd = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", json={"query": search_query, "count": 1}, headers=h_dd, timeout=5)
-                if r_dd.status_code == 200:
-                    suggs = r_dd.json().get("suggestions", [])
-                    if suggs:
-                        inn = suggs[0]["data"].get("inn", "")
-                        comp_name = suggs[0]["value"]
-                        print(f"  [DADATA] Автоматически определен контрагент: '{comp_name}', ИНН: {inn}")
-                        if not company_title or company_title.strip() in ["Без названия", "", "无标题"]:
-                            company_title = comp_name
+                r_dd = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party", json={"query": inn}, headers=h_dd, timeout=5)
+                if r_dd.status_code == 200 and r_dd.json().get("suggestions"):
+                    comp_name = r_dd.json()["suggestions"][0]["value"]
+                    print(f"  [DADATA] По ИНН {inn} определено название: '{comp_name}'")
+                    if not company_title or company_title.strip() in ["Без названия", "", "无标题"] or company_title == title:
+                        company_title = comp_name
             except Exception:
                 pass
+        else:
+            clean_name = re.sub(r'^(Запрос предложений компанией|Запрос КП на поставку|Запрос|запрос|Re:|RE:|Fwd:)\s*', '', title, flags=re.IGNORECASE).strip()
+            clean_name = re.split(r'\bдля\s+(?:ООО|АО|ПАО|ЗАО)\b', clean_name, maxsplit=1, flags=re.IGNORECASE)[0]
+            m_org = re.search(r'(?:ООО|АО|ПАО|ЗАО|ТОГБУЗ|ГБУЗ|МБУЗ|ГАУЗ|ФГБУ|ФГУП|МУП|ГУП|ГКБ)\s*["«]?[^"»\r\n]+["»]?', clean_name)
+            search_query = m_org.group(0).strip() if m_org else (company_title if company_title != title else "")
+            search_query = re.sub(r'\bГ([А-ЯЁ][а-яё]+)', r'г. \1', search_query)
+            if "gislaved.su" in primary_email:
+                search_query = "АО КОРДИАНТ"
+            if search_query and search_query not in ["Без названия", "", "无标题"]:
+                try:
+                    h_dd = {"Authorization": f"Token {DADATA_TOKEN}", "Content-Type": "application/json"}
+                    r_dd = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", json={"query": search_query, "count": 1}, headers=h_dd, timeout=5)
+                    if r_dd.status_code == 200:
+                        suggs = r_dd.json().get("suggestions", [])
+                        if suggs:
+                            inn = suggs[0]["data"].get("inn", "")
+                            comp_name = suggs[0]["value"]
+                            print(f"  [DADATA] Автоматически определен контрагент: '{comp_name}', ИНН: {inn}")
+                            if not company_title or company_title.strip() in ["Без названия", "", "无标题"] or company_title == title:
+                                company_title = comp_name
+                except Exception:
+                    pass
 
     print(f"  Б24 Лид: '{title}' | ИНН: '{inn or 'нет'}' | Email: '{primary_email or 'нет'}' | Тел: '{primary_phone or 'нет'}'")
 
@@ -258,6 +349,11 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                     }
                 })
                 b24_company_id = int(r_c.get("result", 0))
+                if b24_company_id and inn:
+                    call_b24("crm.requisite.add", {"fields": {
+                        "ENTITY_TYPE_ID": 4, "ENTITY_ID": b24_company_id, "PRESET_ID": 1,
+                        "NAME": company_title, "RQ_COMPANY_NAME": company_title, "RQ_INN": inn
+                    }})
             else:
                 b24_company_id = 9999901
                 print("  [B24] (Dry-run) Компания создана условно (ID: 9999901)")
@@ -269,21 +365,25 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
             b24_contact_id = int(existing_ct["ID"])
             print(f"  [B24] Найден существующий Контакт ID {b24_contact_id} по email {primary_email}")
         else:
-            contact_parts = [p for p in [name or "Контакт", second_name, last_name] if p]
+            clean_ln = "" if (last_name and re.search(r'\b(?:ООО|АО|ПАО|ЗАО|ТОГБУЗ|ГБУЗ|МБУЗ|ГАУЗ|ГКБ)\b', last_name, re.I)) else last_name
+            contact_parts = [p for p in [name or "Контакт", second_name, clean_ln] if p]
             full_contact_name = " ".join(contact_parts)
             print(f"  [B24] Создание Контакта '{full_contact_name}' ({primary_email})")
             if not dry_run:
-                r_ct = call_b24("crm.contact.add", {
-                    "fields": {
-                        "NAME": full_contact_name,
-                        "LAST_NAME": last_name,
-                        "SECOND_NAME": second_name,
-                        "EMAIL": [{"VALUE_TYPE": "WORK", "VALUE": primary_email}],
-                        "COMPANY_ID": b24_company_id,
-                        "ASSIGNED_BY_ID": assigned_by,
-                        "OPENED": "Y"
-                    }
-                })
+                ct_fields = {
+                    "NAME": full_contact_name,
+                    "LAST_NAME": clean_ln,
+                    "SECOND_NAME": second_name,
+                    "EMAIL": [{"VALUE_TYPE": "WORK", "VALUE": em_i} for em_i in emails] if emails else [{"VALUE_TYPE": "WORK", "VALUE": primary_email}],
+                    "COMPANY_ID": b24_company_id,
+                    "ASSIGNED_BY_ID": assigned_by,
+                    "OPENED": "Y"
+                }
+                if primary_phone:
+                    d_ph = re.sub(r'\D', '', primary_phone)
+                    norm_ph = f"+7 ({d_ph[-10:-7]}) {d_ph[-7:-4]}-{d_ph[-4:-2]}-{d_ph[-2:]}" if len(d_ph) >= 10 else primary_phone
+                    ct_fields["PHONE"] = [{"VALUE_TYPE": "WORK", "VALUE": norm_ph}]
+                r_ct = call_b24("crm.contact.add", {"fields": ct_fields})
                 b24_contact_id = int(r_ct.get("result", 0))
             else:
                 b24_contact_id = 9999902
@@ -304,14 +404,16 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     auth = (ODATA_USER, ODATA_PASS)
     
-    # Поиск по ИНН или Email
-    find_filter = ""
-    if inn and primary_email:
-        find_filter = f"substringof('{inn}',Тема) or substringof('{primary_email}',Description)"
-    elif inn:
-        find_filter = f"substringof('{inn}',Тема)"
-    elif primary_email:
-        find_filter = f"substringof('{primary_email}',Description)"
+    # Поиск по ИНН или всем Email (включая АдресЭПДляПоиска!)
+    f_parts = []
+    if inn:
+        f_parts.append(f"substringof('{inn}',Тема)")
+    for em_s in emails:
+        em_l = em_s.strip().lower()
+        if em_l:
+            f_parts.append(f"substringof('{em_l}',АдресЭПДляПоиска)")
+            f_parts.append(f"substringof('{em_l}',Description)")
+    find_filter = " or ".join(f_parts)
 
     # Поиск существующего Контрагента в 1С (Counterparty Duplicate Guard)
     existing_counterparty_guid = None
@@ -355,15 +457,49 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                 vals = r_1c.json().get("value", [])
                 if vals:
                     one_c_guid = vals[0]["Ref_Key"]
-                    print(f"  [1C] Найден существующий Лид 1С: {one_c_guid}")
+                    existing_1c_lead_obj = vals[0]
+                    print(f"  [1C] Найден существующий Лид 1С: {vals[0].get('Code', '')} ({one_c_guid})")
+                    if not dry_run:
+                        ld_ci = list(existing_1c_lead_obj.get("КонтактнаяИнформация", []))
+                        ci_changed = False
+                        for em_add in emails:
+                            em_l = em_add.strip().lower()
+                            if em_l and not any(r.get("АдресЭП", "").lower() == em_l for r in ld_ci):
+                                ld_ci.append({
+                                    "LineNumber": str(len(ld_ci) + 1),
+                                    "Тип": "АдресЭлектроннойПочты",
+                                    "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
+                                    "Представление": em_l,
+                                    "АдресЭП": em_l,
+                                    "ДоменноеИмяСервера": em_l.split("@")[-1],
+                                    "Значение": f'{{\r\n"version": 4,\r\n"value": "{em_l}",\r\n"type": "АдресЭлектроннойПочты"\r\n}}',
+                                    "ЗначенияПолей": f'{{"EMail":"{em_l}"}}'
+                                })
+                                ci_changed = True
+                        if primary_phone and not any(re.sub(r"\D", "", r.get("Представление", ""))[-10:] == re.sub(r"\D", "", primary_phone)[-10:] for r in ld_ci if r.get("Тип") == "Телефон"):
+                            ld_ci.append({"LineNumber": str(len(ld_ci) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc76d-23c6-11ed-91a8-a068f8f3337c", "Представление": primary_phone, "НомерТелефона": primary_phone, "Значение": f'{{\r\n"version": 4,\r\n"value": "{primary_phone}",\r\n"type": "Телефон"\r\n}}', "ЗначенияПолей": f'{{"Phone":"{primary_phone}"}}'})
+                            ci_changed = True
+                        patch_existing = {}
+                        if ci_changed:
+                            patch_existing["КонтактнаяИнформация"] = ld_ci
+                        cur_ep = (existing_1c_lead_obj.get("АдресЭПДляПоиска") or "").strip()
+                        missing_eps = [e.lower() for e in emails if e.lower() not in cur_ep.lower()]
+                        if missing_eps:
+                            patch_existing["АдресЭПДляПоиска"] = ", ".join(([cur_ep] if cur_ep else []) + missing_eps)
+                        if primary_phone and not existing_1c_lead_obj.get("НомерТелефонаДляПоиска"):
+                            patch_existing["НомерТелефонаДляПоиска"] = re.sub(r"\D", "", primary_phone)[-10:]
+                        if patch_existing:
+                            r_p = requests.patch(f"{ODATA_BASE}/Catalog_Лиды(guid'{one_c_guid}')?$format=json", json=patch_existing, auth=auth, headers=headers, timeout=20)
+                            print(f"  [1C] Существующий Лид 1С обогащен ({r_p.status_code}): {list(patch_existing.keys())}")
         except Exception as e:
             print(f"  [1C-WARN] Ошибка поиска лида в 1С: {e}")
 
     if not existing_counterparty_guid and not one_c_guid:
-        print(f"  [1C] Создание нового Лида 1С по регламенту Zero-Blank Lead Guard ('{title}', ИНН: {inn or 'нет'})")
+        lead_1c_desc = company_title if company_title and company_title.strip() not in ("Без названия", "无标题", "") else title
+        print(f"  [1C] Создание нового Лида 1С по регламенту Zero-Blank Lead Guard ('{lead_1c_desc}', ИНН: {inn or 'нет'})")
         if not dry_run:
             post_payload = {
-                "Description": title,
+                "Description": lead_1c_desc,
                 "НаименованиеКомпании": company_title or title,
                 "Тема": f"ИНН: {inn}" if inn else title,
                 "Вид": "ПервичноеОбращение",
@@ -426,6 +562,8 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                 email=primary_email,
                 dry_run=dry_run
             )
+            if sbis_res:
+                print(f"  [СБИС-ТЕГИ] Вердикт: {sbis_res.get('verdict')} | Теги: {sbis_res.get('tags')}")
         except Exception as e_sbis:
             print(f"  [СБИС-WARN] Ошибка вызова модуля верификации контрагента: {e_sbis}")
 
@@ -1494,6 +1632,11 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                     }
                 })
                 b24_company_id = int(r_c.get("result", 0))
+                if b24_company_id and inn:
+                    call_b24("crm.requisite.add", {"fields": {
+                        "ENTITY_TYPE_ID": 4, "ENTITY_ID": b24_company_id, "PRESET_ID": 1,
+                        "NAME": company_title, "RQ_COMPANY_NAME": company_title, "RQ_INN": inn
+                    }})
                 print(f"  [B24 OK] Создана Компания #{b24_company_id}")
             else:
                 b24_company_id = 9999901

@@ -15,6 +15,7 @@ projects/1c_odata/scripts/process_b24_inbound_leads.py
 
 import sys
 import os
+sys.path.insert(0, r"c:\Codex\projects\1c_odata\scripts")
 import re
 import json
 import uuid
@@ -72,10 +73,10 @@ ONEC_AUTH_READ = HTTPBasicAuth(ONEC_USER, ONEC_PASS) if ONEC_USER else None
 ONEC_AUTH_WRITE = HTTPBasicAuth(writer_user, writer_pass) if writer_user else ONEC_AUTH_READ
 
 # Почтовые учетные записи SMTP
-SMTP_HOST = os.getenv("SMTP_HOST", "mail.longwang.ru")
+SMTP_HOST = os.getenv("SMTP_HOST") or os.getenv("SMTP_SERVER", "mail.longwang.ru")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
-SALES_EMAIL_USER = os.getenv("SALES_EMAIL_USER", "sales@longwang.ru")
-SALES_EMAIL_PASS = os.getenv("SALES_EMAIL_PASSWORD", "")
+SALES_EMAIL_USER = os.getenv("SALES_EMAIL_USER") or os.getenv("IMAP_USER", "sales@longwang.ru")
+SALES_EMAIL_PASS = os.getenv("SALES_EMAIL_PASSWORD") or os.getenv("SMTP_PASSWORD") or os.getenv("IMAP_PASSWORD", "")
 
 # Bitrix24 User and Group IDs
 USER_ARTEM = 1
@@ -167,10 +168,32 @@ def call_b24(method: str, payload: dict = None, retries: int = 3) -> any:
     return None
 
 def upload_file_to_b24_disk(file_path: str, folder_id: int = FOLDER_CHINA_SUPPLY_DISK) -> int:
-    """Загрузка файла на Диск Битрикс24 (папка группы 14: id 27826)"""
+    """Загрузка файла на Диск Битрикс24 (папка группы 14: id 27826), включая крупные файлы через uploadUrl."""
     if not file_path or not os.path.exists(file_path):
         return None
     fname = os.path.basename(file_path)
+    fsize = os.path.getsize(file_path)
+    if fsize > 6 * 1024 * 1024:
+        r_init = call_b24("disk.folder.uploadfile", {
+            "id": folder_id,
+            "data": {"NAME": fname},
+            "generateUniqueName": True
+        })
+        up_url = r_init.get("uploadUrl") if isinstance(r_init, dict) else None
+        field_name = (r_init.get("field") if isinstance(r_init, dict) else None) or "file"
+        if up_url:
+            try:
+                with open(file_path, "rb") as f:
+                    resp = requests.post(up_url, files={field_name: (fname, f)}, timeout=120)
+                if resp.status_code == 200:
+                    res_j = resp.json().get("result", {})
+                    fid = res_j.get("ID") if isinstance(res_j, dict) else None
+                    if fid:
+                        print(f"  [B24-DISK] Крупный файл '{fname}' ({fsize // (1024*1024)} МБ) загружен на Диск группы 14 (ID: {fid})")
+                        return int(fid)
+            except Exception as ex:
+                print(f"  [B24-DISK-WARN] Ошибка multipart-загрузки '{fname}': {ex}")
+        return None
     with open(file_path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("utf-8")
     r = call_b24("disk.folder.uploadfile", {
@@ -184,6 +207,44 @@ def upload_file_to_b24_disk(file_path: str, folder_id: int = FOLDER_CHINA_SUPPLY
         print(f"  [B24-DISK] Файл '{fname}' успешно загружен на Диск группы 14 (ID: {fid})")
         return int(fid)
     return None
+
+
+def download_cloud_mail_ru_links(text: str, out_dir: str) -> list:
+    """Скачивает файлы по публичным ссылкам https://cloud.mail.ru/stock/... из текста письма."""
+    if not text:
+        return []
+    urls = list(dict.fromkeys(re.findall(r'https://cloud\.mail\.ru/stock/[A-Za-z0-9]+', text)))
+    saved = []
+    os.makedirs(out_dir, exist_ok=True)
+    for u in urls:
+        try:
+            r = requests.get(u, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+            if r.status_code != 200:
+                continue
+            m_base = re.search(r'"stock"\s*:\s*\{\s*"count"\s*:\s*"\d+"\s*,\s*"url"\s*:\s*"(https://[^"]+)"', r.text)
+            m_list = re.search(r'"stockId"\s*:\s*"([^"]+)"', r.text)
+            m_tok = re.search(r'"dwl_token"\s*:\s*"([^"]+)"', r.text)
+            m_name = re.search(r'"name"\s*:\s*"([^"]+\.(?:pdf|dwg|dxf|zip|rar|xlsx|xls|jpg|jpeg|png))"', r.text, re.I)
+            if m_base and m_list:
+                base_u = m_base.group(1).rstrip("/") + "/"
+                stock_id = m_list.group(1)
+                fname = m_name.group(1) if m_name else os.path.basename(stock_id)
+                dl_url = base_u + urllib.parse.quote(stock_id, safe="/")
+                if m_tok:
+                    dl_url += f"?key={m_tok.group(1)}"
+                r_f = requests.get(dl_url, timeout=90, stream=True, headers={"User-Agent": "Mozilla/5.0"})
+                if r_f.status_code == 200:
+                    fpath = os.path.join(out_dir, fname)
+                    with open(fpath, "wb") as fp:
+                        for chunk in r_f.iter_content(chunk_size=65536):
+                            if chunk:
+                                fp.write(chunk)
+                    if os.path.getsize(fpath) > 1000:
+                        print(f"  [CLOUD-MAIL] Скачан файл по ссылке облака: '{fname}' ({os.path.getsize(fpath) // 1024} КБ)")
+                        saved.append(fpath)
+        except Exception as e:
+            print(f"  [CLOUD-MAIL-WARN] Не удалось скачать по ссылке {u}: {e}")
+    return saved
 
 # ----------------------------------------------------------------------
 # 1С:УНФ OData Helpers
@@ -374,10 +435,10 @@ def check_1c_lead(inn=None, name=None, email=None, phone=None):
     if not ONEC_BASE or not ONEC_AUTH_READ:
         return None
     try:
-        # 1. Приоритет: Точный Email лида
+        # 1. Приоритет: Точный Email лида (включая список через запятую в АдресЭПДляПоиска)
         if email and "@" in email:
             clean_email = email.strip().lower()
-            q = urllib.parse.quote(f"АдресЭПДляПоиска eq '{clean_email}'")
+            q = urllib.parse.quote(f"substringof('{clean_email}', АдресЭПДляПоиска)")
             r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
             if r.status_code == 200:
                 val = r.json().get('value', [])
@@ -493,14 +554,168 @@ def link_1c_events_and_address_book(sender_email, lead_guid, company_title, is_c
 # ----------------------------------------------------------------------
 # Мульти-ключевой каскадный поиск сущностей (Multi-Key Cascade Lookup)
 # ----------------------------------------------------------------------
+def find_b24_contact(email: str = None, phone: str = None, name: str = None) -> dict:
+    """
+    Строгий каскадный поиск Контакта в Битрикс24:
+    1. По Email (высший приоритет через crm.duplicate.findbycomm)
+    2. По Телефону (через crm.duplicate.findbycomm, строго без неточных wildcard)
+    3. По ФИО (только при точном совпадении Фамилии и Имени)
+    """
+    # 1. По Email через crm.duplicate.findbycomm
+    if email and "@" in email:
+        res_dup = call_b24("crm.duplicate.findbycomm", {
+            "type": "EMAIL",
+            "values": [email.strip().lower()]
+        })
+        if res_dup and res_dup.get("CONTACT"):
+            c_data = call_b24("crm.contact.get", {"id": res_dup["CONTACT"][0]})
+            if c_data:
+                return c_data
+        # Прямой поиск в crm.contact.list
+        res = call_b24("crm.contact.list", {
+            "filter": {"EMAIL": email.strip()},
+            "select": ["ID", "NAME", "LAST_NAME", "SECOND_NAME", "POST", "COMPANY_ID", "PHONE", "EMAIL"]
+        })
+        if res:
+            return res[0]
+
+    # 2. По Телефону через crm.duplicate.findbycomm (строго изолированно)
+    if phone:
+        digits = re.sub(r'\D', '', phone)
+        values_to_check = [phone.strip()]
+        if len(digits) >= 10:
+            values_to_check.append(digits[-10:])
+            values_to_check.append("+7" + digits[-10:])
+            values_to_check.append("8" + digits[-10:])
+        res_dup = call_b24("crm.duplicate.findbycomm", {
+            "type": "PHONE",
+            "values": values_to_check
+        })
+        if res_dup and res_dup.get("CONTACT"):
+            c_data = call_b24("crm.contact.get", {"id": res_dup["CONTACT"][0]})
+            if c_data:
+                return c_data
+
+    # 3. По ФИО (если есть хотя бы 2 слова)
+    if name:
+        parts = [p.strip() for p in name.split() if len(p.strip()) >= 2]
+        if len(parts) >= 2:
+            res_nm = call_b24("crm.contact.list", {
+                "filter": {"LAST_NAME": parts[0], "NAME": parts[1]},
+                "select": ["ID", "NAME", "LAST_NAME", "SECOND_NAME", "POST", "COMPANY_ID", "PHONE", "EMAIL"]
+            })
+            if res_nm:
+                return res_nm[0]
+
+    return None
+
 def find_b24_contact_by_email(email: str) -> dict:
-    if not email:
-        return None
-    res = call_b24("crm.contact.list", {
-        "filter": {"EMAIL": email.strip()},
-        "select": ["ID", "NAME", "LAST_NAME", "SECOND_NAME", "POST", "COMPANY_ID", "PHONE", "EMAIL"]
-    })
-    return res[0] if res else None
+    return find_b24_contact(email=email)
+
+def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_key=None, email=None) -> dict:
+    """
+    Сбор истории обращений в 1С:УНФ и Битрикс24:
+    - 1С:УНФ: подсчет событий типа 'Прочее' (входящие заявки/запросы/переписка) на вкладке 'События'
+    - 1С:УНФ: общее число событий
+    - Битрикс24: число выигранных сделок (WON), общее число сделок
+    - Битрикс24: число обращений/писем
+    Возвращает dict с метриками и флагом подозрительного сборщика КП.
+    """
+    onec_other_count = 0
+    onec_total_events = 0
+    if ONEC_BASE and ONEC_AUTH_READ:
+        try:
+            # Оптимизированная выборка событий (быстродействие < 2 сек с $select)
+            url = f"{ONEC_BASE}/Document_Событие?$select=Ref_Key,Date,ТипСобытия,СписокУчастников&$top=50&$orderby=Date desc&$format=json"
+            r = requests.get(url, auth=ONEC_AUTH_READ, timeout=5)
+            if r.status_code == 200:
+                events = r.json().get("value", [])
+                for ev in events:
+                    p_str = (ev.get("СписокУчастников") or "").lower()
+                    t = ev.get("ТипСобытия")
+                    matched = False
+                    if email and email.lower() in p_str:
+                        matched = True
+                    if matched:
+                        onec_total_events += 1
+                        if t == "Прочее":
+                            onec_other_count += 1
+        except Exception:
+            pass
+
+    b24_deals_total = 0
+    b24_deals_won = 0
+    b24_acts_count = 0
+    try:
+        filter_deal = {}
+        if b24_company_id:
+            filter_deal["COMPANY_ID"] = b24_company_id
+        elif b24_contact_id:
+            filter_deal["CONTACT_ID"] = b24_contact_id
+        if filter_deal:
+            deals = call_b24("crm.deal.list", {"filter": filter_deal, "select": ["ID", "STAGE_ID", "STAGE_SEMANTIC_ID"]}) or []
+            b24_deals_total = len(deals)
+            b24_deals_won = len([d for d in deals if d.get("STAGE_SEMANTIC_ID") == "S"])
+            
+        if b24_company_id:
+            acts = call_b24("crm.activity.list", {"filter": {"BINDINGS": [{"OWNER_TYPE_ID": 4, "OWNER_ID": b24_company_id}]}}) or []
+            b24_acts_count = len(acts)
+        elif b24_contact_id:
+            acts = call_b24("crm.activity.list", {"filter": {"BINDINGS": [{"OWNER_TYPE_ID": 3, "OWNER_ID": b24_contact_id}]}}) or []
+            b24_acts_count = len(acts)
+    except Exception:
+        pass
+
+    total_inquiries = max(onec_other_count, b24_acts_count, onec_total_events)
+    # Маркер 1: > 3 обращений в истории при 0 закрытых/успешных сделок
+    is_ghost_reseller = (total_inquiries > 3 and b24_deals_won == 0)
+
+    return {
+        "onec_other_count": onec_other_count,
+        "onec_total_events": onec_total_events,
+        "b24_deals_total": b24_deals_total,
+        "b24_deals_won": b24_deals_won,
+        "b24_acts_count": b24_acts_count,
+        "total_inquiries": total_inquiries,
+        "is_ghost_reseller": is_ghost_reseller
+    }
+
+
+def verify_rfq_items_grounded(items: list, raw_text: str) -> list:
+    """
+    Zero-Hallucination RFQ Positions Guard (Критический инвариант):
+    Каждая позиция ОБЯЗАНА присутствовать в исходном тексте запроса клиента.
+    Запрещено выдумывать, подставлять дефолтные артикулы или галлюцинировать модели.
+    Если позиция отсутствует в исходном тексте письма или вложения — она отбрасывается.
+    """
+    if not items or not raw_text:
+        return items
+    norm_source = re.sub(r'[^a-zA-Zа-яА-Я0-9]', '', raw_text.lower())
+    grounded_items = []
+    for it in items:
+        model = it.get("model") or ""
+        name_ru = it.get("name_ru") or ""
+        # Нормализация для поиска
+        norm_model = re.sub(r'[^a-zA-Zа-яА-Я0-9]', '', model.lower())
+        norm_name = re.sub(r'[^a-zA-Zа-яА-Я0-9]', '', name_ru.lower())
+        
+        # Проверяем наличие ключевой части модели в источнике
+        model_words = [w for w in re.split(r'[^a-zA-Z0-9]', model) if len(w) >= 3]
+        is_grounded = False
+        if norm_model and norm_model in norm_source:
+            is_grounded = True
+        elif norm_name and norm_name in norm_source:
+            is_grounded = True
+        elif any(re.sub(r'[^a-zA-Z0-9]', '', w.lower()) in norm_source for w in model_words):
+            is_grounded = True
+            
+        if is_grounded:
+            grounded_items.append(it)
+        else:
+            print(f"  [ZERO-HALLUCINATION GUARD] Позиция '{model}' отброшена: отсутствует в исходном тексте клиента!")
+
+    return grounded_items
+
 
 def find_b24_company(inn: str = None, title: str = None, origin_id: str = None, contact_company_id: int = None) -> dict:
     """
@@ -579,10 +794,10 @@ def normalize_phone_number(raw_phone: str) -> tuple[str, str]:
 
     # 1. Извлечение добавочного (доб. / ext. / внутр.)
     ext_str = ""
-    m_ext = re.search(r'(?:доб\.?|ext\.?|внутр\.?)[\s:\-]*(\d+)', text, flags=re.IGNORECASE)
+    m_ext = re.search(r'(?:доб\.?|ext\.?|внутр\.?)[\s:\-]*(\d+(?:-\d+)?)', text, flags=re.IGNORECASE)
     if m_ext:
         ext_str = f"доб. {m_ext.group(1)}"
-        text = re.sub(r'\(?\s*(?:доб\.?|ext\.?|внутр\.?)[\s:\-]*\d+\s*\)?', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\(?\s*(?:доб\.?|ext\.?|внутр\.?)[\s:\-]*\d+(?:-\d+)?\s*\)?', '', text, flags=re.IGNORECASE)
 
     # 2. Очистка от сдвоенных номеров (/06, /215-87-68)
     text = re.split(r'[/,;]', text)[0].strip()
@@ -863,7 +1078,7 @@ def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email
     if not keys:
         return title
 
-    desc_sample = sanitize_html_email_text(email_desc or "")
+    desc_sample = sanitize_html_email_text(strip_email_reply_quotes(email_desc or ""))
     desc_sample = " ".join(desc_sample.split())[:1500]
     clean_comments = ""
     if lead_comments:
@@ -924,6 +1139,58 @@ def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email
                 continue
     return title
 
+
+def translate_items_batch_to_chinese(items: list) -> None:
+    """Пакетный перевод наименований позиций Excel на китайский за 1 LLM-вызов с fallback на словарь."""
+    if not items:
+        return
+    need = [it for it in items if not it.get("pname_cn") or re.search(r'[А-Яа-яЁё]', str(it.get("pname_cn", "")))]
+    if not need:
+        return
+    dict_cn = {
+        "винт шатуна": "连杆螺栓", "очковое уплотнение": "眼镜板密封圈", "вкладыш шатуна": "连杆轴瓦",
+        "уплотнительное кольцо": "O型密封圈", "уплотнение головки цилиндра": "气缸盖密封垫",
+        "компенсатор": "补偿器 / 波纹管", "уплотнение": "密封垫", "трубный соединитель": "管接头",
+        "головка блока цилиндра": "气缸盖", "выхлопной патрубок": "排气管", "актуатор": "执行器",
+        "фланцевое уплотнение": "法兰密封垫", "клапан": "阀门", "датчик": "传感器", "фильтр": "滤清器",
+        "насос": "泵", "кабель": "电缆", "болт": "螺栓", "прокладка": "垫片",
+    }
+    keys = get_llm_api_keys()
+    if keys:
+        lines_in = [f"{i+1}. {it.get('brand', '')} | {it.get('name_ru', '')} | {it.get('model', '')}" for i, it in enumerate(need)]
+        prompt = (
+            "Переведи каждую строку промышленной спецификации на китайский язык (строго 1 строка = 1 позиция в формате 'N. <перевод на CN> <артикул>'). "
+            "Не придумывай артикулы. Верни только нумерованный список:\n" + "\n".join(lines_in)
+        )
+        for key in keys[:2]:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={key}"
+            data = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    res_data = json.loads(resp.read().decode("utf-8"))
+                    txt = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    for line in txt.splitlines():
+                        m = re.match(r'^\s*(\d+)[.)]\s*(.+)$', line.strip())
+                        if m:
+                            idx = int(m.group(1)) - 1
+                            if 0 <= idx < len(need):
+                                need[idx]["pname_cn"] = m.group(2).strip().replace('"', '').replace("'", "")
+                    if all(it.get("pname_cn") for it in need):
+                        return
+            except Exception:
+                continue
+    for it in need:
+        if not it.get("pname_cn"):
+            low = (it.get("name_ru") or "").lower()
+            cn = ""
+            for k, v in dict_cn.items():
+                if k in low:
+                    cn = v
+                    break
+            model = it.get("model", "")
+            it["pname_cn"] = f"{cn} {model}".strip() if cn else (it.get("name_ru") or model)
+
 def extract_phone_and_signature_details(text: str) -> dict:
     """
     Интеллектуальный парсер подписи и разделения телефонов (Company vs Contact Phone Isolation Guard):
@@ -942,8 +1209,8 @@ def extract_phone_and_signature_details(text: str) -> dict:
     clean_text = unescape(clean_text)
     clean_text = clean_text.replace('\xa0', ' ')
 
-    # 1. Поиск всех телефонных номеров в тексте
-    pattern_strict = r'(?<!\d)(?:(?:\+7|8)[\s\-]?(?:\(\d{3,5}\)|\d{3,5})[\s\-]?\d{2,3}[\s\-]?\d{2,3}[\s\-]?\d{2,4}(?:\s*(?:\(доб\.?\s*[:\-]?\s*\d+\)|доб\.?\s*[:\-]?\s*\d+|ext\.?\s*[:\-]?\s*\d+))?)'
+    # 1. Поиск всех телефонных номеров в тексте (включая городские номера с кодом в скобках без префикса +7/8)
+    pattern_strict = r'(?<!\d)(?:(?:\+7|8)[\s\-]?(?:\(\d{3,5}\)|\d{3,5})|\(\d{3,5}\))[\s\-]?\d{1,3}[\s\-]?\d{2,3}[\s\-]?\d{2,4}(?:\s*(?:\(доб\.?\s*[:\-]?\s*\d+\)|доб\.?\s*[:\-]?\s*[\d\-]+|ext\.?\s*[:\-]?\s*\d+))?'
     matches = list(re.finditer(pattern_strict, clean_text, re.IGNORECASE))
     
     extracted = []
@@ -991,7 +1258,7 @@ def extract_phone_and_signature_details(text: str) -> dict:
 
     # 2. Поиск должности
     post = ""
-    m_post = re.search(r'(?:Отдел\s*снабжения|Специалист\s*\d*(?:\.\s*[^\n\r,<>]{0,40})?|Инженер[^\n\r,<>]{0,40}|Менеджер[^\n\r,<>]{0,40}|Директор[^\n\r,<>]{0,40}|Руководитель[^\n\r,<>]{0,40}|Начальник[^\n\r,<>]{0,40}|Ведущий инженер[^\n\r,<>]{0,40}|Главный специалист[^\n\r,<>]{0,40})', clean_text, flags=re.IGNORECASE)
+    m_post = re.search(r'(?:Отдел\s*снабжения|Ведущий\s+специалист[^\n\r,<>]{0,40}|Главный\s+специалист[^\n\r,<>]{0,40}|Ведущий\s+инженер[^\n\r,<>]{0,40}|Специалист\s*\d*(?:\.\s*[^\n\r,<>]{0,40})?|Инженер[^\n\r,<>]{0,40}|Менеджер[^\n\r,<>]{0,40}|Директор[^\n\r,<>]{0,40}|Руководитель[^\n\r,<>]{0,40}|Начальник[^\n\r,<>]{0,40})', clean_text, flags=re.IGNORECASE)
     if m_post:
         p_val = " ".join(m_post.group(0).split()).strip(" ,;.-")
         p_val = re.split(r'\b(?:россия|г\.|ул\.|тел|e-mail|факс)\b', p_val, flags=re.IGNORECASE)[0].strip(" ,;.-")
@@ -1007,14 +1274,29 @@ def extract_phone_and_signature_details(text: str) -> dict:
             website = w_val
             break
 
-    # 4. Поиск имени контактного лица в подписи (после 'С уважением' / 'Best regards')
+    # 4. Поиск имени контактного лица в подписи (после 'С уважением', после названия компании, из BitrixGPT 'представитель ...' или перед телефоном)
     sig_name = ""
     m_sig_name = re.search(r'(?:[cсCС][\s\xa0]*уважением[,\s\xa0\r\n]+|best\s*regards[,\s\r\n]+|regards[,\s\r\n]+)([А-ЯЁ][а-яё]+(?:[ \t]+[А-ЯЁ][а-яё]+)?)', clean_text, re.IGNORECASE)
     if m_sig_name:
         cand_n = m_sig_name.group(1).strip()
-        # Исключаем названия компаний или общие слова
-        if not any(w in cand_n.lower() for w in ["ооо", "ао", "зао", "ип", "компани", "отдел", "служба", "команд"]):
+        if not any(w in cand_n.lower() for w in ["ооо", "ао", "зао", "пао", "ип", "компани", "отдел", "служба", "команд"]):
             sig_name = cand_n
+    if not sig_name:
+        m_repr = re.search(r'представитель\s+([А-ЯЁ][а-яё]+[ \t]+[А-ЯЁ][а-яё]+)', clean_text, re.IGNORECASE)
+        if m_repr:
+            sig_name = m_repr.group(1).strip()
+    if not sig_name:
+        m_comp_sig = re.search(r'(?:ООО|АО|ЗАО|ПАО)\s*[«"\']?[^\n\r]{2,40}[»"\']?[\s\r\n]+([А-ЯЁ][а-яё]+[ \t]+[А-ЯЁ][а-яё]+)', clean_text)
+        if m_comp_sig:
+            cand_n = m_comp_sig.group(1).strip()
+            if not any(w in cand_n.lower() for w in ["ооо", "ао", "зао", "пао", "ип", "компани", "отдел", "служба", "команд"]):
+                sig_name = cand_n
+    if not sig_name:
+        m_ph_sig = re.search(r'([А-ЯЁ][а-яё]{2,})[\s\r\n]+([А-ЯЁ][а-яё]{2,})[\s\r\n]+(?:\+7|8)[\s\-]?\(?\d{3,5}\)?', clean_text)
+        if m_ph_sig:
+            cand_pair = f"{m_ph_sig.group(1)} {m_ph_sig.group(2)}"
+            if not any(w in cand_pair.lower() for w in ["ооо", "ао", "зао", "пао", "ип", "счет", "кп", "добрый", "день", "прошу", "сроками", "поставки"]):
+                sig_name = cand_pair
 
     return {
         "phone": contact_phone,
@@ -1049,9 +1331,12 @@ def strip_email_reply_quotes(text: str) -> str:
     quote_splitters = [
         r'(?m)^-{4,}\s*\r?\n\s*(?:Кому|От кого|From|Sent|Дата|To|Subject)\s*:',
         r'(?m)^-{5,}\s*Original Message\s*-{5,}',
+        r'(?im)^(?:[а-яёa-z]+,\s*)?\d{1,2}\s+[а-яёa-z]+\s+\d{4}\s*г\.?[^\n]*?(?:от\s+|wrote:|написал)[^\n]*:',
         r'(?m)^\d{2}\.\d{2}\.\d{4},?\s+\d{2}:\d{2},?\s+[^\n]{1,80}написал\(а\)\s*:',
         r'(?m)^От кого:\s*[^\n]+\r?\nКому:\s*',
         r'(?m)^From:\s*[^\n]+\r?\nSent:\s*',
+        r'(?im)^.*?(?:от\s+sales\s*<sales@longwang\.ru>|sales@longwang\.ru).*',
+        r'(?im)^(?:\s*[-–—=]{3,}\s*)?(?:Если Вам в дальнейшем понадобится|С уважением,\s*ООО\s*["«]Лонгванг["»]|ООО\s*["«]Медиана["»]).*',
     ]
     res = text
     for pat in quote_splitters:
@@ -1062,13 +1347,14 @@ def strip_email_reply_quotes(text: str) -> str:
 
 
 def extract_items_from_xlsx_bytes(content: bytes, default_brand: str = "OEM") -> list:
-    """Динамически извлекает позиции из вложенного .xlsx/.xls с учетом смещенных колонок."""
+    """Динамически извлекает позиции из вложенного .xlsx/.xls с учетом смещенных колонок и заголовка."""
     import io, openpyxl
     items = []
     wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
     ws = wb.active
     header_idx = None
     col_map = {}
+    pre_header_texts = []
     for r_i, row in enumerate(ws.iter_rows(max_row=20, values_only=True), start=1):
         vals = [str(c or "").strip().lower() for c in row]
         if any("наименован" in v or "товар" in v or "продукц" in v for v in vals) and any("колич" in v or "кол-во" in v or "qty" in v for v in vals):
@@ -1085,8 +1371,14 @@ def extract_items_from_xlsx_bytes(content: bytes, default_brand: str = "OEM") ->
                 elif "бренд" in v or "производ" in v or "brand" in v:
                     col_map.setdefault("brand", c_i)
             break
+        row_joined = " ".join(str(c or "").strip() for c in row if c)
+        if row_joined:
+            pre_header_texts.append(row_joined)
     if header_idx is None or "name" not in col_map:
         return []
+    pre_ctx = " ".join(pre_header_texts)
+    m_ctx_b = re.search(r'\b(Atlas\s+Copco|ABB|Siemens|Schneider|SMC|Festo|Omron|Danfoss|Gemu|Hydac|Caterpillar|Cummins|Wilo|Fronius|Lenze)\b', pre_ctx, re.I)
+    sheet_default_brand = m_ctx_b.group(1) if m_ctx_b else default_brand
     idx = 1
     for row in ws.iter_rows(min_row=header_idx + 1, values_only=True):
         if not row or col_map["name"] >= len(row):
@@ -1104,9 +1396,15 @@ def extract_items_from_xlsx_bytes(content: bytes, default_brand: str = "OEM") ->
         belong = str(row[col_map["belong"]] or "").strip() if "belong" in col_map and col_map["belong"] < len(row) else ""
         chars = str(row[col_map["chars"]] or "").strip() if "chars" in col_map and col_map["chars"] < len(row) else ""
         brand_val = str(row[col_map["brand"]] or "").strip() if "brand" in col_map and col_map["brand"] < len(row) else ""
+        orig_note = ""
+        if brand_val and any(w in brand_val.lower() for w in ("оригинал", "oem", "аналог")):
+            orig_note = brand_val
+            brand_val = ""
         full_ru = f"{name_ru} ({belong})" if belong else name_ru
-        m_b = re.search(r'\b(Atlas\s+Copco|ABB|Siemens|Schneider|SMC|Festo|Omron|Danfoss|Gemu|Hydac|Caterpillar|Cummins|Wilo|Fronius)\b', f"{brand_val} {name_ru} {chars}", re.I)
-        brand = m_b.group(1) if m_b else (brand_val or default_brand)
+        if orig_note:
+            full_ru = f"{full_ru} [{orig_note}]"
+        m_b = re.search(r'\b(Atlas\s+Copco|ABB|Siemens|Schneider|SMC|Festo|Omron|Danfoss|Gemu|Hydac|Caterpillar|Cummins|Wilo|Fronius|Lenze)\b', f"{brand_val} {name_ru} {chars}", re.I)
+        brand = m_b.group(1) if m_b else (brand_val or sheet_default_brand)
         items.append({
             "num": idx,
             "brand": brand,
@@ -1133,27 +1431,66 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
         "подшипник": "轴承", "муфта": "联轴器", "преобразователь": "变频器",
         "частотник": "变频器", "реле": "继电器",
         "подогреватель": "加热器", "прокладка": "垫片", "свеча": "火花塞", "свечи": "火花塞",
-        "кольцо": "密封圈", "уплотнение": "密封垫", "фильтр": "滤清器"
+        "кольцо": "密封圈", "уплотнение": "密封垫", "фильтр": "滤清器", "кабель": "电缆", "комплект": "维修套件"
     }
     text_no_quotes = strip_email_reply_quotes(text)
-    # Поддержка табличного переноса: <наименование> \n шт \n <число>
-    text_no_quotes = re.sub(r'([^\n]+)\r?\n\s*(?:шт|pcs|pc|ед)\.?\s*\r?\n\s*(\d+(?:[.,]\d+)?)\b', r'\1 - \2 шт.', text_no_quotes, flags=re.IGNORECASE)
+    # Склейка разорванных переносами артикулов (например, "GP1-\n0013R97F/20N")
+    text_no_quotes = re.sub(r'([A-Za-z0-9])-\s*\r?\n+\s*([A-Za-z0-9])', r'\1-\2', text_no_quotes)
+    # Склейка многострочных нумерованных позиций до строки с количеством ("1.Насос\n...\nМПа-1шт")
+    raw_split_lines = [re.sub(r'\s+', ' ', l).strip() for l in text_no_quotes.split('\n')]
+    merged_lines = []
+    cur_buf = ""
+    for ln in raw_split_lines:
+        if not ln:
+            if cur_buf:
+                if re.search(r'(?:шт|pcs|pc|ед|кмп|компл)\b', cur_buf, re.I):
+                    merged_lines.append(cur_buf)
+                    cur_buf = ""
+            continue
+        if re.match(r'^\d+[.)]\s*[А-ЯЁA-Z]', ln):
+            if cur_buf:
+                merged_lines.append(cur_buf)
+            cur_buf = ln
+        elif cur_buf:
+            cur_buf = f"{cur_buf} {ln}".strip()
+            if re.search(r'[-–—:]?\s*\d+(?:[.,]\d+)?\s*(?:шт|pcs|pc|ед|кмп|компл)\b', ln, re.I):
+                merged_lines.append(cur_buf)
+                cur_buf = ""
+        else:
+            merged_lines.append(ln)
+    if cur_buf:
+        merged_lines.append(cur_buf)
+    text_no_quotes = "\n".join(merged_lines)
+    # Поддержка табличного переноса: <наименование> \n [арт. ...] \n шт|м \n <число>
+    text_no_quotes = re.sub(r'([^\n]+)\r?\n\s*(арт\.[^\n]+)\r?\n\s*(шт|pcs|pc|ед|м)\.?\s*\r?\n\s*(\d+(?:[.,]\d+)?)\b', r'\1 \2 - \4 \3.', text_no_quotes, flags=re.IGNORECASE)
+    text_no_quotes = re.sub(r'([^\n]+)\r?\n\s*(шт|pcs|pc|ед|м)\.?\s*\r?\n\s*(\d+(?:[.,]\d+)?)\b', r'\1 - \3 \2.', text_no_quotes, flags=re.IGNORECASE)
+    # Склейка "Кабель\n по стандарту LENZE арт. 7072511 - 50 м." -> "Кабель по стандарту..."
+    text_no_quotes = re.sub(r'\b(Кабель)\s*\r?\n\s*(по стандарту[^\n]+)', r'\1 \2', text_no_quotes, flags=re.IGNORECASE)
     clean_lines = [l.strip() for l in text_no_quotes.split('\n') if l.strip()]
     idx = 1
     seen_items = set()
     for line in clean_lines:
-        m_qty = re.search(r'[-–—:]?\s*(\d+(?:[.,]\d+)?)\s*(?:шт(?:ук[иа]?)?|pcs|pc|ед|units?|台|个)\b', line, re.IGNORECASE)
-        if not m_qty:
+        m_qty = re.search(r'[-–—:]?\s*(\d+(?:[.,]\d+)?)\s*(шт(?:ук[иа]?)?|pcs|pc|ед|units?|кмп|компл(?:ект[а-я]*)?|台|个|м(?:\.|\b))(?![а-яёa-z])', line, re.IGNORECASE)
+        m_kmp_only = None if m_qty else re.search(r'\s+(кмп|компл\.?)\s*$', line, re.IGNORECASE)
+        if not m_qty and not m_kmp_only:
             continue
-        try:
-            qty_val = float(m_qty.group(1).replace(',', '.'))
-            qty = int(round(qty_val)) if qty_val > 0 else 1
-        except Exception:
+        if m_qty:
+            raw_unit = m_qty.group(2).strip().rstrip('.').lower()
+            unit = "м" if raw_unit == "м" else ("кмп" if raw_unit.startswith(("кмп", "компл")) else "шт.")
+            try:
+                qty_val = float(m_qty.group(1).replace(',', '.'))
+                qty = int(round(qty_val)) if qty_val > 0 else 1
+            except Exception:
+                qty = 1
+            cut_pos = m_qty.start()
+        else:
+            unit = "кмп"
             qty = 1
+            cut_pos = m_kmp_only.start()
         # Не срезаем ведущие цифры артикулов без разделителя (например, 1PH8228, 6SL3246)
         raw_name = re.sub(r'^\s*(?:[-*•]+|\d+[.)]+|\d+\s+[-–—]?\s*)', '', line)
-        raw_name = raw_name[:m_qty.start()].strip(' -–—:;,')
-        if len(raw_name) < 3:
+        raw_name = raw_name[:cut_pos].strip(' -–—:;,')
+        if len(raw_name) < 3 or raw_name.lower() in {"мпа", "бар", "мм", "см", "кг", "квт", "об", "гц", "шт"}:
             continue
         cn_cat = ""
         for k, v in category_map.items():
@@ -1180,7 +1517,7 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
         pname_cn = f"{cn_cat} {model}".strip() if cn_cat else raw_name
         items.append({
             "num": idx, "brand": brand, "pname_cn": pname_cn,
-            "model": model, "name_ru": raw_name, "qty": qty
+            "model": model, "name_ru": raw_name, "qty": qty, "unit": unit
         })
         idx += 1
 
@@ -1234,6 +1571,42 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
                     idx += 1
     return items
 
+def sanitize_inquiry_for_china_supply(raw_text: str) -> str:
+    """
+    China Supply Anonymity & Hygiene Guard:
+    Вырезает из текста запроса реквизиты, юрлица РФ, контакты, подписи,
+    а также бухгалтерские/логистические фразы ('в счете прошу', 'выслать в мой адрес', 'доставка до' и т.п.),
+    оставляя только техническую суть для снабжения КНР.
+    """
+    if not raw_text:
+        return ""
+    cut_markers = r'(?:--+|сообщаю\s+вам\s+наши\s+реквизиты|наши\s+реквизиты|реквизиты\s*:|банковские\s+реквизиты|\bинн\s*[:№]?\s*\d{10,12}\b|\bкпп\s*[:№]?\s*\d{9}\b|\bс\s+уважением\b|\bbest\s+regards\b|\bregards\b|\bданное\s+сообщение\s+предназначено\b)'
+    text_cut = re.split(cut_markers, raw_text, maxsplit=1, flags=re.IGNORECASE)[0]
+
+    drop_line_re = re.compile(
+        r'(?:'
+        r'\b(?:в\s+счете|счет\s+на\s+предоплату|выслать\s+в\s+мой\s+адрес|направить\s+в\s+наш\s+адрес|прислать\s+счет|выставить\s+счет|выставить\s+кп|прошу\s+(?:вас\s+)?поставить\s+нашему\s+предприятию|прошу\s+выставить|добрый\s+день|здравствуйте)\b'
+        r'|\b(?:инн|кпп|огрн|окпо|бик|р/с|к/с|кор/с|расчетный\s+счет|корр\.\s*счет)\b'
+        r'|\b(?:адрес\s+доставки|куда\s+доставлять|грузополучатель|плательщик|юридический\s+адрес|фактический\s+адрес)\b'
+        r'|\b(?:акционерное\s+общество|общество\s+с\s+ограниченной\s+ответственностью|ооо|ао|пао|зао|ип)\b'
+        r'|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        r'|(?:\+7|8)[\s\-]?\(?\d{3,5}\)?[\s\-]?\d{2,3}[\s\-]?\d{2}[\s\-]?\d{2,4}'
+        r')',
+        re.IGNORECASE
+    )
+    kept = []
+    for ln in text_cut.splitlines():
+        s = re.sub(r'\s+', ' ', ln).strip()
+        if not s:
+            continue
+        if drop_line_re.search(s):
+            continue
+        if re.match(r'^\d{6}\s*,', s):
+            continue
+        kept.append(s)
+    return "\n".join(kept).strip()
+
+
 def extract_rfq_procurement_details(title: str, email_subject: str = "", email_desc: str = "", lead_comments: str = "") -> dict:
     """
     Извлекает подробные параметры ТЗ на закупку для Китая:
@@ -1252,11 +1625,10 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     clean_lines_text = "\n".join(s for s in clean_segments if s)
     clean_text = " ".join(clean_lines_text.split())
 
-    # 1. Извлечение оригинального текста запроса клиента (до подписи)
-    sig_split = re.split(r'(?:--|\bс уважением\b|\bbest regards\b|\bregards\b|\bданное сообщение предназначено\b|\bс уважением к вам\b)', clean_lines_text, flags=re.IGNORECASE)
-    clean_inquiry = sig_split[0].strip() if sig_split else clean_lines_text[:600]
-    if len(clean_inquiry) < 20:
-        clean_inquiry = clean_lines_text[:600] or email_subject or title
+    # 1. Извлечение только технической части запроса клиента (без реквизитов, контактов и условий по РФ)
+    clean_inquiry = sanitize_inquiry_for_china_supply(clean_lines_text)
+    if not clean_inquiry:
+        clean_inquiry = sanitize_inquiry_for_china_supply(clean_lines_text[:600])
 
     # 2. Допустимость аналога (учитываем также сводку BitrixGPT без блока СБИС)
     gpt_clean_for_rfq = ""
@@ -1279,13 +1651,21 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     KNOWN_BRANDS = [
         "OMRON", "FLENDER", "GEMU", "SKF", "HYDAC", "FESTO", "SIEMENS", "ABB", "DANFOSS",
         "SCHNEIDER", "ENDRESS+HAUSER", "LENZE", "SMC", "YOKOGAWA", "WIKA", "IFM", "SICK",
-        "PARKER", "REXROTH", "EATON", "BITZER", "FRONIUS", "WILO", "BREVINI", "AUTONICS", "CATERPILLAR", "CUMMINS", "BAUMER", "HUBNER", "HÜBNER"
+        "PARKER", "REXROTH", "EATON", "BITZER", "FRONIUS", "WILO", "BREVINI", "AUTONICS", "CATERPILLAR", "CUMMINS", "BAUMER", "HUBNER", "HÜBNER",
+        "EMERSON", "ROSEMOUNT", "MICRO MOTION"
     ]
     detected_brand = ""
+    # Приоритет 1: бренд прямо указан в теле запроса клиента
     for kb in KNOWN_BRANDS:
-        if re.search(r'\b' + re.escape(kb) + r'\b', f"{title} {email_subject} {clean_text} {gpt_clean_for_rfq}", re.IGNORECASE):
+        if re.search(r'\b' + re.escape(kb) + r'\b', clean_lines_text, re.IGNORECASE):
             detected_brand = kb
             break
+    # Приоритет 2: тема письма или заголовок лида
+    if not detected_brand:
+        for kb in KNOWN_BRANDS:
+            if re.search(r'\b' + re.escape(kb) + r'\b', f"{title} {email_subject} {clean_text} {gpt_clean_for_rfq}", re.IGNORECASE):
+                detected_brand = kb
+                break
 
     clean_nom = re.sub(r'^(?:re:\s*|fwd:\s*|запрос(?:\s+на)?\s+|заявка(?:\s+на)?\s+|кп\s+|счет\s+|тз(?:\s+на)?\s+)+', '', cn_nomenclature, flags=re.IGNORECASE).strip()
     parts = clean_nom.split()
@@ -1296,7 +1676,7 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     elif "pog" in f"{title} {email_subject} {clean_text}".lower() and ("10" in f"{title} {email_subject} {clean_text}" or "dn" in f"{title} {email_subject} {clean_text}".lower()):
         brand = "Baumer"
         m_pog = re.search(r'(POG\s*10\s*DN[^\r\n<]+)', f'{clean_lines_text}\n{title}\n{email_subject}', re.I)
-        model = m_pog.group(1).strip() if m_pog else 'POG 10 DN 1000 I B10 / 11076614'
+        model = m_pog.group(1).strip() if m_pog else 'Baumer POG 10 DN'
         cn_nomenclature = f'堡盟重载增量式编码器 ({model})'
     elif detected_brand:
         brand = detected_brand
@@ -1306,13 +1686,34 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
         brand = parts[0] if parts else "Не указан"
         model = " ".join(parts[1:]) if len(parts) >= 2 else ""
 
-    # 5. Парсинг позиций заявки
+    # 5. Парсинг позиций заявки с жестким контролем Zero-Hallucination RFQ Positions Guard
     items = parse_rfq_items_from_text(clean_lines_text, lead_comments=lead_comments, default_brand=brand)
+    # Аппаратная сверка позиций с исходным текстом запроса (СТРОГО без цитат и рассылок Longwang)
+    clean_desc_grounding = sanitize_html_email_text(strip_email_reply_quotes(email_desc or ''))
+    raw_source_for_check = f"{clean_lines_text}\n{clean_desc_grounding}\n{title}\n{email_subject}\n{lead_comments}"
+    items = verify_rfq_items_grounded(items, raw_source_for_check)
+    if len(items) > 0:
+        positions_extracted_reliably = True
+    elif model and model not in ("Не указан", ""):
+        # Для одиночной позиции проверяем наличие модели/артикула в исходном тексте запроса
+        norm_m_words = [w for w in re.split(r'[^a-zA-Z0-9]', model) if len(w) >= 3]
+        norm_source = re.sub(r'[^a-zA-Zа-яА-Я0-9]', '', raw_source_for_check.lower())
+        if any(re.sub(r'[^a-zA-Z0-9]', '', w.lower()) in norm_source for w in norm_m_words):
+            positions_extracted_reliably = True
+        else:
+            positions_extracted_reliably = False
+    else:
+        positions_extracted_reliably = False
+
+    if not positions_extracted_reliably:
+        print("  [ZERO-HALLUCINATION GUARD] Позиции не удалось достоверно подтвердить текстом запроса -> требуется ручной разбор!")
 
     # 6. Количество
     if len(items) >= 2:
         tot_qty = sum(it.get('qty', 1) for it in items)
-        quantity_str = f"{tot_qty} шт. ({len(items)} позиции / {len(items)}项)"
+        units_set = {it.get('unit', 'шт.') for it in items}
+        u_label = "м" if units_set == {"м"} else ("кмп" if units_set == {"кмп"} else "шт.")
+        quantity_str = f"{tot_qty} {u_label} ({len(items)} позиции / {len(items)}项)"
     else:
         qty_matches = re.findall(r'(\d+)\s*(?:шт(?:ук[иа]?)?|ед(?:иниц[ыа]?)?|unit|units|pcs|pc|компл(?:ект[а-я]*)?|set|sets|台|个|件)', combined)
         if not qty_matches:
@@ -1329,7 +1730,8 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
         "quantity": quantity_str,
         "equivalents_allowed": equivalents_allowed,
         "clean_inquiry": clean_inquiry,
-        "items": items
+        "items": items,
+        "positions_extracted_reliably": positions_extracted_reliably
     }
 
 def is_etp_or_tender_request(text="", source_name=""):
@@ -1343,8 +1745,23 @@ def is_etp_or_tender_request(text="", source_name=""):
     return any(marker in combined for marker in etp_markers)
 
 def is_clear_rfq(title: str, comments: str, desc: str, files_count: int) -> tuple[bool, str]:
-    text = f"{title} {comments} {desc}".lower()
+    clean_desc = sanitize_html_email_text(strip_email_reply_quotes(desc or "")).lower()
+    text = f"{title} {comments} {clean_desc}".lower()
     
+    # 0. Отсутствие текущей потребности / вежливый отказ / подтверждение получения без новой заявки
+    refusal_markers = [
+        "нет потребности", "пока нет потребности", "потребности нет", "не требуется",
+        "не актуально", "отпала необходимость", "уже приобрели", "уже купили",
+        "не интересует", "не нужно", "пока не актуально", "спасибо, не надо",
+        "будем иметь в виду", "будем иметь ввиду", "добрый день артём, спасибо",
+        "добрый день, спасибо", "спасибо, приняли", "спасибо за информацию",
+        "просто спасибо"
+    ]
+    if any(rm in clean_desc for rm in refusal_markers) and files_count == 0:
+        has_new_rfq = any(req in clean_desc for req in ["прошу выставить", "прошу рассчитать", "новая заявка", "просим предоставить счет", "выставите счет"])
+        if not has_new_rfq:
+            return False, "Клиент сообщил об отсутствии текущей потребности либо направил вежливую благодарность (не является RFQ)"
+
     # 1. Автоответы и уведомления об отсутствии
     auto_reply_markers = ["автоматический ответ:", "автоответ:", "out of office", "автоматическое уведомление", "auto-reply"]
     for arm in auto_reply_markers:
@@ -1648,8 +2065,9 @@ def build_supply_task_chat_message(azat_id, cn_nomenclature, brand, model, quant
     if has_files:
         msg_lines.append(f"- 采购清单及图纸下载 (Файлы и чертежи):\n{download_links_chat}")
 
-    if clean_inquiry:
-        msg_lines.append(f"- 客户原始需求 (Оригинальный запрос клиента):\n[QUOTE]{clean_inquiry.strip()}[/QUOTE]")
+    safe_inquiry = sanitize_inquiry_for_china_supply(clean_inquiry)
+    if safe_inquiry:
+        msg_lines.append(f"- 客户原始需求 (Оригинальный запрос клиента):\n[QUOTE]{safe_inquiry}[/QUOTE]")
 
     return "\n".join(msg_lines)
 
@@ -1931,13 +2349,19 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     main_email_act = email_acts[0] if email_acts else (acts[0] if acts else {})
 
     email_subject = main_email_act.get("SUBJECT", "")
-    # Если у лида несколько входящих писем в ветке (например, 1-е письмо с заказом, 2-е — «Реквизиты во вложении»),
-    # объединяем их хронологически (с самого раннего), чтобы не потерять исходное ТЗ, но сохраняем main_email_act для ответа.
+    # Если у лида несколько входящих писем в ветке:
+    # проверяем, не отменяет ли последнее письмо предыдущую задачу («не актуальна», «новый запрос» и т.п.)
+    main_desc_raw = main_email_act.get("DESCRIPTION", "") or ""
+    main_desc_plain = sanitize_html_email_text(strip_email_reply_quotes(main_desc_raw)).lower()
+    is_new_topic_pivot = any(m in main_desc_plain for m in (
+        "не актуальна", "неактуальна", "утратил актуальность", "другой запрос", "новый запрос",
+        "по другому направлению", "другое направление", "есть потребность", "отработать по другому"
+    ))
     incoming_emails_chron = [a for a in reversed(email_acts) if str(a.get("DIRECTION")) != "2"]
-    if len(incoming_emails_chron) >= 2:
+    if len(incoming_emails_chron) >= 2 and not is_new_topic_pivot:
         email_desc = "\n<hr/>\n".join([(a.get("DESCRIPTION") or "") for a in incoming_emails_chron if a.get("DESCRIPTION")])
     else:
-        email_desc = main_email_act.get("DESCRIPTION", "")
+        email_desc = main_desc_raw
     email_message_id = main_email_act.get("SETTINGS", {}).get("MESSAGE_ID") if isinstance(main_email_act.get("SETTINGS"), dict) else None
 
     # Извлечение телефонов (мобильный сотрудника vs общий компании), добавочного и должности из подписи
@@ -1964,9 +2388,33 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     if sig_info.get("post"):
         contact_post = sig_info["post"]
         print(f"  [SIGNATURE-PARSER] Из подписи извлечена должность: {contact_post}")
+    placeholders = {'без названия', 'новая компания', 'не указано', 'без имени', 'none', '无标题', 'undefined', 'noname', 'нет названия', 'без темы', 'ооо', 'ао', 'зао', 'пао', 'ип', 'нпо', 'нпп', 'тпк', 'гк', 'мтк', 'нпк'}
+    # Извлечение ФИО из сводки BitrixGPT, если контакт не определен
+    if (not contact_name or contact_name.lower() in ('контактное лицо', 'новое лицо', 'без названия')) and lead_comments:
+        m_fio_gpt = re.search(r'Клиент:\s*([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)+)', lead_comments)
+        if m_fio_gpt:
+            contact_name = m_fio_gpt.group(1).strip()
+            print(f"  [BITRIXGPT-PARSER] Из сводки BitrixGPT извлечено ФИО контакта: {contact_name}")
+
+    # Извлечение Компании из сводки BitrixGPT, если компания не определена
+    if (not raw_company_title or raw_company_title.lower() in placeholders) and lead_comments:
+        m_comp_gpt = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП)\s*[«"\'“”][^"«»]+[»"\'”]', lead_comments)
+        if m_comp_gpt:
+            raw_company_title = m_comp_gpt.group(0).strip()
+            print(f"  [BITRIXGPT-PARSER] Из сводки BitrixGPT извлечена компания: {raw_company_title}")
+
     if sig_info.get("sig_name"):
         cand_sn = sig_info["sig_name"]
-        if not contact_name or contact_name.lower() in ('контактное лицо', 'новое лицо') or any(w in contact_name.lower() for w in ['компания', 'ооо', 'ао', 'зао', 'нпп', 'нпо', 'буровая']) or raw_company_title.lower() in contact_name.lower():
+        email_local = contact_email.split("@")[0].lower() if contact_email and "@" in contact_email else ""
+        is_bad_contact = (
+            not contact_name
+            or contact_name.lower() in ('контактное лицо', 'новое лицо')
+            or (email_local and contact_name.strip().lower() == email_local)
+            or any(ch.isdigit() for ch in contact_name)
+            or any(w in contact_name.lower() for w in ['компания', 'ооо', 'ао', 'зао', 'нпп', 'нпо', 'буровая', 'артем'])
+            or (raw_company_title and raw_company_title.lower() in contact_name.lower())
+        )
+        if is_bad_contact:
             contact_name = cand_sn
             print(f"  [SIGNATURE-PARSER] Из подписи извлечено имя контакта: {contact_name}")
 
@@ -2060,7 +2508,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     file_names = []
     is_huge_excel_bulk = False
     attached_xlsx_items = []
-    for a in acts:
+    acts_for_files = [main_email_act] if (is_new_topic_pivot and main_email_act) else acts
+    for a in acts_for_files:
         # Исключаем файлы из исходящих писем сотрудника LongWang
         if str(a.get("DIRECTION")) == "2":
             continue
@@ -2102,12 +2551,48 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                         if r_f.status_code == 200:
                             content_bytes = r_f.content
                             text_candidates = []
-                            if fn_low.endswith(".pdf"):
+                            if fn_low.endswith(".docx"):
+                                import io, zipfile, xml.etree.ElementTree as ET
+                                try:
+                                    with zipfile.ZipFile(io.BytesIO(content_bytes)) as zf:
+                                        xml_doc = zf.read("word/document.xml")
+                                    tree = ET.fromstring(xml_doc)
+                                    parts = []
+                                    for elem in tree.iter():
+                                        tag = elem.tag.split("}")[-1]
+                                        if tag == "t" and elem.text:
+                                            parts.append(elem.text)
+                                        elif tag in ("p", "tr", "tc"):
+                                            parts.append(" ")
+                                    text_candidates.append("".join(parts))
+                                except Exception:
+                                    pass
+                            elif fn_low.endswith(".pdf"):
                                 import io
+                                pdf_txt = ""
                                 try:
                                     import pymupdf
                                     doc = pymupdf.open(stream=content_bytes, filetype="pdf")
-                                    text_candidates.append("\n".join(page.get_text() for page in doc))
+                                    pdf_txt = "\n".join(page.get_text() for page in doc).strip()
+                                    if pdf_txt:
+                                        text_candidates.append(pdf_txt)
+                                    elif len(doc) > 0:
+                                        # Скан-PDF без текстового слоя: распознаем ИНН с 1-й страницы через Gemini Vision
+                                        pix = doc[0].get_pixmap(dpi=150)
+                                        img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
+                                        for gk in get_llm_api_keys()[:2]:
+                                            try:
+                                                g_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gk}"
+                                                g_payload = {"contents": [{"parts": [{"text": "Извлеки с этого скана карточки организации ТОЛЬКО строку вида: ИНН: <цифры> | Название: <краткое название>"}, {"inline_data": {"mime_type": "image/png", "data": img_b64}}]}]}
+                                                g_req = urllib.request.Request(g_url, data=json.dumps(g_payload).encode("utf-8"), headers={"Content-Type": "application/json"})
+                                                with urllib.request.urlopen(g_req, timeout=15) as g_resp:
+                                                    g_data = json.loads(g_resp.read().decode("utf-8"))
+                                                    ocr_txt = g_data["candidates"][0]["content"]["parts"][0]["text"]
+                                                    text_candidates.append(ocr_txt)
+                                                    print(f"  [OCR-PDF] Скан '{fname}' распознан: {ocr_txt.strip()}")
+                                                    break
+                                            except Exception:
+                                                continue
                                 except Exception:
                                     try:
                                         from pypdf import PdfReader
@@ -2159,6 +2644,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                             found_name = found_name.split(",")[0].strip()
                             raw_company_title = found_name
                             print(f"   [DADATA] Контрагент по ИНН {inn}: '{raw_company_title}'")
+                    else:
+                        print(f"   [DADATA] ИНН '{inn}' не зарегистрирован в ЕГРЮЛ/ЕГРИП РФ (ложное срабатывание в тексте) -> сброс!")
+                        inn = None
         except Exception:
             pass
 
@@ -2198,9 +2686,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             })
         return {"lead_id": lead_id, "type": "tender_etp", "responsible": USER_ALEXANDRA}
 
-    # 2. Мульти-ключевой каскадный поиск сущностей (Multi-Key Cascade Lookup)
-    print("\n1. Мульти-ключевой каскадный поиск существующих сущностей в CRM:")
-    existing_contact = find_b24_contact_by_email(contact_email)
+    # 2. Мульти-ключевой каскадный поиск сущностей (Email -> Телефон -> Название компании)
+    print("\n1. Мульти-ключевой каскадный поиск существующих сущностей в CRM (Email -> Телефон -> Название):")
+    existing_contact = find_b24_contact(email=contact_email, phone=contact_phone, name=contact_name)
     contact_company_id = existing_contact.get("COMPANY_ID") if existing_contact else None
     if existing_contact:
         c_fn = existing_contact.get("NAME") or ""
@@ -2265,10 +2753,17 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         if edom not in ["gmail.com", "mail.ru", "yandex.ru", "bk.ru", "inbox.ru", "list.ru", "rambler.ru", "internet.ru"]:
             company_website = f"www.{edom}"
 
-    # 4. Сверка с 1С:УНФ (Строгое сопоставление без ложных срабатываний)
+    # 4. Сверка с 1С:УНФ (Строгий каскад: Email -> Телефон -> Название -> ИНН)
     phone_for_lead = company_phone or contact_phone
-    ca_1c = check_1c_counterparty(inn=inn, name=company_title, email=contact_email, phone=phone_for_lead)
-    lead_1c = check_1c_lead(inn=inn, name=company_title, email=contact_email, phone=phone_for_lead)
+    ca_1c = check_1c_counterparty(email=contact_email, phone=phone_for_lead, name=company_title, inn=inn)
+    lead_1c = check_1c_lead(email=contact_email, phone=phone_for_lead, name=company_title, inn=inn)
+    
+    # Сбор истории обращений (1С:УНФ события 'Прочее' + Битрикс24 дела и закрытые сделки)
+    lead_1c_guid = (lead_1c and lead_1c.get('Ref_Key')) or (ca_1c and ca_1c.get('Ref_Key'))
+    b24_cid_hist = int(existing_company['ID']) if existing_company and existing_company.get('ID') else None
+    b24_cnt_hist = int(existing_contact['ID']) if existing_contact and existing_contact.get('ID') else None
+    inquiry_hist = get_client_inquiry_history(b24_company_id=b24_cid_hist, b24_contact_id=b24_cnt_hist, onec_key=lead_1c_guid, email=contact_email)
+    print(f"  [ИСТОРИЯ ОБРАЩЕНИЙ] 1С 'Прочее': {inquiry_hist['onec_other_count']}, Б24 Активностей: {inquiry_hist['b24_acts_count']}, Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']})")
     if lead_1c and not inn and lead_1c.get('Тема'):
         m_inn_1c = re.search(r'\b(\d{10}|\d{12})\b', lead_1c.get('Тема', ''))
         if m_inn_1c:
@@ -2294,11 +2789,23 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         email_desc=email_desc,
         lead_comments=lead_comments
     )
+
     # 1. 100% перепродажник/трейдер (Kraftmann, дилеры по названию/почте, тег 'Перепродажники' в 1С, либо объективное срабатывание Guard по 2+ факторам)
     reseller_keywords = ["kraftmann", "дилер", "дистрибьютор", "трейдер", "комплектатор"]
     is_explicit_reseller = ("Перепродажники" in contractor_tags) or \
                            any(rk in company_title.lower() or rk in (contact_email or "").lower() for rk in reseller_keywords)
-    is_reseller_firm = is_explicit_reseller or is_guard_triggered
+
+    # Детальный расчет маркеров перепродажника и сборщика КП
+    is_tender_sbis = bool("Тендеры" in contractor_tags or (saby_info and (saby_info.get("tenders") or saby_info.get("goszakupki"))))
+    reseller_site_kw = ["kraftmann", "дилер", "дистрибьютор", "трейдер", "комплектатор", "поставки", "снабжение", "опт"]
+    is_reseller_site = bool(company_website and any(k in company_website.lower() for k in reseller_site_kw))
+    is_empty_contact = bool(not contact_email or not contact_phone or "@mail.ru" in (contact_email or "") and not contact_phone)
+    is_dealer_okved = bool("Оптовая торговля" in contractor_tags or any("46." in s for s in reseller_signals))
+    is_hist_marker = bool(inquiry_hist.get("is_ghost_reseller"))
+    
+    # Решение по перепродажнику
+    is_reseller_firm = is_hist_marker or is_explicit_reseller or is_guard_triggered
+    is_reseller = is_reseller_firm or ("Перепродажники" in contractor_tags)
 
     # 2. Огромная сборная заявка (> 5-7 позиций или спецификация во вложении)
     gpt_items_count = 0
@@ -2329,10 +2836,17 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         rfq_reason = f"Сработал Reseller, Bulk Multi-Item & Ghost RFQ Guard ({', '.join(trigger_reasons)}) -> блокировка снабжения, ручной контроль менеджера"
 
     # Принудительные пользовательские исключения (User Override Guard)
-    USER_APPROVED_RFQ_LEADS = {17838, 18188, 18108, 8534}
+    USER_APPROVED_RFQ_LEADS = {17838, 18188, 18108, 8534, 19124}
     if force or force_rfq or int(lead_id) in USER_APPROVED_RFQ_LEADS:
         is_rfq = True
         rfq_reason = "Принудительный допуск в Clear RFQ по прямому указанию пользователя (создание Сделки и Задачи снабжению)"
+
+    # Zero-Hallucination Guard Pre-check: если нет вложений и позиции не могут быть достоверно извлечены из текста клиента
+    if is_rfq and len(lead_file_ids) == 0:
+        rfq_details_precheck = extract_rfq_procurement_details(lead_title, email_subject, email_desc, lead_comments=lead_comments)
+        if not rfq_details_precheck.get("positions_extracted_reliably") and len(rfq_details_precheck.get("items", [])) == 0:
+            is_rfq = False
+            rfq_reason = "Zero-Hallucination Guard: позиции номенклатуры не найдены в обращении клиента -> блокировка снабжения, ручной разбор"
 
     print(f"\n4. Квалификация обращения: {'Ветка А (Clear RFQ)' if is_rfq else 'Ветка Б (Ambiguous / Reseller Guard)'}")
     print(f"   Причина: {rfq_reason}")
@@ -2344,12 +2858,44 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     # ---------------- ВЕТКА Б: Неоднозначное или перепродажное обращение ----------------
     if not is_rfq:
         if dry_run:
-            print(f"\n[DRY-RUN] План действий для Ветки Б (Reseller & Ghost RFQ Guard):")
-            print(f"  - Обогащение компании '{company_title}' и контакта '{contact_name}'")
-            print(f"  - Создание/обновление Лида в 1С:УНФ (с тегами, включая 'Перепродажники'={is_reseller})")
-            print(f"  - Постановка контрольного дела CRM_TODO на Артема: 'Проверить лид на целесообразность Сделки'")
-            print(f"  - Сделка и задача снабжению в КНР КАТЕГОРИЧЕСКИ НЕ СОЗДАЮТСЯ")
-            print(f"  - Почтовый автоответ Шаблон № 66 НЕ отправляется")
+            print("\n" + "="*75)
+            print("[DRY-RUN] ОТЧЕТ СКОРИНГА И ПЛАН ДЕЙСТВИЙ (ВЕТКА Б - Reseller & Ghost RFQ Guard):")
+            print("="*75)
+            print(f"  Клиент: '{company_title}', Контакт: '{contact_name}' ({contact_email} / {contact_phone})")
+            
+            # Статус СБИС 100%
+            sbis_certainty = (inn and is_valid_russian_inn(inn))
+            sbis_stat_label = f"100% ДОСТОВЕРНОСТЬ (ИНН {inn})" if sbis_certainty else "Сведения не извлечены, предлагаю разобрать вручную"
+            print(f"  СБИС & DaData статус: {sbis_stat_label}")
+            
+            # История обращений
+            print(f"  История обращений: 1С События 'Прочее': {inquiry_hist['onec_other_count']} | Б24 Активностей: {inquiry_hist['b24_acts_count']} | Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']})")
+            
+            # Перечень маркеров
+            print(f"  МАРКЕРЫ СКОРИНГА:")
+            print(f"    * Маркер 1 (>3 обращений в истории при 0 сделок): {'СРАБОТАЛ (Холостой сборщик КП)' if is_hist_marker else 'Нет'}")
+            print(f"    * Маркер 2 (Госзакупки / тендеры по СБИС): {'СРАБОТАЛ' if is_tender_sbis else 'Нет'}")
+            print(f"    * Маркер 3 (Сайт с признаками перепродажника/снабженца): {'СРАБОТАЛ' if is_reseller_site else 'Нет'}")
+            print(f"    * Маркер 4 (Пустой/неинформативный контакт): {'СРАБОТАЛ' if is_empty_contact else 'Нет'}")
+            print(f"    * Маркер 5 (Оптовая торговля ОКВЭД 46 / дилер): {'СРАБОТАЛ' if is_dealer_okved else 'Нет'}")
+            
+            # Акцент на крупные заявки > 5 позиций
+            items_cnt = len(items) if 'items' in locals() and items else 0
+            if items_cnt > 5:
+                print("\n" + "!"*75)
+                print(f"  **ВНИМАНИЕ: В заявке более 5 позиций ({items_cnt} поз.)!**")
+                print(f"  **Вопрос: Стоит ли создавать по данному лиду сделку и задачу снабжению?**")
+                print("!"*75 + "\n")
+                
+            print(f"  ПЛАН ДЕЙСТВИЙ:")
+            print(f"    1. Обогащение/создание Компании и Контакта в Битрикс24 (без создания Сделки)")
+            print(f"    2. Создание/обновление Лида в 1С:УНФ с сохранением маппинга полей и тега 'Перепродажники'={is_reseller}")
+            print(f"    3. Сквозная привязка входящих писем к Компании, Контакту в Б24 и к Лиду в 1С")
+            print(f"    4. Постановка дела контроля CRM_TODO на Артема: 'Проверить лид на целесообразность Сделки'")
+            print(f"    5. Сделка и задача снабжению в КНР КАТЕГОРИЧЕСКИ НЕ СОЗДАЮТСЯ")
+            send_t66_in_b = bool(contact_email and send_reply and "отсутствии текущей потребности" not in rfq_reason)
+            print(f"    6. Почтовый автоответ Шаблон № 66: {'ДА (официальное подтверждение)' if send_t66_in_b else 'НЕ отправляется'}")
+            print("="*75)
             return {"lead_id": lead_id, "branch": "Ambiguous / Reseller Guard", "company": company_title, "reason": rfq_reason}
             
         res_comp = enrich_or_create_b24_company(company_title, inn=inn, address=address, phone=(company_phone or contact_phone), email=contact_email, assigned_by_id=assigned_by_id, web=company_website)
@@ -2445,11 +2991,51 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                     if ci_updated:
                         requests.patch(f"{ONEC_BASE}/Catalog_Контрагенты(guid'{existing_1c_guid}')?$format=json", json={"КонтактнаяИнформация": cp_ci}, auth=ONEC_AUTH_WRITE, timeout=12)
 
+                if not is_cp and lead_1c:
+                    ld_ci = list(lead_1c.get('КонтактнаяИнформация', []))
+                    phone_for_ld = company_phone or contact_phone
+                    new_ci, hdr_upd = build_1c_bsp_contact_info(email=contact_email, phone=phone_for_ld, address=address, website=company_website)
+                    ci_changed = False
+                    for row in new_ci:
+                        t = row.get("Тип")
+                        val_p = row.get("Представление", "").lower()
+                        if not any(r.get("Тип") == t and r.get("Представление", "").lower() == val_p for r in ld_ci):
+                            row["LineNumber"] = str(len(ld_ci) + 1)
+                            ld_ci.append(row)
+                            ci_changed = True
+                    patch_ld = {}
+                    if ci_changed:
+                        patch_ld["КонтактнаяИнформация"] = ld_ci
+                    for k, v in hdr_upd.items():
+                        if v and not lead_1c.get(k):
+                            patch_ld[k] = v
+                    if patch_ld:
+                        requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{existing_1c_guid}')?$format=json", json=patch_ld, auth=ONEC_AUTH_WRITE, timeout=12)
+
                 write_to_onec(inn=inn, one_c_guid=existing_1c_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
                 entity_label = "Контрагент" if is_cp else "Лид"
                 print(f"  [1C] Существующий {entity_label} 1С ({existing_1c_guid}) обогащен досье СБИС и контактами.")
                 if contact_email:
                     link_1c_events_and_address_book(contact_email, existing_1c_guid, company_title, is_counterparty=is_cp)
+
+        # Конвертация Лида в CONVERTED и привязка активностей к Компании и Контакту в CRM
+        for a in acts:
+            aid = a.get("ID")
+            call_b24("crm.activity.binding.add", {"activityId": aid, "entityTypeId": 4, "entityId": cid})
+            call_b24("crm.activity.binding.add", {"activityId": aid, "entityTypeId": 3, "entityId": cnt_id})
+            call_b24("crm.activity.update", {"id": aid, "fields": {"COMPLETED": "Y", "STATUS": 2}})
+        call_b24("crm.lead.update", {"id": lead_id, "fields": {"STATUS_ID": "CONVERTED", "COMPANY_ID": cid, "CONTACT_ID": cnt_id}})
+        print(f"  [B24] Лид #{lead_id} успешно переведен в CONVERTED (привязан к Компании #{cid} и Контакту #{cnt_id})")
+
+        # Отправка официального подтверждения Шаблон № 66 (если обращение содержит технический запрос)
+        if contact_email and send_reply and "отсутствии текущей потребности" not in rfq_reason:
+            send_template_66_reply(
+                to_email=contact_email,
+                original_subject=email_subject or lead_title,
+                assigned_user_id=assigned_by_id,
+                message_id_ref=email_message_id,
+                is_clear_rfq_flag=True
+            )
 
         verify_lead_processing_result(deal_id=None, contact_id=cnt_id, company_id=cid, task_id=None, expected_phone=contact_phone)
         return {"lead_id": lead_id, "branch": "Ambiguous / Reseller Guard", "company_id": cid, "contact_id": cnt_id, "reason": rfq_reason}
@@ -2463,10 +3049,18 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     rfq_details = extract_rfq_procurement_details(lead_title, email_subject, email_desc, lead_comments=lead_comments)
     rfq_items = rfq_details.get("items", [])
     if not has_known_spec and attached_xlsx_items and len(attached_xlsx_items) >= len(rfq_items):
-        for it in attached_xlsx_items:
-            if not it.get("pname_cn"):
-                it["pname_cn"] = translate_nomenclature_to_chinese(it.get("name_ru", ""), "", f"{it.get('brand', '')} {it.get('model', '')} {it.get('name_ru', '')}")
+        translate_items_batch_to_chinese(attached_xlsx_items)
         rfq_items = attached_xlsx_items
+        tot_xl_qty = sum(int(it.get('qty', 1)) for it in rfq_items if isinstance(it.get('qty', 1), (int, float)))
+        xl_brands = []
+        for it in rfq_items:
+            b = str(it.get('brand') or '').strip()
+            if b and b.upper() != 'OEM' and b not in xl_brands:
+                xl_brands.append(b)
+        if xl_brands:
+            rfq_details["brand"] = " / ".join(xl_brands)
+        rfq_details["model"] = f"По спецификации ({len(rfq_items)} поз.)"
+        rfq_details["quantity"] = f"{tot_xl_qty} шт. ({len(rfq_items)} позиции / {len(rfq_items)}项)"
 
     is_multi_item_rfq = has_known_spec or (len(rfq_items) >= 2) or (gpt_items_count >= 2) or (len(re.findall(r'(?:^|\n)\s*[-*•\d]+[.)]?\s*[A-Za-zА-Яа-я]', email_desc)) >= 2) or (len(re.findall(r'\b\d+\s*(?:шт|pcs|компл)\b', email_desc, re.I)) >= 2)
 
@@ -2482,6 +3076,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             item_labels.append(label)
         cn_nomenclature = ", ".join(item_labels)
     elif rfq_items and len(rfq_items) >= 2:
+        translate_items_batch_to_chinese(rfq_items)
         item_labels = []
         for it in rfq_items:
             b = it.get("brand", "")
@@ -2549,8 +3144,10 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         brand_model_part = " / ".join(unique_brands) if unique_brands else ((brand_extracted.title() if len(brand_extracted) > 4 else brand_extracted) or "OEM")
         tot_qty = sum(it.get('qty', 1) for it in rfq_items) if rfq_items else 1
         pos_cnt = len(rfq_items) if rfq_items else 1
+        units_set = {it.get('unit', 'шт.') for it in rfq_items} if rfq_items else {'шт.'}
+        u_label = "м" if units_set == {"м"} else ("кмп" if units_set == {"кмп"} else "шт.")
         cn_part = f"{brand_model_part}发动机配件及耗材 ({pos_cnt}项)" if "cummins" in brand_model_part.lower() else f"{brand_model_part}配件清单 ({pos_cnt}项)"
-        ru_part = f"Запчасти и расходные материалы {brand_model_part} ({pos_cnt} поз., {tot_qty} шт.)"
+        ru_part = f"Запчасти и расходные материалы {brand_model_part} ({pos_cnt} поз., {tot_qty} {u_label})"
         title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
         cn_nomenclature = f"{cn_part}"
     else:
@@ -2645,7 +3242,29 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         return {"lead_id": lead_id, "branch": "No-Deal Qualification", "title_naming": title_naming}
 
     if dry_run:
-        print(f"\n[DRY-RUN] ДЕТАЛЬНЫЙ ПЛАН ДЕЙСТВИЙ ДЛЯ ВЕТКИ А:")
+        print("\n" + "="*75)
+        print("[DRY-RUN] ОТЧЕТ СКОРИНГА И ДЕТАЛЬНЫЙ ПЛАН ДЕЙСТВИЙ (ВЕТКА А - Clear RFQ):")
+        print("="*75)
+        # Статус СБИС 100%
+        sbis_certainty = (inn and is_valid_russian_inn(inn))
+        sbis_stat_label = f"100% ДОСТОВЕРНОСТЬ (ИНН {inn})" if sbis_certainty else "Сведения не извлечены, предлагаю разобрать вручную"
+        print(f"  СБИС & DaData статус: {sbis_stat_label}")
+        print(f"  История обращений: 1С 'Прочее': {inquiry_hist['onec_other_count']} | Б24 Активностей: {inquiry_hist['b24_acts_count']} | Сделок WON: {inquiry_hist['b24_deals_won']}")
+        
+        # Zero-Hallucination статус
+        if not rfq_details.get("positions_extracted_reliably"):
+            print(f"  Zero-Hallucination Guard: Сведения не извлечены достоверно, предлагаю разобрать вручную")
+        else:
+            print(f"  Zero-Hallucination Guard: Позиции ({len(rfq_details.get('items', []))} поз.) ПОДТВЕРЖДЕНЫ исходным текстом запроса")
+
+        # Акцент на крупные заявки > 5 позиций
+        items_cnt = len(rfq_details.get('items', []))
+        if items_cnt > 5:
+            print("\n" + "!"*75)
+            print(f"  **ВНИМАНИЕ: В заявке более 5 позиций ({items_cnt} поз.)!**")
+            print(f"  **Вопрос: Стоит ли создавать по данному лиду сделку и задачу снабжению?**")
+            print("!"*75 + "\n")
+
         print(f"  1. Сделка в CRM: '{title_naming}' (Стадия: PREPARATION)")
         resp_name = "Мисс Ван" if task_resp_id == USER_MISS_WANG else "Азат"
         print(f"  2. Задача снабжению: {resp_name} (user/{task_resp_id}), Группа 14, Дедлайн: {deadline_plan}")
@@ -2727,7 +3346,10 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         raw_qty_str = str(rfq_details.get('quantity', 1))
         m_q_num = re.search(r'(\d+)', raw_qty_str)
         excel_qty_val = int(m_q_num.group(1)) if m_q_num else 1
-        excel_items = rfq_items if (rfq_items and len(rfq_items) >= 2) else [{
+        excel_items = [
+            {**it, 'qty': f"{it.get('qty', 1)} {it.get('unit')}"} if it.get('unit') in ('м', 'кмп') else dict(it)
+            for it in rfq_items
+        ] if (rfq_items and len(rfq_items) >= 2) else [{
             'num': 1,
             'brand': rfq_details.get('brand', 'OEM'),
             'pname_cn': cn_nomenclature,
@@ -2764,6 +3386,18 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                         os.remove(tmp_p)
             except Exception as e:
                 print(f"    [WARN] Ошибка загрузки файла {fname}: {e}")
+
+    # Скачивание технических файлов по ссылкам облака Mail.ru (если есть в письме)
+    cloud_tmp_dir = os.path.join(os.environ.get("TEMP", r"C:\Temp"), f"cloud_lead_{lead_id}")
+    for cf_path in download_cloud_mail_ru_links(email_desc, cloud_tmp_dir):
+        cf_name = os.path.basename(cf_path)
+        if is_technical_inquiry_file(cf_name):
+            up_cid = upload_file_to_b24_disk(cf_path, FOLDER_CHINA_SUPPLY_DISK)
+            if up_cid:
+                supply_disk_ids.append(up_cid)
+                uploaded_attachments.append((up_cid, cf_name))
+        if os.path.exists(cf_path):
+            os.remove(cf_path)
 
     # Формирование описания задачи и ссылок на вложения (Shared Group Disk Invariant & Inquiry-Only Attachment Guard)
     attachments_lines = []
@@ -2928,6 +3562,27 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                     ci_updated = True
                 if ci_updated:
                     requests.patch(f"{ONEC_BASE}/Catalog_Контрагенты(guid'{existing_1c_guid}')?$format=json", json={"КонтактнаяИнформация": cp_ci}, auth=ONEC_AUTH_WRITE, timeout=12)
+
+            if not is_cp and lead_1c:
+                ld_ci = list(lead_1c.get('КонтактнаяИнформация', []))
+                phone_for_ld = company_phone or contact_phone
+                new_ci, hdr_upd = build_1c_bsp_contact_info(email=contact_email, phone=phone_for_ld, address=address, website=company_website)
+                ci_changed = False
+                for row in new_ci:
+                    t = row.get("Тип")
+                    val_p = row.get("Представление", "").lower()
+                    if not any(r.get("Тип") == t and r.get("Представление", "").lower() == val_p for r in ld_ci):
+                        row["LineNumber"] = str(len(ld_ci) + 1)
+                        ld_ci.append(row)
+                        ci_changed = True
+                patch_ld = {}
+                if ci_changed:
+                    patch_ld["КонтактнаяИнформация"] = ld_ci
+                for k, v in hdr_upd.items():
+                    if v and not lead_1c.get(k):
+                        patch_ld[k] = v
+                if patch_ld:
+                    requests.patch(f"{ONEC_BASE}/Catalog_Лиды(guid'{existing_1c_guid}')?$format=json", json=patch_ld, auth=ONEC_AUTH_WRITE, timeout=12)
 
             write_to_onec(inn=inn, one_c_guid=existing_1c_guid, summary_text=onec_comment_str, tags=classification, dry_run=False)
             entity_label = "Контрагент" if is_cp else "Лид"

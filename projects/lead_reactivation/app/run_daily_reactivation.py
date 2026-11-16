@@ -244,22 +244,23 @@ def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner
                         comp_ids.append(c["ID"])
 
             # 3.3. Лиды по email
-            r_lead = requests.post(f"{b24_webhook}crm.lead.list", json={"filter": {"EMAIL": clean_email}, "select": ["ID", "TITLE", "STATUS_ID", "STATUS_SEMANTIC"]}, timeout=10)
+            r_lead = requests.post(f"{b24_webhook}crm.lead.list", json={"filter": {"EMAIL": clean_email}, "select": ["ID", "TITLE", "STATUS_ID", "STATUS_SEMANTIC_ID"]}, timeout=10)
             lead_list = r_lead.json().get("result", []) if r_lead.status_code == 200 else []
             lead_ids = []
             for ld in lead_list:
                 lead_ids.append(ld["ID"])
-                if ld.get("STATUS_SEMANTIC") == "process":
+                if ld.get("STATUS_SEMANTIC_ID") == "P" or ld.get("STATUS_ID") in ("NEW", "IN_PROCESS", "ASSIGNED"):
                     intent_info["intent"] = "b24_lead_active"
                     return False, f"В Битрикс24 есть активный Лид #{ld['ID']} '{ld.get('TITLE')}' в стадии '{ld.get('STATUS_ID')}'", intent_info
 
             # 3.4. Активные сделки по контактам
             for cid in ct_ids:
                 r_deals = requests.post(f"{b24_webhook}crm.deal.list", json={
-                    "filter": {"CONTACT_ID": cid, "STAGE_SEMANTIC": "process"},
-                    "select": ["ID", "TITLE", "STAGE_ID"]
+                    "filter": {"CONTACT_ID": cid, "CLOSED": "N"},
+                    "select": ["ID", "TITLE", "STAGE_ID", "STAGE_SEMANTIC_ID", "CLOSED"]
                 }, timeout=10)
-                deals = r_deals.json().get("result", []) if r_deals.status_code == 200 else []
+                raw_deals = r_deals.json().get("result", []) if r_deals.status_code == 200 else []
+                deals = [d for d in raw_deals if d.get("CLOSED") != "Y" and d.get("STAGE_SEMANTIC_ID") == "P" and d.get("STAGE_ID") not in ("WON", "LOSE", "APOLOGY")]
                 if deals:
                     intent_info["intent"] = "b24_deal_active"
                     return False, f"В Битрикс24 есть активная сделка #{deals[0]['ID']} '{deals[0]['TITLE']}' в стадии '{deals[0]['STAGE_ID']}'", intent_info
@@ -267,13 +268,14 @@ def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner
             # 3.5. Активные сделки по компаниям
             for comp_id in comp_ids:
                 r_deals = requests.post(f"{b24_webhook}crm.deal.list", json={
-                    "filter": {"COMPANY_ID": comp_id, "STAGE_SEMANTIC": "process"},
-                    "select": ["ID", "TITLE", "STAGE_ID"]
+                    "filter": {"COMPANY_ID": comp_id, "CLOSED": "N"},
+                    "select": ["ID", "TITLE", "STAGE_ID", "STAGE_SEMANTIC_ID", "CLOSED"]
                 }, timeout=10)
-                deals = r_deals.json().get("result", []) if r_deals.status_code == 200 else []
+                raw_deals = r_deals.json().get("result", []) if r_deals.status_code == 200 else []
+                deals = [d for d in raw_deals if d.get("CLOSED") != "Y" and d.get("STAGE_SEMANTIC_ID") == "P" and d.get("STAGE_ID") not in ("WON", "LOSE", "APOLOGY")]
                 if deals:
                     intent_info["intent"] = "b24_deal_active"
-                    return False, f"В Битрикс24 есть активная сделка Компании #{comp_id}: сделка #{deals[0]['ID']} '{deals[0]['TITLE']}'", intent_info
+                    return False, f"В Битрикс24 есть активная сделка Компании #{comp_id}: сделка #{deals[0]['ID']} '{deals[0]['TITLE']}' в стадии '{deals[0]['STAGE_ID']}'", intent_info
 
             # 3.6. Недавние касания и активности менеджера (< 30 дней)
             for cid in ct_ids:

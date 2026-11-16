@@ -70,3 +70,9 @@
 
 - **2026-11-10_process_b24_inbound_leads_v24_before_inn_pdf_quote_xlsx_guards.py**
   - Снимок перед бэкпортом правок из сессии 10.11.2026 (п. 27–29 `LEAD_PROCESSING_POLICY.md`): валидация контрольной суммы ИНН РФ + чтение PDF-карт партнеров (`pymupdf`/`pypdf`), отсечение текстовых цитат писем до парсинга позиций и `equivalents_allowed`, защита ведущих цифр артикулов (`1PH...`, `6SL...`), динамический парсинг вложенных `.xlsx` со смещенными колонками и многострочного количества (`шт \n 2`), флаг `--force-rfq`.
+
+- **2026-11-14_process_b24_inbound_leads_v25_before_china_anonymity_and_broken_articles_and_excel_header.py**
+  - Снимок v25.0 перед внедрением China Supply Anonymity Guard, склейки разорванных артикулов (`GP1-\n0013R97F/20N`), переноса шапки двигателей Excel (MWM/Caterpillar), строгого каскадного поиска (Email -> Телефон -> Компания), счетчика событий 1С «Прочее», 100% порога достоверности СБИС, Zero-Hallucination RFQ Guard и расширенного скоринга перепродажников в dry-run.
+
+- **2026-11-14_sync_leads_1c_bitrix_v10_before_activity_email_signature_and_email_prelookup.py**
+  - Снимок v10.0 перед интеграцией чтения писем через `crm.activity.list`, извлечения реального юрлица/ИП из подписи, предварительного поиска лида 1С по email до вызова DaData и записи официального наименования компании в `Description` Лида 1С.
