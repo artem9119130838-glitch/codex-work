@@ -32,6 +32,7 @@
 
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
+| **Боевой** | `build_acceptance_acts.py` | `projects/ddp_ru_cn/hydramax_62230426/build_acceptance_acts.py` | Генератор двусторонних Актов промежуточной приемки штоков (ДС № 7) и труб (ДС № 6) по результатам инспекций SGS с проверкой упаковки и опломбирования | 0 |
 | **Базовый** | `clean_temporary_categories.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Personal/projects/AI chats export/src/clean_temporary_categories.py` | Записываем в utf-8-sig (UTF-8 с BOM) | 1 |
 | **Базовый** | `clean_temporary_categories.py` | `D:/Soft/Codex Backup/projects/AI chats export/src/clean_temporary_categories.py` | Записываем в utf-8-sig (UTF-8 с BOM) | 0 |
 | **Базовый** | `gemini_vision_retry.py` | `ARCHIVE/deals_0710_scratch/gemini_vision_retry.py` | Автоматизация рабочего процесса. | 0 |
