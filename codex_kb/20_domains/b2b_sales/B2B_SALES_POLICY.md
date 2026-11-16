@@ -1,7 +1,20 @@
 # Регламент B2B-продаж, реанимации базы и стандартов переписки (B2B Sales & Outreach Policy)
 
 > **Статус документа:** Стандарты коммуникации с клиентами, реанимации спящей базы и оформления почтовых сообщений.  
-> **Связанные регламенты:** [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md), [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md), [B2B_PRODUCT_ARCHITECTURE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_PRODUCT_ARCHITECTURE_POLICY.md).
+> **Связанные регламенты:** [FOLLOWUP_PROCESS_POLICY.md](file:///C:/Codex/projects/1c_odata/FOLLOWUP_PROCESS_POLICY.md), [LEAD_PROCESSING_POLICY.md](file:///C:/Codex/projects/1c_odata/LEAD_PROCESSING_POLICY.md), [B2B_PRODUCT_ARCHITECTURE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_PRODUCT_ARCHITECTURE_POLICY.md).  
+> **Правило чтения (Slice Reading Guard):** Читать строго строки 1–35 (TOC), затем целевой диапазон через view_file с StartLine и EndLine.
+
+---
+
+## 🧭 Оглавление регламента (TOC & Slice Navigator)
+
+| Раздел | Тема / Назначение |
+|---|---|
+| **1. Деловая переписка** | Запрет инфантильных фраз, B2B-темы с Re:, ротация тональности, кулдаун 21 дн |
+| **2. Ссылки в письмах** | Оборачивание в анкор-текст, запрет сырых URL |
+| **3. Имя контакта** | Извлечение из подписи и переписки, запрет никнеймов |
+| **4. Заметки в CRM** | Безопасное обновление через regex (_merge_sbis_block) |
+| **5. Оформление КП** | format_universal_word_kp.py, Universal Word Header Invariant, геометрия |
 
 ---
 

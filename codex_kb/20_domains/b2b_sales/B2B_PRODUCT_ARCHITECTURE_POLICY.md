@@ -1,7 +1,18 @@
 # Регламент проектирования продуктов и архитектурных контуров (B2B Product Architecture Policy)
 
 > **Статус документа:** Общесистемный контракт проектирования масштабируемых B2B-продуктов (B2B AI Nexus), коробочных MVP и интеграционных контуров.  
-> **Связанные документы:** [B2B_UNIFIED_PRODUCT_ARCHITECTURE_AND_ROADMAP.md](file:///C:/Codex/docs/B2B_UNIFIED_PRODUCT_ARCHITECTURE_AND_ROADMAP.md), [B2B_SALES_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_SALES_POLICY.md).
+> **Связанные документы:** [B2B_UNIFIED_PRODUCT_ARCHITECTURE_AND_ROADMAP.md](file:///C:/Codex/docs/B2B_UNIFIED_PRODUCT_ARCHITECTURE_AND_ROADMAP.md), [B2B_SALES_POLICY.md](file:///C:/Codex/codex_kb/20_domains/b2b_sales/B2B_SALES_POLICY.md).  
+> **Правило чтения (Slice Reading Guard):** Читать строго строки 1–35 (TOC), затем целевой диапазон через view_file с StartLine и EndLine.
+
+---
+
+## 🧭 Оглавление регламента (TOC & Slice Navigator)
+
+| Раздел | Тема / Назначение |
+|---|---|
+| **1. Ролевая модель** | Строгая безадресность, системные бизнес-роли, white-label |
+| **2. Бизнес-ценность** | Обязательный блок эффекта (время, ошибки, финансы) |
+| **3. Dual-Track Delivery** | Параллельное развитие: поддержка скриптов + микросервисы |
 
 ---
 
