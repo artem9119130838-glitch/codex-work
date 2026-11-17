@@ -7,5 +7,6 @@
 */2 * * * * /usr/bin/flock -n /tmp/auto_deploy.lock /usr/bin/timeout -k 10 90 /root/tender-rag-api/scripts/auto_deploy.sh > /dev/null 2>&1
 0 */6 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 300 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py --days 3 >> /var/log/b24_analytics_sync.log 2>&1
 0 1,9,15 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 900 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py >> /var/log/b24_analytics_sync.log 2>&1
+0 5,11,17 * * * /usr/bin/flock -n /tmp/sync_suppliers_dwh.lock /usr/bin/timeout -k 15 180 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_suppliers_and_tasks_dwh.py --days 14 >> /var/log/b24_suppliers_sync.log 2>&1
 0 8 * * * /usr/bin/flock -n /tmp/audit_llm.lock /usr/bin/timeout -k 15 180 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/audit_llm_keys.py --env-file /Storage/scripts/metabase_analytics/.env --db-sync --notify-b24 >> /var/log/audit_llm_keys.log 2>&1
 30 5 * * * /usr/bin/flock -n /tmp/run_radar.lock /usr/bin/timeout -k 15 600 /opt/longwang_trend_radar/run_radar.sh > /dev/null 2>&1
