@@ -43,6 +43,7 @@
 | **10. Signature Extraction** | Телефоны +7, Company vs Contact Phone Isolation Guard | 185–195 |
 
 | **11. Procurement RFQ** | Чат снабжения, анонимность клиента, Task Chat Excel Specification | 196–231 |
+| **12. Supply Officer Perspective** | Двуязычные спецификации, запрет тем писем в номенклатуре, 1 поз = 1 строка | 232–265 |
 
 | **12. Result Self-Check** | Пост-обработка, аудит логов сухого прогона | 232–241 |
 

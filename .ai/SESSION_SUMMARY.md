@@ -1,75 +1,56 @@
 # SESSION SUMMARY — Итоги сессии и handoff-контекст
 
-**Дата и время сжатия (DT):** 2026-11-19 05:54:00
+**Дата и время сжатия (DT):** 2026-11-19 17:38:00
 
 ---
 
 ## 🔍 Итог сессии в один абзац
-Проведен глубокий анализ товаров и пулов поставщиков по 233 квалифицированным сделкам CRM с мая 2026 г. с узкими товарными группами, сформирован отчет `DEAL_PRODUCTS_AND_SUPPLIERS_REPORT_2026.xlsx`, внедрена витрина `analytics_deal_products` в DWH и дашборд Metabase. Согласован проект Михаила по Второму контуру аналитики (Задача Б24 №5634). Ликвидирована авария 100% диска VPS `/Storage` (падение `pgvector-db` и отказ Metabase): освобождено 137 ГБ, внедрен инвариант `Pre-Execution Single-Backup Retention` и аварийный автосброс диска при 90%. Выявлена и устранена причина застывания данных на Дашборде №11 (*«Пополнение базы поставщиков и аудит задач RFQ»*): выполнен перенос 10 новых фабрик КНР за 13–17 ноября в DWH, а скрипт `sync_suppliers_and_tasks_dwh.py` поставлен в `crontab` на 3-разовый запуск в сутки (08:00, 14:00, 20:00 МСК) под `flock` и жестким аппаратным таймаутом `timeout -k 15 180`, исключающим зависания в памяти и утечки RAM. Внесены инварианты в `METABASE_ANALYTICS_POLICY.md` (Раздел 8), `INFRA_VPS_POLICY.md` (Разделы 10, 11) и `SCRIPTS_CATALOG.md`.
+Проведено комплексное расследование сетевой связности и производительности каналов между ПК Victus, роутером Keenetic и сервером VPS (Казахстан, `109.248.170.181`). Установлено, что базовый туннель WireGuard на роутере Keenetic аппаратно ускоряется (`crypto engine hardware`) и при отсутствии помех выдает максимальную скорость тарифа (**407 Мбит/с** download, **157 Мбит/с** upload, пинг **64 мс**), однако периодически подвергается волновому троттлингу ТСПУ (DPI операторов РФ) с падением задержки до 320 мс и 50% дропами пакетов. Для защиты от блокировок на ПК Victus развернут и протестирован клиент **Happ (VLESS-Reality)** на базе личного контейнера `3x-ui` (порт TCP 2053, маскировка Reality под `jojoq.kz`), обеспечивающий сверхнизкую локальную задержку (<1 мс сокета) для 1С:УНФ и OData. Аппаратно подтверждено, что OpenAI (ChatGPT) блокирует датацентровые IP Казахстана (`unsupported_country`), из-за чего выработана четкая архитектурная демаркация: WireGuard Keenetic обслуживает приставку Xbox, 4K YouTube, WhatsApp и повседневную работу 1С; резерв VLESS Happ страхует 1С при троттлинге; а подписка Geodema Network (Европа/Финляндия) используется строго для ChatGPT и Gemini. Разработан и экспортирован канонический файл маршрутизации Happ с разметкой всех 93 доменов контура, обновлен манифест `VICTUS_HARDWARE_POLICY.md` (Раздел 8).
 
 ---
 
 ## 1. Выполненные задачи (Успехи)
-- **Товарная аналитика и пулы поставщиков:** Обработано 233 сделки (117 тендеров, 116 заказчиков, 270 товарных позиций). Создан Excel-отчет `DEAL_PRODUCTS_AND_SUPPLIERS_REPORT_2026.xlsx`, DDL `analytics_deal_products`, скрипты `sync_deal_products_dwh.py` и `manage_metabase_dashboards.py` v2.9.
-- **Аудит задачи Битрикс24 №5634 (Второй контур аналитики):** Проверен дневник изменений Михаила (`CASCADE_ANALYTICS_CONTOUR2_DIARY_2026-11-13.md`). Подготовлен канонический ответ для публикации в CRM.
-- **Ликвидация аварии 100% переполнения диска VPS:**
-  - Удалены старые копии, освобождено 137 ГБ (занятость диска `/Storage` снижена со 100% до 42%).
-  - СУБД `pgvector-db` и `metabase` перезапущены и работают штатно.
-  - В скрипты `/Storage/run_server_backup.sh` и `backup-sql.sh` внедрен инвариант упреждающей ротации `Pre-Execution Retention` (Шаг 0 ДО создания нового дампа) и `trap cleanup_on_error`.
-  - В `monitor_disk.sh` внедрен аварийный автосброс при 90% и ежечасный запуск в cron.
-- **Восстановление актуальности Дашборда №11 Metabase (Снабжение КНР и RFQ):**
-  - Диагностирована причина задержки данных на 6 ноября: скрипт `sync_suppliers_and_tasks_dwh.py` не стоял в cron.
-  - Запущена боевая синхронизация: в PostgreSQL DWH выгружено 10 фабрик, добавленных закупщиками Лиень, Miss Wang и Ли Юйнанем за 13–17 ноября (общее число компаний в DWH выросло с 27 до 37).
-  - Настроен cron на сервере VPS: запуск в 08:00, 14:00 и 20:00 МСК под `flock` и жестким таймаутом ядра `timeout -k 15 180` (авто-kill через 3 минуты исключает зависание и утечки RAM).
-  - Проверена оперативная память и диск сервера: RAM в норме, утечек нет, диск стабилен (42%).
-- **Закрепление регламентов и каталогизация (/learn):**
-  - `METABASE_ANALYTICS_POLICY.md` (Раздел 8): зафиксирован **Mandatory DWH Pipeline Cron Registration Invariant** с трехслойной защитой (`flock` + `timeout` + log).
-  - `SCRIPTS_CATALOG.md`: зарегистрированы `sync_suppliers_and_tasks_dwh.py` и `sync_deal_products_dwh.py`.
-  - `INFRA_VPS_POLICY.md` (Раздел 10, 11): закреплены лимиты таймаутов (180–300 сек) и упреждающая ротация бэкапов.
-  - `INCIDENTS_LOG.md`: зафиксирован инцидент `INC-2026-11-15`.
+- **Диагностика сетевого стека ПК ⮂ Keenetic ⮂ VPS:**
+  - Проанализирована трассировка маршрута (`tracert 109.248.170.181`) и пинг: доказана прямая инкапсуляция пакетов в Wireguard1 на роутере Keenetic (2 хопа).
+  - Проведен Speedtest в обоих режимах: зафиксировано **407.04 Мбит/с** на чистом WireGuard и ~80 Мбит/с в Happ VLESS.
+  - Объяснена физика работы сети: доказано отсутствие конфликта «туннель в туннеле» при включении Happ, так как VLESS шифрует данные на уровне сокета Windows до попадания в роутер.
+- **Инвентаризация и запуск личного VLESS-Reality на VPS:**
+  - Исследована конфигурация контейнера `3x-ui`: подтвержден активный входящий поток VLESS на порту 2053 (XTLS Reality, SNI `jojoq.kz`, pbk `tntBU_gNCT4pyF7_ds6mtCGxLXrsAAvxoK7L_vv9LD4`).
+  - Сгенерирована универсальная клиентская ссылка `vless://...`, работающая без ограничения одновременных подключений (`limitIp: 0`) для всех ноутбуков Артема (Victus, MateBook, HP).
+- **Разработка и внедрение канонической маршрутизации Happ:**
+  - Из оригинальной конфигурации роутера Keenetic (`KN-2310_startup-config`) извлечены и систематизированы все 8 доменных групп (`domain-list0` ... `domain-list7`).
+  - Сформирован эталонный JSON-файл маршрутизации:
+    - **Proxy (через VPN):** 1С (`109.248.170.181/32`), Telegram (все домены + серверные подсети `91.108.0.0/16`, `149.154.0.0/16`), YouTube, WhatsApp, AI-сервисы, крипта, торренты (всего 93 ресурса).
+    - **Direct (напрямую мимо VPN):** Госуслуги, Новофон, Рутуб, WeChat, зона `.ru` и `.рф`.
+  - Файл сохранен на Рабочем столе пользователя ([happ_routing_codex.json](file:///C:/Users/Артем/Desktop/happ_routing_codex.json)) и зеркалирован в репозиторий ([happ_codex_routing.json](file:///C:/Codex/projects/server_ops/happ_codex_routing.json)).
+  - Конфигурация внедрена напрямую в профиль *«маршруты с Keenetic»* приложения Happ (`routing.json`).
+- **Выявление гео-блокировки OpenAI (ChatGPT) на пулах Казахстана:**
+  - Аппаратным тестом через python/curl к `chatgpt.com` доказан системный ответ `unsupported_country` для датацентров Казахстана (Gohost / KazTransNet).
+  - Сформулирован однозначный регламент использования подписки *Geodema Network* (Финляндия) для работы с нейросетями.
+- **Закрепление правил в базе знаний (/learn):**
+  - В [VICTUS_HARDWARE_POLICY.md](file:///C:/Codex/codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md) (Раздел 8) внесены:
+    - Триада инцидента: волновой троттлинг WireGuard vs стабильный VLESS vs гео-блокировка ChatGPT;
+    - Регламент трехконтурного разделения трафика: Keenetic (Xbox/1C/YT 400 Мбит/с) + Happ KZ (резерв 1С) + Geodema (ChatGPT/Gemini);
+    - Ссылка на канонический файл маршрутизации `projects/server_ops/happ_codex_routing.json`.
 
 ---
 
 ## 2. Измененные и новые файлы
-- `codex_kb/20_domains/analytics/METABASE_ANALYTICS_POLICY.md` — Раздел 8 (Mandatory DWH Pipeline Cron Registration Invariant).
-- `codex_kb/SCRIPTS_CATALOG.md` — Регистрация `sync_suppliers_and_tasks_dwh.py` и `sync_deal_products_dwh.py`.
-- `codex_kb/20_domains/infra_vps/INFRA_VPS_POLICY.md` — Раздел 10 (таймауты DWH) и Раздел 11 (Pre-Execution Retention).
-- `codex_kb/00_control/INCIDENTS_LOG.md` — Инцидент INC-2026-11-15.
-- `scripts/vps/vps_crontab.cron` — Добавлено расписание `sync_suppliers_and_tasks_dwh.py`.
-- `scripts/vps/run_server_backup.sh` — Пре-ротация ДО записи, trap.
-- `scripts/vps/backup-sql.sh` — Strict Single-Backup.
-- `scripts/vps/monitor_disk.sh` — Ежечасный мониторинг, аварийный автосброс при 90%.
-- `projects/metabase_analytics/sql/schema.sql` — Витрина `analytics_deal_products`.
-- `projects/metabase_analytics/scripts/sync_deal_products_dwh.py` — Экстрактор досье и DWH синк.
-- `projects/metabase_analytics/docs/DEAL_PRODUCTS_AND_SUPPLIERS_REPORT_2026.xlsx` — Excel-отчет.
-- `projects/metabase_analytics/scripts/manage_metabase_dashboards.py` — Версия 2.9.
-- `C:\Users\Артем\.gemini\config\skills\linux\SKILL.md` — Раздел 3 (защищенный шаблон бэкапа).
-- `.ai/SESSION_SUMMARY.md` — Данный файл сводки.
+- `codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md` — Раздел 8: добавлена триада инцидента сетевого троттлинга и регламент трехконтурного разделения трафика.
+- `projects/server_ops/happ_codex_routing.json` — Канонический файл маршрутизации Happ со всеми 93 ресурсами Keenetic.
+- `C:\Users\Артем\Desktop\happ_routing_codex.json` — Пользовательская копия на Рабочем столе для быстрого импорта/редактирования.
+- `C:\Users\Артем\AppData\Local\Happ\routing.json` — Рабочая конфигурация Happ с активным профилем «маршруты с Keenetic».
+- `.ai/SESSION_SUMMARY.md` — Обновление итоговой сводки сессии.
 
 ---
 
-## 3. Критические ошибки и извлеченные уроки (Lessons Learned)
-- **Любой DWH-скрипт обязан сразу ставиться в Cron:** Нельзя оставлять скрипты синхронизации в режиме «запустил один раз руками при проверке». Создание витрины/дашборда обязательно сопровождается добавлением скрипта в crontab и `SCRIPTS_CATALOG.md`.
-- **Защита памяти через `timeout -k 15 <sec>`:** Любая периодическая сетевая выгрузка CRM $\to$ DWH обязана иметь жесткий лимит времени выполнения (180–300 сек). При зависании API процесс принудительно снимается ядром Linux по `SIGKILL`, предотвращая захват оперативной памяти и Swap.
-- **Pre-Execution Retention ДО старта:** Удаление старых копий в бэкап-скриптах выполняется в Шаге 0 до старта создания нового дампа, а при сбое недописанная папка удаляется через `trap`.
+## 3. Открытые вопросы и следующие шаги
+- **Проверка на других ноутбуках (MateBook / HP):** При необходимости импортировать ту же ссылку `vless://...` и файл [happ_codex_routing.json](file:///C:/Codex/projects/server_ops/happ_codex_routing.json) на MateBook для получения идентичной отказоустойчивой схемы.
+- **Мониторинг троттлинга WireGuard:** Наблюдать за стабильностью канала Keenetic. Если ТСПУ возобновит волну задержек — переключать туннель в Happ на узел `KZ VPS 1C`.
 
 ---
 
-## 4. Открытые вопросы и следующие шаги
-- Контроль работы cron: проверка лога `/var/log/b24_suppliers_sync.log` после утреннего (08:00 МСК) и дневного (14:00 МСК) прогона.
-- Публикация согласования по Второму контуру аналитики в Задаче Б24 №5634 для Михаила.
-
----
-
-## 🚀 Промпт для быстрого старта нового чата (Скопируйте в новый чат)
-
+## 4. Контекстный промпт для следующей сессии (Handoff Prompt)
 ```text
-Текущая сессия чата завершена. Итог работы:
-Выполнен товарный анализ 233 сделок CRM (Excel DEAL_PRODUCTS_AND_SUPPLIERS_REPORT_2026.xlsx, витрина analytics_deal_products). Согласован Второй контур аналитики Михаила (Задача Б24 №5634). Ликвидирована авария диска VPS (освобождено 137 ГБ, внедрен Pre-Execution Retention). Восстановлен Дашборд №11 в Metabase (выгружены фабрики КНР за 13–17 ноября, общее число 37). Скрипт sync_suppliers_and_tasks_dwh.py поставлен в cron 3 раза/день с flock и timeout 180с. Все правила закреплены в METABASE_ANALYTICS_POLICY.md, INFRA_VPS_POLICY.md и SCRIPTS_CATALOG.md.
-
-Для продолжения в новом чате:
-1. Ознакомься со сводкой в `.ai/SESSION_SUMMARY.md`.
-2. Проверь статус отчета Михаила по Задаче Б24 №5634 и лог синхронизации поставщиков на VPS.
-3. Соблюдай регламенты METABASE_ANALYTICS_POLICY.md, INFRA_VPS_POLICY.md и правила Strict Change Policy.
-Начни работу строго с этих шагов, соблюдая правила репозитория.
+Продолжай работу в контуре C:\Codex. Все сетевые каналы (Keenetic WireGuard 407 Мбит/с, личный VLESS-Reality 1С на порту 2053 и подписка Geodema) разграничены и зафиксированы в codex_kb/20_domains/hardware_victus/VICTUS_HARDWARE_POLICY.md. Соблюдай pre-flight дисциплину, регламенты OData/1С и при любых модификациях выполняй проверки в режиме --dry-run.
 ```
