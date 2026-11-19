@@ -152,17 +152,30 @@
 
 ---
 
-## 8. Регламент синхронизации DWH (`sync_analytics_dwh.py` Cron & Pagination Guard)
+## 8. Регламент синхронизации DWH (Cron, Flock & Timeout Memory Guard)
 
-1. **Актуальное расписание на VPS (`UTC`, МСК − 3 ч) с общим lock-файлом `/tmp/sync_dwh.lock`:** Инкрементальная довыгрузка `--days 3` выполняется каждые 6 часов (`03:00`, `09:00`, `15:00`, `21:00` МСК), полная выгрузка — в `04:00`, `12:00` и `18:00` МСК (`0 1,9,15 * * *` UTC).
-2. **Pagination Safety Guard:** Все циклы пагинации при выгрузке из Битрикс24 (`fetch_all_items`, `fetch_group14_supply_tasks`) обязаны ограничивать число страниц (`max_pages=500`) и отслеживать `seen_ids`, немедленно прерывая цикл при повторе курсора `start`.
-2. **Расписание на сервере VPS:**
-   ```bash
-   # Инкрементально каждые 6 часов и полная выгрузка в 04:00 / 12:00 / 18:00 МСК
-   0 */6 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 300 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py --days 3 >> /var/log/b24_analytics_sync.log 2>&1
-   0 1,9,15 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 900 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py >> /var/log/b24_analytics_sync.log 2>&1
-   ```
----
+1. **Инвариант обязательной постановки DWH-конвейеров в Cron (Mandatory DWH Pipeline Cron Registration Invariant):**
+   * Любой боевой скрипт синхронизации данных из CRM, 1С или внешних сервисов в DWH (`marketing_db`), создаваемый для дашбордов Metabase, **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО оставлять в статусе разового ручного запуска**.
+   * Разработка дашборда считается завершенной **ТОЛЬКО ПОСЛЕ** регистрации его синхронизатора в `crontab` на сервере VPS с трехслойной защитой от зависания и утечек памяти:
+     1. `/usr/bin/flock -n /tmp/<script>.lock` — запрет параллельного наложения одинаковых процессов.
+     2. `/usr/bin/timeout -k 15 <sec>` — жесткий аппаратный лимит времени выполнения (не более 180–300 сек), по истечении которого ядро Linux принудительно убивает процесс по `SIGKILL`, исключая пожирание Swap и RAM.
+     3. Перенаправление вывода в выделенный лог-файл: `>> /var/log/<name>.log 2>&1`.
+
+2. **Боевые расписания синхронизации на VPS (`UTC`, МСК − 3 ч):**
+   * **Сделки и воронки продаж (`sync_analytics_dwh.py`):**
+     ```bash
+     # Инкремент каждые 6 часов (03:00, 09:00, 15:00, 21:00 МСК)
+     0 */6 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 300 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py --days 3 >> /var/log/b24_analytics_sync.log 2>&1
+     # Полная выгрузка в 04:00, 12:00, 18:00 МСК
+     0 1,9,15 * * * /usr/bin/flock -n /tmp/sync_dwh.lock /usr/bin/timeout -k 15 900 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_analytics_dwh.py >> /var/log/b24_analytics_sync.log 2>&1
+     ```
+   * **База поставщиков и задачи RFQ (`sync_suppliers_and_tasks_dwh.py`, Дашборд 11):**
+     ```bash
+     # 3 раза в день в 08:00, 14:00 и 20:00 МСК (05:00, 11:00, 17:00 UTC) с жестким таймаутом 180 сек
+     0 5,11,17 * * * /usr/bin/flock -n /tmp/sync_suppliers_dwh.lock /usr/bin/timeout -k 15 180 /usr/bin/python3 /Storage/scripts/metabase_analytics/scripts/sync_suppliers_and_tasks_dwh.py --days 14 >> /var/log/b24_suppliers_sync.log 2>&1
+     ```
+
+3. **Pagination Safety Guard:** Все циклы пагинации при выгрузке из Битрикс24 (`fetch_all_items`, `fetch_group14_supply_tasks`) обязаны ограничивать число страниц (`max_pages=500`) и отслеживать `seen_ids`, немедленно прерывая цикл при повторе курсора `start`.
 
 ## 9. Дашборды совместных планерок (Executive Weekly Sync)
 
