@@ -106,6 +106,41 @@ TAG_TYPO_MAP = {
 
 DADATA_TOKEN = os.getenv("DADATA_TOKEN", "")
 
+# Виды контактной информации 1С:УНФ
+VID_CI_EMAIL_COUNTERPARTY = "5c0dc758-23c6-11ed-91a8-a068f8f3337c" # EmailКонтрагента
+VID_CI_EMAIL_LEAD = "5c0dc769-23c6-11ed-91a8-a068f8f3337c"         # EmailЛида
+
+def build_1c_email_ci_row(email: str, vid_key: str, line_number: int = 1, is_lead: bool = False) -> dict:
+    """Strict 1C Contact Info Field Invariant Guard (АдресЭП, Домен, JSON v5):
+    Гарантирует обязательное заполнение реквизитов 'АдресЭП', 'ДоменноеИмяСервера',
+    'Значение' (JSON v5) и XML 'ЗначенияПолей'.
+    Без заполнения 'АдресЭП' почтовый модуль 1С:УНФ не может идентифицировать
+    отправителя и выводит гиперссылку '[сохранить в CRM]'.
+    """
+    em = (email or "").strip().lower()
+    domain = em.split("@")[-1] if "@" in em else ""
+    xml_val = f'<КонтактнаяИнформация xmlns="http://www.v8.1c.ru/ssl/contactinfo" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Представление="{em}"><Состав xsi:type="ЭлектроннаяПочта" Значение="{em}"/></КонтактнаяИнформация>'
+    json_val = json.dumps({"version": 5, "value": em, "type": "АдресЭлектроннойПочты"}, ensure_ascii=False)
+    row = {
+        "LineNumber": str(line_number),
+        "Тип": "АдресЭлектроннойПочты",
+        "Вид_Key": vid_key,
+        "Представление": em,
+        "АдресЭП": em,
+        "ДоменноеИмяСервера": domain,
+        "Значение": json_val,
+        "ЗначенияПолей": xml_val,
+        "Страна": "",
+        "Регион": "",
+        "Город": "",
+        "НомерТелефона": "",
+        "НомерТелефонаБезКодов": "",
+        "ОбратныйНомерТелефона": ""
+    }
+    if is_lead:
+        row["УдалитьИдентификаторСтрокиТабличнойЧасти"] = "0"
+    return row
+
 
 def call_b24(method: str, params: dict = None) -> dict:
     url = f"{B24_WEBHOOK}{method}"
@@ -431,15 +466,7 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                         cp_ci = vals[0].get("КонтактнаяИнформация", [])
                         if not any(row.get("АдресЭП") == primary_email for row in cp_ci):
                             clean_ci = [r for r in cp_ci]
-                            clean_ci.append({
-                                "LineNumber": str(len(clean_ci) + 1),
-                                "Тип": "АдресЭлектроннойПочты",
-                                "Вид_Key": "5c0dc758-23c6-11ed-91a8-a068f8f3337c",  # EmailКонтрагента
-                                "Представление": primary_email,
-                                "АдресЭП": primary_email,
-                                "ДоменноеИмяСервера": primary_email.split("@")[-1],
-                                "ЗначенияПолей": f'{{"EMail":"{primary_email}"}}'
-                            })
+                            clean_ci.append(build_1c_email_ci_row(primary_email, VID_CI_EMAIL_COUNTERPARTY, len(clean_ci) + 1, is_lead=False))
                             # Strict CI Invariant Guard: защита от попадания видов КИ лида в контрагента
                             for r in clean_ci:
                                 if r.get("Вид_Key") == "5c0dc769-23c6-11ed-91a8-a068f8f3337c":
@@ -465,16 +492,7 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                         for em_add in emails:
                             em_l = em_add.strip().lower()
                             if em_l and not any(r.get("АдресЭП", "").lower() == em_l for r in ld_ci):
-                                ld_ci.append({
-                                    "LineNumber": str(len(ld_ci) + 1),
-                                    "Тип": "АдресЭлектроннойПочты",
-                                    "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
-                                    "Представление": em_l,
-                                    "АдресЭП": em_l,
-                                    "ДоменноеИмяСервера": em_l.split("@")[-1],
-                                    "Значение": f'{{\r\n"version": 4,\r\n"value": "{em_l}",\r\n"type": "АдресЭлектроннойПочты"\r\n}}',
-                                    "ЗначенияПолей": f'{{"EMail":"{em_l}"}}'
-                                })
+                                ld_ci.append(build_1c_email_ci_row(em_l, VID_CI_EMAIL_LEAD, len(ld_ci) + 1, is_lead=True))
                                 ci_changed = True
                         if primary_phone and not any(re.sub(r"\D", "", r.get("Представление", ""))[-10:] == re.sub(r"\D", "", primary_phone)[-10:] for r in ld_ci if r.get("Тип") == "Телефон"):
                             ld_ci.append({"LineNumber": str(len(ld_ci) + 1), "Тип": "Телефон", "Вид_Key": "5c0dc76d-23c6-11ed-91a8-a068f8f3337c", "Представление": primary_phone, "НомерТелефона": primary_phone, "Значение": f'{{\r\n"version": 4,\r\n"value": "{primary_phone}",\r\n"type": "Телефон"\r\n}}', "ЗначенияПолей": f'{{"Phone":"{primary_phone}"}}'})
@@ -517,16 +535,7 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                     # Фаза 2: PATCH КонтактнаяИнформация
                     ci_rows = []
                     if primary_email:
-                        ci_rows.append({
-                            "LineNumber": "1",
-                            "Тип": "АдресЭлектроннойПочты",
-                            "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
-                            "Представление": primary_email,
-                            "АдресЭП": primary_email,
-                            "ДоменноеИмяСервера": primary_email.split("@")[-1],
-                            "Значение": f"{{\n\"version\": 4,\n\"value\": \"{primary_email}\",\n\"type\": \"АдресЭлектроннойПочты\"\n}}",
-                            "ЗначенияПолей": f'{{"EMail":"{primary_email}"}}'
-                        })
+                        ci_rows.append(build_1c_email_ci_row(primary_email, VID_CI_EMAIL_LEAD, 1, is_lead=True))
                     if primary_phone:
                         ci_rows.append({
                             "LineNumber": str(len(ci_rows) + 1),
@@ -1710,15 +1719,7 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                 cp_ci = onec_cp.get("КонтактнаяИнформация", [])
                 if not any(email.lower() in (c.get("АдресЭП", "") + c.get("Представление", "")).lower() for c in cp_ci):
                     clean_ci = [c for c in cp_ci if c.get("АдресЭП") != email]
-                    clean_ci.append({
-                        "LineNumber": str(len(clean_ci) + 1),
-                        "Тип": "АдресЭлектроннойПочты",
-                        "Вид_Key": "5c0dc758-23c6-11ed-91a8-a068f8f3337c",  # EmailКонтрагента (Strict CI Invariant Guard)
-                        "Представление": email,
-                        "АдресЭП": email,
-                        "Значение": email,
-                        "ЗначенияПолей": f'{{"EMail":"{email}"}}'
-                    })
+                    clean_ci.append(build_1c_email_ci_row(email, VID_CI_EMAIL_COUNTERPARTY, len(clean_ci) + 1, is_lead=False))
                     for r in clean_ci:
                         if r.get("Вид_Key") == "5c0dc769-23c6-11ed-91a8-a068f8f3337c":
                             r["Вид_Key"] = "5c0dc758-23c6-11ed-91a8-a068f8f3337c"
@@ -1736,14 +1737,7 @@ def sync_leads_from_mxl(mxl_path: str, assigned_to: int = 1, dry_run: bool = Tru
                 cur_ci = onec_lead.get("КонтактнаяИнформация", [])
                 ci_modified = False
                 if email and not any(email.lower() in (c.get("АдресЭП", "") + c.get("Представление", "")).lower() for c in cur_ci):
-                    cur_ci.append({
-                        "LineNumber": str(len(cur_ci) + 1),
-                        "Тип": "АдресЭлектроннойПочты",
-                        "Вид_Key": "5c0dc769-23c6-11ed-91a8-a068f8f3337c",
-                        "Представление": email,
-                        "Значение": f'{{\n"version": 4,\n"value": "{email}",\n"type": "АдресЭлектроннойПочты"\n}}',
-                        "АдресЭП": email
-                    })
+                    cur_ci.append(build_1c_email_ci_row(email, VID_CI_EMAIL_LEAD, len(cur_ci) + 1, is_lead=True))
                     ci_modified = True
                 if address and not any(c.get("Тип") == "Адрес" for c in cur_ci):
                     cur_ci.append({
