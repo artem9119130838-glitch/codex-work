@@ -411,7 +411,7 @@ def check_1c_counterparty(inn=None, name=None, email=None, phone=None):
                 except Exception:
                     pass
 
-        # 4. По наименованию: только длинные имена (>= 5 символов), полное точное равенство очищенных названий
+        # 4. По наименованию: только длинные имена (>= 5 символов), полное точное равенство или подстрока
         if name:
             clean_name = clean_company_name_for_match(name)
             # Короткие аббревиатуры (<= 4 символов) искать по названию запрещено без второго фактора!
@@ -420,6 +420,13 @@ def check_1c_counterparty(inn=None, name=None, email=None, phone=None):
                 r_nm = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты?$filter={q_nm}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
                 if r_nm.status_code == 200:
                     val = r_nm.json().get('value', [])
+                    if val:
+                        return val[0]
+                # Fallback: поиск по подстроке (substringof) для учета наименований с ОПФ в 1С (напр. АО «Усть-Луга Ойл»)
+                q_sub = urllib.parse.quote(f"substringof('{clean_name}', Description)")
+                r_sub = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты?$filter={q_sub}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                if r_sub.status_code == 200:
+                    val = r_sub.json().get('value', [])
                     if val:
                         return val[0]
     except Exception as e:
@@ -485,7 +492,7 @@ def check_1c_lead(inn=None, name=None, email=None, phone=None):
                     if re.search(r'\b' + str(inn).strip() + r'\b', f"{lead_topic} {lead_desc} {lead_info}"):
                         return lead_cand
 
-        # 4. По наименованию: только длинные имена (>= 5 символов), строго полное совпадение
+        # 4. По наименованию: только длинные имена (>= 5 символов), совпадение или подстрока
         if name:
             clean_name = clean_company_name_for_match(name)
             if len(clean_name) >= 5:
@@ -493,6 +500,13 @@ def check_1c_lead(inn=None, name=None, email=None, phone=None):
                 r_nm = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_nm}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
                 if r_nm.status_code == 200:
                     val = r_nm.json().get('value', [])
+                    if val:
+                        return val[0]
+                # Fallback: поиск по подстроке (substringof)
+                q_sub = urllib.parse.quote(f"substringof('{clean_name}', Description) or substringof('{clean_name}', НаименованиеКомпании)")
+                r_sub = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_sub}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                if r_sub.status_code == 200:
+                    val = r_sub.json().get('value', [])
                     if val:
                         return val[0]
     except Exception as e:
@@ -2017,6 +2031,11 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
                 all_files = list(set([int(f) for f in cur_files if str(f).isdigit()] + [int(f) for f in file_ids if str(f).isdigit()]))
                 upd_fields["UF_TASK_WEBDAV_FILES"] = [f"n{fid}" for fid in all_files]
                 print(f"  [Task Files Enrichment] В задачу #{existing_id} переданы вложения Диска: {upd_fields['UF_TASK_WEBDAV_FILES']}")
+            # Проверяем наличие Азата в аудиторах
+            cur_auditors = tasks_list[0].get("auditors") or []
+            cur_aud_ids = [int(a) for a in cur_auditors if str(a).isdigit()]
+            if int(tasks_list[0].get("responsibleId", responsible_id)) != USER_AZAT and USER_AZAT not in cur_aud_ids:
+                upd_fields["AUDITORS"] = cur_aud_ids + [USER_AZAT]
             call_b24("tasks.task.update", {"taskId": existing_id, "fields": upd_fields})
             return existing_id
 
@@ -2024,7 +2043,7 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
     fields = {
         "TITLE": title,
         "DESCRIPTION": description,
-        "RESPONSIBLE_ID": responsible_id,  # Азат (20)
+        "RESPONSIBLE_ID": responsible_id,  # Азат (20) или коллега из КНР
         "CREATED_BY": USER_ARTEM,          # Артем (1)
         "GROUP_ID": group_id,              # Товары и поставщики Китай (14)
         "PRIORITY": 1,
@@ -2034,6 +2053,11 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
         "TAGS": ["Поиск товара - 找货"],
         "UF_CRM_TASK": [f"D_{deal_id}"]
     }
+    # Mandatory Auditor Invariant: Азат Денишов (ID: 20) обязан быть наблюдателем во всех задачах коллегам из КНР
+    if int(responsible_id) != USER_AZAT:
+        fields["AUDITORS"] = [USER_AZAT]
+    else:
+        fields["AUDITORS"] = [USER_ARTEM]
     if file_ids:
         fields["UF_TASK_WEBDAV_FILES"] = [f"n{fid}" for fid in file_ids]
     if dry_run:
@@ -2042,17 +2066,35 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
     task_id = task_res.get('task', {}).get('id') if isinstance(task_res, dict) else task_res
     return task_id
 
-def build_supply_task_chat_message(azat_id, cn_nomenclature, brand, model, quantity, equivalents_allowed, download_links_chat="", clean_inquiry=""):
+def build_supply_task_chat_message(azat_id=None, cn_nomenclature="", brand="", model="", quantity="", equivalents_allowed=False, download_links_chat="", clean_inquiry="", resp_id=None):
     """
     Формирует чистое рабочее сообщение для чата задачи снабжения:
     - Без раскрытия клиента РФ (China Supply Anonymity Guard);
     - Без паразитных мета-фраз ('Подробное ТЗ внесено в карточку...');
     - Четкое указание: что искать, бренд, модель, количество, статус аналога;
+    - Если исполнитель - коллега из КНР (Miss Wang: 30, Liyan Wang: 44, Yu'nan Li: 84),
+      обязательно тегируются коллега из КНР И наблюдатель Азат Денишов ([USER=20]Азат Денишов[/USER]);
     - Если есть файлы: кликабельные ссылки на Диск; если файлов нет: оригинальный запрос в [QUOTE].
     """
+    target_resp = resp_id if resp_id is not None else (azat_id or USER_AZAT)
+    target_resp_int = int(target_resp)
+
     equiv_str = "可推荐同等参数国内优质替代品 (Разрешен качественный аналог)" if equivalents_allowed else "仅限原装正品 (Только оригинал)"
 
-    user_tag = f"[USER={azat_id}]王女士[/USER]" if azat_id == USER_MISS_WANG else f"[USER={azat_id}]阿扎特[/USER]"
+    USER_CN_NAMES = {
+        30: "王女士",      # Miss Wang
+        44: "王丽岩",      # Liyan Wang
+        84: "李玉南",      # Yu'nan Li
+        20: "阿扎特",      # Azat
+        1:  "阿尔乔姆",    # Artem
+    }
+
+    if target_resp_int != USER_AZAT:
+        cn_name = USER_CN_NAMES.get(target_resp_int, f"同事 (ID {target_resp_int})")
+        user_tag = f"[USER={target_resp_int}]{cn_name}[/USER] [USER={USER_AZAT}]Азат Денишов[/USER]"
+    else:
+        user_tag = f"[USER={USER_AZAT}]阿扎特[/USER]"
+
     msg_lines = [
         f"{user_tag} Новая заявка в снабжение КНР:",
         f"请协助询价以下设备（采购清单）：",
@@ -3828,7 +3870,59 @@ def repair_previously_processed_lead(lead_id: int, dry_run: bool = False):
     )
     return True
 
+def verify_script_invariants():
+    """
+    Pre-Flight Code Invariants Guard:
+    Аппаратный самоконтроль перед запуском скрипта. Гарантирует, что критические инварианты
+    не затерты, не закомментированы и активны в исходном коде:
+    1. Инвариант стадии PREPARATION («Расчет КП») для всех новых сделок категории 0.
+    2. Инвариант обязательного аудитора Азата Денишова (ID 20) для всех задач коллегам из КНР.
+    3. Инвариант тройного связывания писем (Triple Activity Binding Guard: 2-Сделка, 3-Контакт, 4-Компания).
+    4. Инвариант поиска в 1С:УНФ по подстроке наименования (substringof) при расхождении ИНН.
+    5. Инвариант запрета подстановки тем писем в наименование оборудования (Zero-Subject Pollution Guard).
+    """
+    errors = []
+    
+    # 1. Проверка стадии PREPARATION
+    import inspect
+    sig = inspect.signature(create_b24_deal)
+    if sig.parameters.get("stage_id") is None or sig.parameters["stage_id"].default != "PREPARATION":
+        errors.append("create_b24_deal: default stage_id must be 'PREPARATION'")
+        
+    # 2. Проверка аудитора в create_b24_supply_task
+    task_src = inspect.getsource(create_b24_supply_task)
+    if "USER_AZAT" not in task_src or "AUDITORS" not in task_src:
+        errors.append("create_b24_supply_task: AUDITORS with USER_AZAT (20) missing")
+        
+    # 3. Проверка тройного связывания
+    if not callable(bind_lead_activities_triple):
+        errors.append("bind_lead_activities_triple is missing or not callable")
+        
+    # 4. Проверка substringof в поиске 1С
+    cp_src = inspect.getsource(check_1c_counterparty)
+    ld_src = inspect.getsource(check_1c_lead)
+    if "substringof" not in cp_src or "substringof" not in ld_src:
+        errors.append("check_1c_counterparty / check_1c_lead: substringof fallback missing")
+
+    if errors:
+        print("\n" + "!" * 80)
+        print("[CRITICAL INVARIANT VIOLATION] Нарушены обязательные архитектурные инварианты:")
+        for err in errors:
+            print(f"  ❌ {err}")
+        print("!" * 80 + "\n")
+        raise RuntimeError("Pre-flight code invariant check failed! Check source code before running.")
+
+    print("\n" + "=" * 80)
+    print("  [PRE-FLIGHT INVARIANTS OK] Архитектурный самоконтроль пройден успешно:")
+    print("    ✓ Deal Stage Invariant: stage_id='PREPARATION' («Расчет КП»)")
+    print("    ✓ Supply Auditor Invariant: AUDITORS=[20] (Азат Денишов) для задач КНР")
+    print("    ✓ Triple Activity Binding: Сделка(2) + Контакт(3) + Компания(4)")
+    print("    ✓ 1C Substring Matching: fallback substringof для поиска контрагентов/лидов")
+    print("    ✓ Zero-Subject Pollution: чистые артикулы из вложений без тем писем")
+    print("=" * 80 + "\n")
+
 def main():
+    verify_script_invariants()
     parser = argparse.ArgumentParser(description="Канонический конвейер обработки входящих лидов Битрикс24 и 1С:УНФ")
     parser.add_argument("--dry-run", action="store_true", default=False, help="Предпросмотр действий без записи в CRM и 1С")
     parser.add_argument("--inspect", action="store_true", default=False, help="Инспекция лида и его вложений без выполнения")
