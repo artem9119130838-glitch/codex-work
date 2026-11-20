@@ -165,21 +165,24 @@ def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner
         if last_incoming:
             payload = last_incoming.raw_payload or {}
             inc_text = (payload.get("cleaned_text") or payload.get("text") or payload.get("snippet") or "").lower()
+            rec_naive = last_incoming.received_at.replace(tzinfo=None) if last_incoming.received_at else None
+            is_recent_incoming = rec_naive and rec_naive >= cutoff_30d
 
-            # А) Маркеры активного заказа / доставки / счета / договора (абсолютный приоритет)
-            order_patterns = [
-                r"отправ(?:ьте|ляйте|ить)", r"доставк", r"делов(?:ые|ыми)\s+лини", r"сдэк", r"пэк",
-                r"адрес\s*(?:доставки)?\s*[:—]", r"грузополучател", r"получател\w*\s*[:—]",
-                r"выставите\s+счет", r"счет\s+на\s+оплат", r"договор", r"реквизит",
-                r"платежк", r"оплатил", r"прошу\s+выставить"
-            ]
-            for pat in order_patterns:
-                m = re.search(pat, inc_text)
-                if m:
-                    match_word = m.group(0)
-                    intent_info["intent"] = "order_active"
-                    intent_info["detail"] = f"Маркер заказа/доставки '{match_word}' в письме от {last_incoming.received_at.strftime('%Y-%m-%d') if last_incoming.received_at else ''}"
-                    return False, f"[INTENT GATE BLOCKED] Последнее входящее содержит данные заказа/доставки/счета ('{match_word}'). Требуется ручная обработка менеджером, а не авто-реанимация!", intent_info
+            # А) Маркеры активного заказа / доставки / счета / договора (проверяются ТОЛЬКО для недавних писем < 30 дней)
+            if is_recent_incoming:
+                order_patterns = [
+                    r"отправ(?:ьте|ляйте|ить)", r"доставк", r"делов(?:ые|ыми)\s+лини", r"сдэк", r"пэк",
+                    r"адрес\s*(?:доставки)?\s*[:—]", r"грузополучател", r"получател\w*\s*[:—]",
+                    r"выставите\s+счет", r"счет\s+на\s+оплат", r"договор", r"реквизит",
+                    r"платежк", r"оплатил", r"прошу\s+выставить"
+                ]
+                for pat in order_patterns:
+                    m = re.search(pat, inc_text)
+                    if m:
+                        match_word = m.group(0)
+                        intent_info["intent"] = "order_active"
+                        intent_info["detail"] = f"Маркер заказа/доставки '{match_word}' в письме от {last_incoming.received_at.strftime('%Y-%m-%d')}"
+                        return False, f"[INTENT GATE BLOCKED] Недавнее входящее содержит данные заказа/доставки/счета ('{match_word}'). Требуется ручная обработка менеджером, а не авто-реанимация!", intent_info
 
             # Б) Маркеры жесткого отказа / отписки / покупки у других
             reject_patterns = [
@@ -208,13 +211,11 @@ def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner
                     break
 
             # Г) Проверка недавней активности (< 30 дней)
-            if last_incoming.received_at:
-                rec_naive = last_incoming.received_at.replace(tzinfo=None) if last_incoming.received_at.tzinfo else last_incoming.received_at
-                if rec_naive >= cutoff_30d:
-                    intent_info["detail"] = f"Входящее письмо {last_incoming.received_at.strftime('%Y-%m-%d')}"
-                    if intent_info.get("intent") == "ok":
-                        intent_info["intent"] = "active_recent"
-                    return False, f"Клиент присылал входящее письмо {last_incoming.received_at.strftime('%Y-%m-%d')} (контакт активен, авто-реанимация запрещена)", intent_info
+            if is_recent_incoming:
+                intent_info["detail"] = f"Входящее письмо {last_incoming.received_at.strftime('%Y-%m-%d')}"
+                if intent_info.get("intent") == "ok":
+                    intent_info["intent"] = "active_recent"
+                return False, f"Клиент присылал входящее письмо {last_incoming.received_at.strftime('%Y-%m-%d')} (контакт активен, авто-реанимация запрещена)", intent_info
 
     except Exception as e_intent:
         logger.warning(f"Ошибка проверки Intent Gate для {clean_email}: {e_intent}")
@@ -244,14 +245,39 @@ def check_client_reactivation_eligibility(db, email: str, contact_1c=None, owner
                         comp_ids.append(c["ID"])
 
             # 3.3. Лиды по email
-            r_lead = requests.post(f"{b24_webhook}crm.lead.list", json={"filter": {"EMAIL": clean_email}, "select": ["ID", "TITLE", "STATUS_ID", "STATUS_SEMANTIC_ID"]}, timeout=10)
+            r_lead = requests.post(f"{b24_webhook}crm.lead.list", json={"filter": {"EMAIL": clean_email}, "select": ["ID", "TITLE", "STATUS_ID", "STATUS_SEMANTIC_ID", "DATE_CREATE"]}, timeout=10)
             lead_list = r_lead.json().get("result", []) if r_lead.status_code == 200 else []
             lead_ids = []
             for ld in lead_list:
                 lead_ids.append(ld["ID"])
-                if ld.get("STATUS_SEMANTIC_ID") == "P" or ld.get("STATUS_ID") in ("NEW", "IN_PROCESS", "ASSIGNED"):
+                is_active_lead = False
+
+                # Проверяем дату создания лида (срок актуальности)
+                c_dt = None
+                created_raw = ld.get("DATE_CREATE")
+                if created_raw:
+                    try:
+                        c_dt_str = str(created_raw).split("+")[0].replace("Z", "")
+                        c_dt = datetime.datetime.fromisoformat(c_dt_str)
+                    except Exception:
+                        pass
+
+                is_recent_lead = bool(c_dt and (now - c_dt).days <= 60)
+
+                # Лид считается активным, только если:
+                # 1) Он в статусе NEW и создан менее 60 дней назад (не брошенный архивный лид);
+                # 2) Либо он в активной стадии работы (IN_PROCESS/ASSIGNED) и создан недавно.
+                # Старые лиды (>60 дней) проверяются через Touchpoint Guard (crm.activity.list) ниже.
+                if ld.get("STATUS_ID") == "NEW":
+                    if is_recent_lead:
+                        is_active_lead = True
+                elif ld.get("STATUS_SEMANTIC_ID") == "P" or ld.get("STATUS_ID") in ("IN_PROCESS", "ASSIGNED"):
+                    if is_recent_lead:
+                        is_active_lead = True
+
+                if is_active_lead:
                     intent_info["intent"] = "b24_lead_active"
-                    return False, f"В Битрикс24 есть активный Лид #{ld['ID']} '{ld.get('TITLE')}' в стадии '{ld.get('STATUS_ID')}'", intent_info
+                    return False, f"В Битрикс24 есть недавний активный Лид #{ld['ID']} '{ld.get('TITLE')}' в стадии '{ld.get('STATUS_ID')}' (создан {(now - c_dt).days if c_dt else '?'} дн. назад)", intent_info
 
             # 3.4. Активные сделки по контактам
             for cid in ct_ids:

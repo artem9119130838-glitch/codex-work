@@ -59,7 +59,7 @@ def send_bitrix_chat_alert(message: str, b24_url: str = None, dialog_id: str = "
         print(f"[WARN] Failed to send alert to Bitrix24: {ex}")
     return False
 
-def test_gemini_key(api_key: str, model: str = "gemini-flash-latest") -> tuple[str, int, float, str]:
+def test_gemini_key(api_key: str, model: str = "gemini-2.5-flash") -> tuple[str, int, float, str]:
     """Returns (status, http_code, latency_ms, detail)"""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     payload = json.dumps({
@@ -143,7 +143,7 @@ def main():
     parser = argparse.ArgumentParser(description="Audit and diagnose health of LLM API keys (No Auto-Purge)")
     parser.add_argument("--env-file", help="Path to .env file containing GEMINI_API_KEYS")
     parser.add_argument("--keys", help="Comma-separated raw keys list to test directly")
-    parser.add_argument("--model", default="gemini-flash-latest", help="Gemini model for testing")
+    parser.add_argument("--model", default="gemini-2.5-flash", help="Gemini model for testing")
     parser.add_argument("--db-sync", action="store_true", help="Sync key health status into PostgreSQL DWH")
     parser.add_argument("--cleanup-obsolete", action="store_true", help="Remove orphaned/stale key aliases from llm_keys_status")
     parser.add_argument("--notify-b24", action="store_true", help="Send alert message to Bitrix24 chat if errors found")
