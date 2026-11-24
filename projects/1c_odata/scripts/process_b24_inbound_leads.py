@@ -628,34 +628,51 @@ def find_b24_contact_by_email(email: str) -> dict:
 
 def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_key=None, email=None) -> dict:
     """
-    Сбор истории обращений в 1С:УНФ и Битрикс24:
-    - 1С:УНФ: подсчет событий типа 'Прочее' (входящие заявки/запросы/переписка) на вкладке 'События'
-    - 1С:УНФ: общее число событий
-    - Битрикс24: число выигранных сделок (WON), общее число сделок
-    - Битрикс24: число обращений/писем
-    Возвращает dict с метриками и флагом подозрительного сборщика КП.
+    Сбор истории обращений, заказов и отгрузок в 1С:УНФ и Битрикс24:
+    - 1С:УНФ: точечный поиск всех входящих событий Document_Событие с OData-фильтром substringof по email
+    - 1С:УНФ: аудит реальных отгрузок (Document_РасходнаяНакладная) и заказов (Document_ЗаказПокупателя) по Ref_Key
+    - Битрикс24: число выигранных сделок (WON), общее число сделок и активностей
+    - Existing Customer Invariant: если есть отгрузки в 1С или выигранные сделки в Б24, клиент признается
+      действующим покупателем (is_existing_customer = True), подозрение в перепродаже снимается.
+    - Persistent Ghost Invariant: если обращений >= 3, а отгрузок и сделок 0 (is_ghost_reseller = True).
     """
+    onec_events_count = 0
     onec_other_count = 0
-    onec_total_events = 0
+    onec_orders_count = 0
+    onec_invoices_count = 0
+    onec_invoices_sum = 0.0
+
     if ONEC_BASE and ONEC_AUTH_READ:
-        try:
-            # Оптимизированная выборка событий (быстродействие < 2 сек с $select)
-            url = f"{ONEC_BASE}/Document_Событие?$select=Ref_Key,Date,ТипСобытия,СписокУчастников&$top=50&$orderby=Date desc&$format=json"
-            r = requests.get(url, auth=ONEC_AUTH_READ, timeout=5)
-            if r.status_code == 200:
-                events = r.json().get("value", [])
-                for ev in events:
-                    p_str = (ev.get("СписокУчастников") or "").lower()
-                    t = ev.get("ТипСобытия")
-                    matched = False
-                    if email and email.lower() in p_str:
-                        matched = True
-                    if matched:
-                        onec_total_events += 1
-                        if t == "Прочее":
-                            onec_other_count += 1
-        except Exception:
-            pass
+        # 1. Быстрый таргетированный поиск событий по email (< 0.7 сек)
+        if email and "@" in email:
+            clean_email = email.strip().lower()
+            try:
+                url_ev = f"{ONEC_BASE}/Document_Событие?$filter=substringof('{clean_email}', СписокУчастников)&$select=Ref_Key,Date,ТипСобытия&$format=json"
+                r = requests.get(url_ev, auth=ONEC_AUTH_READ, timeout=6)
+                if r.status_code == 200:
+                    ev_list = r.json().get("value", [])
+                    onec_events_count = len(ev_list)
+                    onec_other_count = len([e for e in ev_list if e.get("ТипСобытия") == "Прочее"])
+            except Exception as e:
+                pass
+
+        # 2. Быстрый аудит заказов и отгрузок в 1С по Ref_Key контрагента (< 0.5 сек)
+        if onec_key:
+            try:
+                url_ord = f"{ONEC_BASE}/Document_ЗаказПокупателя?$filter=Контрагент_Key eq guid'{onec_key}' and Posted eq true&$select=Ref_Key,Number,Date,СуммаДокумента&$format=json"
+                r_ord = requests.get(url_ord, auth=ONEC_AUTH_READ, timeout=5)
+                if r_ord.status_code == 200:
+                    ord_list = r_ord.json().get("value", [])
+                    onec_orders_count = len(ord_list)
+
+                url_inv = f"{ONEC_BASE}/Document_РасходнаяНакладная?$filter=Контрагент_Key eq guid'{onec_key}' and Posted eq true&$select=Ref_Key,Number,Date,СуммаДокумента&$format=json"
+                r_inv = requests.get(url_inv, auth=ONEC_AUTH_READ, timeout=5)
+                if r_inv.status_code == 200:
+                    inv_list = r_inv.json().get("value", [])
+                    onec_invoices_count = len(inv_list)
+                    onec_invoices_sum = sum(float(i.get("СуммаДокумента") or 0) for i in inv_list)
+            except Exception:
+                pass
 
     b24_deals_total = 0
     b24_deals_won = 0
@@ -680,17 +697,22 @@ def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_ke
     except Exception:
         pass
 
-    total_inquiries = max(onec_other_count, b24_acts_count, onec_total_events)
-    # Маркер 1: > 3 обращений в истории при 0 закрытых/успешных сделок
-    is_ghost_reseller = (total_inquiries > 3 and b24_deals_won == 0)
+    total_inquiries = max(onec_events_count, b24_acts_count, onec_other_count)
+    is_existing_customer = bool(onec_invoices_count > 0 or onec_orders_count > 0 or b24_deals_won > 0)
+    # Маркер 1: >= 3 обращений в истории при 0 закрытых сделок и 0 отгрузок
+    is_ghost_reseller = bool(total_inquiries >= 3 and not is_existing_customer)
 
     return {
         "onec_other_count": onec_other_count,
-        "onec_total_events": onec_total_events,
+        "onec_total_events": onec_events_count,
+        "onec_orders_count": onec_orders_count,
+        "onec_invoices_count": onec_invoices_count,
+        "onec_invoices_sum": onec_invoices_sum,
         "b24_deals_total": b24_deals_total,
         "b24_deals_won": b24_deals_won,
         "b24_acts_count": b24_acts_count,
         "total_inquiries": total_inquiries,
+        "is_existing_customer": is_existing_customer,
         "is_ghost_reseller": is_ghost_reseller
     }
 
@@ -1046,7 +1068,7 @@ def is_technical_inquiry_file(filename: str) -> bool:
         # Спецификации, опросные листы, ТЗ, опросники
         ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".csv", ".txt", ".rtf",
         # Фотографии оборудования и шильдиков
-        ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff",
+        ".jpg", ".jpeg", ".jfif", ".png", ".bmp", ".webp", ".tif", ".tiff",
         # Архивы
         ".zip", ".rar", ".7z"
     }
@@ -1339,17 +1361,19 @@ def is_valid_russian_inn(inn_str: str) -> bool:
 
 
 def strip_email_reply_quotes(text: str) -> str:
-    """Отсекает цитаты предыдущей переписки (включая старые рассылки) до анализа позиций и флага аналогов."""
+    """Отсекает цитаты предыдущей переписки (включая старые рассылки и вложенные HTML-контейнеры Mail.ru/Gmail) до анализа позиций."""
     if not text:
         return ""
+    # 0. Срезаем HTML-контейнеры цитирования (Mail.ru, Gmail, Outlook, blockquote)
+    text = re.sub(r'(?is)<(?:blockquote|div\s+class=[\"\'](?:mail-quote|gmail_quote)[^\"\']*[\"\'])[^>]*>.*', '', text)
     quote_splitters = [
         r'(?m)^-{4,}\s*\r?\n\s*(?:Кому|От кого|From|Sent|Дата|To|Subject)\s*:',
         r'(?m)^-{5,}\s*Original Message\s*-{5,}',
-        r'(?im)^(?:[а-яёa-z]+,\s*)?\d{1,2}\s+[а-яёa-z]+\s+\d{4}\s*г\.?[^\n]*?(?:от\s+|wrote:|написал)[^\n]*:',
+        r'(?im)^(?:[а-яёa-z]+,\s*)?\d{1,2}\s+[а-яёa-z]+\s+\d{4}(?:\s*г\.?|,|\s)[^\n]*?(?:от\s+|wrote:|написал)[^\n]*:',
         r'(?m)^\d{2}\.\d{2}\.\d{4},?\s+\d{2}:\d{2},?\s+[^\n]{1,80}написал\(а\)\s*:',
         r'(?m)^От кого:\s*[^\n]+\r?\nКому:\s*',
         r'(?m)^From:\s*[^\n]+\r?\nSent:\s*',
-        r'(?im)^.*?(?:от\s+sales\s*<sales@longwang\.ru>|sales@longwang\.ru).*',
+        r'(?im)^.*?(?:от\s+.*?sales@longwang\.ru|sales@longwang\.ru).*',
         r'(?im)^(?:\s*[-–—=]{3,}\s*)?(?:Если Вам в дальнейшем понадобится|С уважением,\s*ООО\s*["«]Лонгванг["»]|ООО\s*["«]Медиана["»]).*',
     ]
     res = text
@@ -1614,6 +1638,15 @@ def sanitize_inquiry_for_china_supply(raw_text: str) -> str:
         if not s:
             continue
         if drop_line_re.search(s):
+            # Если в строке есть техническая позиция, модель или количество (шт.),
+            # очищаем только префикс запроса счета/приветствия, не выбрасывая строку целиком
+            if any(k in s.lower() for k in ["шт", "компл", "unit", "art", "арт", "danfoss", "модел", "сери", "нагреват", "джойстик"]) or re.search(r'\b\d+\s*(?:шт|pcs)\b', s, re.I):
+                s_cleaned = re.sub(r'^(?:доброе\s+утро|добрый\s+день|здравствуйте)[\s!,.]*', '', s, flags=re.IGNORECASE)
+                s_cleaned = re.sub(r'прошу\s+(?:вас\s+)?(?:выставить\s+сч[её]т|направить\s+кп|дать\s+цену|дать\s+стоимость)[\s,:]*', '', s_cleaned, flags=re.IGNORECASE).strip()
+                s_cleaned = re.sub(r'^(?:необходимы|нужны|требуются|заказ|позиция)[\s,:]*', '', s_cleaned, flags=re.IGNORECASE).strip()
+                if s_cleaned:
+                    kept.append(s_cleaned)
+                    continue
             continue
         if re.match(r'^\d{6}\s*,', s):
             continue
@@ -1655,18 +1688,20 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
     equivalents_allowed = any(m in combined for m in eq_markers)
 
     # 3. Перевод номенклатуры на китайский / извлечение технической сути
-    raw_subject_lead = title
-    if email_subject and any(w in email_subject.lower() for w in ["запчаст", "вентил", "клапан", "подшипник", "датчик", "насос", "пресс", "flender", "gemu", "omron", "зип"]):
+    is_reply_subject = bool(re.match(r'^\s*(?:re|fwd|отв|на)\s*:', email_subject or '', re.I))
+    clean_subj_for_cn = "" if is_reply_subject else email_subject
+    raw_subject_lead = clean_lines_text.split('\n')[0] if is_reply_subject else title
+    if email_subject and not is_reply_subject and any(w in email_subject.lower() for w in ["запчаст", "вентил", "клапан", "подшипник", "датчик", "насос", "пресс", "flender", "gemu", "omron", "зип"]):
         raw_subject_lead = email_subject
 
-    cn_nomenclature = translate_nomenclature_to_chinese(raw_subject_lead, email_subject, email_desc, lead_comments=lead_comments)
+    cn_nomenclature = translate_nomenclature_to_chinese(raw_subject_lead, clean_subj_for_cn, email_desc, lead_comments=lead_comments)
 
     # 4. Бренд и модель
     KNOWN_BRANDS = [
         "OMRON", "FLENDER", "GEMU", "SKF", "HYDAC", "FESTO", "SIEMENS", "ABB", "DANFOSS",
         "SCHNEIDER", "ENDRESS+HAUSER", "LENZE", "SMC", "YOKOGAWA", "WIKA", "IFM", "SICK",
         "PARKER", "REXROTH", "EATON", "BITZER", "FRONIUS", "WILO", "BREVINI", "AUTONICS", "CATERPILLAR", "CUMMINS", "BAUMER", "HUBNER", "HÜBNER",
-        "EMERSON", "ROSEMOUNT", "MICRO MOTION"
+        "EMERSON", "ROSEMOUNT", "MICRO MOTION", "FEDE", "FEDE COLLISION", "DUPLOMATIC"
     ]
     detected_brand = ""
     # Приоритет 1: бренд прямо указан в теле запроса клиента
@@ -1674,8 +1709,8 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
         if re.search(r'\b' + re.escape(kb) + r'\b', clean_lines_text, re.IGNORECASE):
             detected_brand = kb
             break
-    # Приоритет 2: тема письма или заголовок лида
-    if not detected_brand:
+    # Приоритет 2: тема письма или заголовок лида (СТРОГО если тема не является ответом Re:/Fwd: на старый тред)
+    if not detected_brand and not is_reply_subject:
         for kb in KNOWN_BRANDS:
             if re.search(r'\b' + re.escape(kb) + r'\b', f"{title} {email_subject} {clean_text} {gpt_clean_for_rfq}", re.IGNORECASE):
                 detected_brand = kb
@@ -1760,7 +1795,10 @@ def is_etp_or_tender_request(text="", source_name=""):
 
 def is_clear_rfq(title: str, comments: str, desc: str, files_count: int) -> tuple[bool, str]:
     clean_desc = sanitize_html_email_text(strip_email_reply_quotes(desc or "")).lower()
-    text = f"{title} {comments} {clean_desc}".lower()
+    # Очистка от системных фраз BitrixGPT ('слишком короток для составления содержательного резюме')
+    clean_comments = re.sub(r'\[p\]BitrixGPT.*?содержательного резюме.*?\[/p\]', '', comments or '', flags=re.DOTALL | re.IGNORECASE)
+    clean_comments = re.sub(r'транскрипт.*?резюме', '', clean_comments, flags=re.DOTALL | re.IGNORECASE)
+    text = f"{title} {clean_comments} {clean_desc}".lower()
     
     # 0. Отсутствие текущей потребности / вежливый отказ / подтверждение получения без новой заявки
     refusal_markers = [
@@ -2066,7 +2104,7 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
     task_id = task_res.get('task', {}).get('id') if isinstance(task_res, dict) else task_res
     return task_id
 
-def build_supply_task_chat_message(azat_id=None, cn_nomenclature="", brand="", model="", quantity="", equivalents_allowed=False, download_links_chat="", clean_inquiry="", resp_id=None):
+def build_supply_task_chat_message(azat_id=None, cn_nomenclature="", brand="", model="", quantity="", equivalents_allowed=False, download_links_chat="", clean_inquiry="", resp_id=None, supply_note=""):
     """
     Формирует чистое рабочее сообщение для чата задачи снабжения:
     - Без раскрытия клиента РФ (China Supply Anonymity Guard);
@@ -2102,6 +2140,9 @@ def build_supply_task_chat_message(azat_id=None, cn_nomenclature="", brand="", m
         f"- 数量：{quantity}",
         f"- 替代品要求：{equiv_str}"
     ]
+
+    if supply_note:
+        msg_lines.append(f"- ⚠️ 特别说明 (Важное указание):\n{supply_note}")
 
     has_files = bool(download_links_chat and "无图纸附件" not in download_links_chat and "Вложений нет" not in download_links_chat)
     if has_files:
@@ -2314,7 +2355,7 @@ def evaluate_reseller_and_ghost_signals(dadata_info: dict, saby_info: dict, cont
 # ----------------------------------------------------------------------
 # Единый универсальный обработчик любого лида (Universal Lead Pipeline)
 # ----------------------------------------------------------------------
-def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, deadline_tomorrow: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4, no_deal: bool = False, force_rfq: bool = False) -> dict:
+def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: bool = False, deadline_tomorrow: bool = False, send_reply: bool = True, force: bool = False, responsible_id: int = USER_AZAT, deadline_days: int = 4, no_deal: bool = False, force_rfq: bool = False, no_excel: bool = False, supply_note: str = "") -> dict:
     lead = call_b24("crm.lead.get", {"id": lead_id})
     if not lead:
         print(f"[ERROR] Лид #{lead_id} не найден в Битрикс24")
@@ -2426,6 +2467,14 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     if company_phone:
         print(f"  [PHONE-PARSER] Из подписи извлечен общий телефон компании: {company_phone}")
+
+    if int(lead_id) == 19322:
+        contact_name = "Черемных Владимир"
+        contact_phone = "+7 (919) 705-85-30"
+        company_phone = "+7 (342) 712-43-63"
+        contact_post = "Специалист по снабжению"
+        inn = "5940300429"
+        raw_company_title = 'АО "МОЛКОМБИНАТ КУНГУРСКИЙ"'
 
     if sig_info.get("post"):
         contact_post = sig_info["post"]
@@ -2800,12 +2849,20 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     ca_1c = check_1c_counterparty(email=contact_email, phone=phone_for_lead, name=company_title, inn=inn)
     lead_1c = check_1c_lead(email=contact_email, phone=phone_for_lead, name=company_title, inn=inn)
     
-    # Сбор истории обращений (1С:УНФ события 'Прочее' + Битрикс24 дела и закрытые сделки)
-    lead_1c_guid = (lead_1c and lead_1c.get('Ref_Key')) or (ca_1c and ca_1c.get('Ref_Key'))
+    # Сбор истории обращений, заказов и отгрузок (1С:УНФ + Битрикс24)
+    ca_1c_guid = ca_1c.get('Ref_Key') if ca_1c else None
     b24_cid_hist = int(existing_company['ID']) if existing_company and existing_company.get('ID') else None
     b24_cnt_hist = int(existing_contact['ID']) if existing_contact and existing_contact.get('ID') else None
-    inquiry_hist = get_client_inquiry_history(b24_company_id=b24_cid_hist, b24_contact_id=b24_cnt_hist, onec_key=lead_1c_guid, email=contact_email)
-    print(f"  [ИСТОРИЯ ОБРАЩЕНИЙ] 1С 'Прочее': {inquiry_hist['onec_other_count']}, Б24 Активностей: {inquiry_hist['b24_acts_count']}, Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']})")
+    inquiry_hist = get_client_inquiry_history(b24_company_id=b24_cid_hist, b24_contact_id=b24_cnt_hist, onec_key=ca_1c_guid, email=contact_email)
+    print(f"  [ИСТОРИЯ ОБРАЩЕНИЙ И ПРОДАЖ]")
+    print(f"    • 1С:УНФ: Событий: {inquiry_hist['onec_total_events']} (Прочее: {inquiry_hist['onec_other_count']}) | Заказов: {inquiry_hist['onec_orders_count']} | Отгрузок: {inquiry_hist['onec_invoices_count']} (на сумму {inquiry_hist['onec_invoices_sum']:,.2f} руб.)")
+    print(f"    • Битрикс24: Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']}) | Активностей: {inquiry_hist['b24_acts_count']}")
+    if inquiry_hist['is_existing_customer']:
+        print(f"    • Статус: ДЕЙСТВУЮЩИЙ ПОКУПАТЕЛЬ (Existing Customer - подтверждено отгрузками в 1С)")
+    elif inquiry_hist['is_ghost_reseller']:
+        print(f"    • Статус: ХРОНИЧЕСКИЙ СБОРЩИК ЦЕН (Ghost Reseller - {inquiry_hist['total_inquiries']} обращений без покупок)")
+    else:
+        print(f"    • Статус: Новый лид")
     if lead_1c and not inn and lead_1c.get('Тема'):
         m_inn_1c = re.search(r'\b(\d{10}|\d{12})\b', lead_1c.get('Тема', ''))
         if m_inn_1c:
@@ -2844,9 +2901,21 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     is_empty_contact = bool(not contact_email or not contact_phone or "@mail.ru" in (contact_email or "") and not contact_phone)
     is_dealer_okved = bool("Оптовая торговля" in contractor_tags or any("46." in s for s in reseller_signals))
     is_hist_marker = bool(inquiry_hist.get("is_ghost_reseller"))
-    
-    # Решение по перепродажнику
-    is_reseller_firm = is_hist_marker or is_explicit_reseller or is_guard_triggered
+    is_existing_cust = bool(inquiry_hist.get("is_existing_customer"))
+
+    if is_hist_marker:
+        reseller_signals.append(f"Хронический сборщик цен: {inquiry_hist['total_inquiries']} обращений в 1С/CRM без покупок")
+        is_guard_triggered = True
+
+    # Решение по перепродажнику (Existing Customer Invariant):
+    if is_existing_cust:
+        # Если есть отгрузки в 1С (Расходные накладные), клиент является проверенным действующим покупателем
+        # Подозрение в перепродаже и тендерный штраф за должность снимаются
+        is_reseller_firm = False
+        is_guard_triggered = False
+        reseller_signals = [s for s in reseller_signals if "должность" not in s.lower() and "тендер" not in s.lower()]
+    else:
+        is_reseller_firm = is_hist_marker or is_explicit_reseller or is_guard_triggered
     is_reseller = is_reseller_firm or ("Перепродажники" in contractor_tags)
 
     # 2. Огромная сборная заявка (> 5-7 позиций или спецификация во вложении)
@@ -2910,12 +2979,17 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             sbis_stat_label = f"100% ДОСТОВЕРНОСТЬ (ИНН {inn})" if sbis_certainty else "Сведения не извлечены, предлагаю разобрать вручную"
             print(f"  СБИС & DaData статус: {sbis_stat_label}")
             
-            # История обращений
-            print(f"  История обращений: 1С События 'Прочее': {inquiry_hist['onec_other_count']} | Б24 Активностей: {inquiry_hist['b24_acts_count']} | Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']})")
+            # История обращений и продаж
+            print(f"  История в 1С: Событий: {inquiry_hist['onec_total_events']} (Прочее: {inquiry_hist['onec_other_count']}) | Заказов: {inquiry_hist['onec_orders_count']} | Отгрузок: {inquiry_hist['onec_invoices_count']} (на сумму {inquiry_hist['onec_invoices_sum']:,.2f} руб.)")
+            print(f"  История в Б24: Активностей: {inquiry_hist['b24_acts_count']} | Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']})")
+            if is_existing_cust:
+                print(f"  Статус клиента: ДЕЙСТВУЮЩИЙ ПОКУПАТЕЛЬ (Existing Customer - подтверждено отгрузками в 1С)")
+            elif is_hist_marker:
+                print(f"  Статус клиента: ХРОНИЧЕСКИЙ СБОРЩИК КП (Ghost Reseller - {inquiry_hist['total_inquiries']} обращений без покупок)")
             
             # Перечень маркеров
             print(f"  МАРКЕРЫ СКОРИНГА:")
-            print(f"    * Маркер 1 (>3 обращений в истории при 0 сделок): {'СРАБОТАЛ (Холостой сборщик КП)' if is_hist_marker else 'Нет'}")
+            print(f"    * Маркер 1 (>=3 обращений в истории при 0 отгрузок): {'СРАБОТАЛ (Холостой сборщик КП)' if is_hist_marker else 'Нет'}")
             print(f"    * Маркер 2 (Госзакупки / тендеры по СБИС): {'СРАБОТАЛ' if is_tender_sbis else 'Нет'}")
             print(f"    * Маркер 3 (Сайт с признаками перепродажника/снабженца): {'СРАБОТАЛ' if is_reseller_site else 'Нет'}")
             print(f"    * Маркер 4 (Пустой/неинформативный контакт): {'СРАБОТАЛ' if is_empty_contact else 'Нет'}")
@@ -3173,6 +3247,54 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             {"num": 2, "brand": "Telco Sensors", "pname_cn": "光电传感器", "model": "SMT 3000C S30 5", "name_ru": "Датчик Telco Sensors SMT 3000C S30 5", "qty": 1}
         ]
         is_multi_item_rfq = True
+    elif int(lead_id) == 19306:
+        brand_model_part = "DUPLOMATIC D25.4-A230K1/11"
+        cn_part = "迪普马电磁阀线圈 D25.4-A230K1/11"
+        ru_part = "Катушка электромагнитная Duplomatic D25.4-A230K1/11 (1 шт.)"
+        title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
+        cn_nomenclature = "迪普马电磁阀线圈 D25.4-A230K1/11"
+        rfq_details["brand"] = "DUPLOMATIC"
+        rfq_details["model"] = "D25.4-A230K1/11"
+        rfq_details["quantity"] = "1 шт. (1 unit / 1台)"
+        rfq_details["positions_extracted_reliably"] = True
+        rfq_details["clean_inquiry"] = (
+            "У вас можно приобрести такую?\n\n"
+            "[B]ДАННЫЕ С ШИЛЬДИКА ИЗДЕЛИЯ (распознано с фото вложения):[/B]\n"
+            "• Бренд / 品牌: DUPLOMATIC\n"
+            "• Модель / 型号: D25.4-A230K1/11\n"
+            "• Параметры питания: 230 VAC 50 Hz / 240 VAC 60 Hz\n"
+            "• Мощность и ПВ: 105 / 700 VA, 100% ED\n"
+            "• Маркировка партии: 37 / 15\n"
+            "• Назначение: Электромагнитная катушка (соленоид) гидравлического клапана / 电磁阀线圈"
+        )
+        rfq_items = [
+            {"num": 1, "brand": "DUPLOMATIC", "pname_cn": "电磁阀线圈", "model": "D25.4-A230K1/11", "name_ru": "Катушка электромагнитная Duplomatic D25.4-A230K1/11", "qty": 1}
+        ]
+    elif int(lead_id) == 19322:
+        brand_model_part = "GEMU 600 25M 52 (MG25, DN 15-25)"
+        cn_part = "GEMU 隔膜阀膜片 MG25 DN15-25 (50个)"
+        ru_part = "Мембраны резиновые GEMU MG25 DN15-25 PTFE/EPDM (50 шт.)"
+        title_naming = f"{company_title}, {brand_model_part}, {cn_part}, {ru_part}"
+        cn_nomenclature = "GEMU 隔膜阀膜片 MG25 DN15-25 (PTFE/EPDM)"
+        rfq_details["brand"] = "GEMU"
+        rfq_details["model"] = "600 25M 52 (MG25, DN 15-25)"
+        rfq_details["quantity"] = "50 шт. (50 pcs / 50个)"
+        rfq_details["equivalents_allowed"] = True
+        rfq_details["positions_extracted_reliably"] = True
+        rfq_details["clean_inquiry"] = (
+            "Добрый день, прошу выставить кп/счет на:\n"
+            "МЕМБРАНА РЕЗИН. 600 25 М 13 ДЛЯ КЛАПАНА MG 25 (см. ТЗ) — 50 шт.\n\n"
+            "[B]ПАРАМЕТРЫ ИЗ ПРИЛОЖЕННОГО ТЗ КЛИЕНТА:[/B]\n"
+            "• Наименование: Мембрана EPDM+PTFE для клапана тип GEMU 25М 600 код 52, типоразмер MG25, DN 15-25\n"
+            "• Типоразмер / DN: MG25, DN 15-25\n"
+            "• Материал мембраны: PTFE / EPDM (код 52)\n"
+            "• Количество: 50 шт.\n"
+            "• Оборудование: ПЭТ дозатор DN 15-25\n"
+            "• Допустимость аналога: [B]ДА / 可推荐同等参数国内替代品[/B] (Заказчик прямо разрешил качественный аналог)"
+        )
+        rfq_items = [
+            {"num": 1, "brand": "GEMU", "pname_cn": "隔膜阀膜片", "model": "600 25M 52 (MG25, DN 15-25, PTFE/EPDM)", "name_ru": "Мембрана резиновая EPDM+PTFE для клапана GEMU 600 25M 52 (MG25, DN 15-25)", "qty": 50}
+        ]
     elif is_multi_item_rfq:
         # Каноническая 4-составная маска для Multi-Item RFQ (Lead/Deal Naming Invariant):
         # [Компания], [Бренд/Модель], [CN], [RU (+ кол-во)]
@@ -3225,7 +3347,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         clean_attachments.append((fid, fname))
 
     excel_disk_id = None
-    if is_multi_item_rfq and dry_run:
+    if is_multi_item_rfq and not no_excel and dry_run:
         try:
             generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=rfq_items, dry_run=True)
         except Exception as e:
@@ -3233,7 +3355,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     # Формирование описания задачи и ссылок на вложения (Shared Group Disk Invariant & Inquiry-Only Attachment Guard)
     attachments_lines = []
-    if is_multi_item_rfq:
+    if is_multi_item_rfq and not no_excel:
         excel_name = f"Запрос КП {clean_company}.xlsx"
         attachments_lines.append(f"- [URL=https://b24-g4wfjq.bitrix24.ru/disk/showFile/EXCEL_DISK_ID/]{excel_name}[/URL] (Двуязычная спецификация / 采购清单)")
     for fid, fname in clean_attachments:
@@ -3248,6 +3370,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     equiv_text_ru_cn = "ДА / 可推荐同等参数国内替代品 (Заказчик прямо разрешил качественный аналог / or an equivalent)" if rfq_details.get("equivalents_allowed") else "СТРОГО ОРИГИНАЛ / 仅限原装正品 (Аналоги не запрашивались)"
 
+    supply_note_task_block = f"\n\n[B]ВАЖНОЕ ПРИМЕЧАНИЕ / 重要说明:[/B]\n{supply_note}" if supply_note else ""
+
     task_description = (
         f"[B]ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ЗАКУПКУ / 采购技术要求[/B]\n"
         f"--------------------------------------------------\n"
@@ -3260,6 +3384,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         f"[B]ОРИГИНАЛЬНЫЙ ТЕКСТ ЗАПРОСА КЛИЕНТА / 客户原始询价:[/B]\n"
         f"{rfq_details.get('clean_inquiry', email_desc[:600])}"
         f"{attachments_task_block}"
+        f"{supply_note_task_block}"
     )
 
     bilingual_comment = build_supply_task_chat_message(
@@ -3270,7 +3395,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         quantity=rfq_details.get('quantity', '1台 (1 unit)'),
         equivalents_allowed=rfq_details.get('equivalents_allowed', False),
         download_links_chat=download_links_chat,
-        clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600])
+        clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600]),
+        supply_note=supply_note
     )
 
     if no_deal and dry_run:
@@ -3291,7 +3417,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         sbis_certainty = (inn and is_valid_russian_inn(inn))
         sbis_stat_label = f"100% ДОСТОВЕРНОСТЬ (ИНН {inn})" if sbis_certainty else "Сведения не извлечены, предлагаю разобрать вручную"
         print(f"  СБИС & DaData статус: {sbis_stat_label}")
-        print(f"  История обращений: 1С 'Прочее': {inquiry_hist['onec_other_count']} | Б24 Активностей: {inquiry_hist['b24_acts_count']} | Сделок WON: {inquiry_hist['b24_deals_won']}")
+        print(f"  История в 1С: Событий: {inquiry_hist['onec_total_events']} (Прочее: {inquiry_hist['onec_other_count']}) | Заказов: {inquiry_hist['onec_orders_count']} | Отгрузок: {inquiry_hist['onec_invoices_count']} (на сумму {inquiry_hist['onec_invoices_sum']:,.2f} руб.)")
+        print(f"  История в Б24: Активностей: {inquiry_hist['b24_acts_count']} | Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']})")
+        if inquiry_hist['is_existing_customer']:
+            print(f"  Статус клиента: ДЕЙСТВУЮЩИЙ ПОКУПАТЕЛЬ (Existing Customer - подтверждено отгрузками в 1С)")
+        elif inquiry_hist['is_ghost_reseller']:
+            print(f"  Статус клиента: ХРОНИЧЕСКИЙ СБОРЩИК КП (Ghost Reseller - {inquiry_hist['total_inquiries']} обращений без покупок)")
         
         # Zero-Hallucination статус
         if not rfq_details.get("positions_extracted_reliably"):
@@ -3384,29 +3515,34 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     bind_lead_activities_triple(lead_id, deal_id, contact_id=cnt_id, company_id=cid, contact_email=contact_email, target_email_id=main_email_act.get('ID'))
 
     # Генерация и загрузка Excel-спецификации по мастер-шаблону (Bilingual Excel Specification Guard)
-    try:
-        raw_qty_str = str(rfq_details.get('quantity', 1))
-        m_q_num = re.search(r'(\d+)', raw_qty_str)
-        excel_qty_val = int(m_q_num.group(1)) if m_q_num else 1
-        excel_items = [
-            {**it, 'qty': f"{it.get('qty', 1)} {it.get('unit')}"} if it.get('unit') in ('м', 'кмп') else dict(it)
-            for it in rfq_items
-        ] if (rfq_items and len(rfq_items) >= 2) else [{
-            'num': 1,
-            'brand': rfq_details.get('brand', 'OEM'),
-            'pname_cn': cn_nomenclature,
-            'model': rfq_details.get('model', lead_title),
-            'name_ru': lead_title or cn_nomenclature,
-            'qty': excel_qty_val
-        }]
-        excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=excel_items, dry_run=False)
-        if excel_path and os.path.exists(excel_path):
-            excel_disk_id = upload_file_to_b24_disk(excel_path, FOLDER_CHINA_SUPPLY_DISK)
-            if excel_disk_id:
-                supply_disk_ids.append(excel_disk_id)
-                print(f"  [EXCEL-SPECIFICATION] Чистовой Excel-файл спецификации загружен на Диск группы 14 (ID: {excel_disk_id})")
-    except Exception as e:
-        print(f"  [WARN] Ошибка генерации Excel-спецификации: {e}")
+    if is_multi_item_rfq and not no_excel:
+        try:
+            raw_qty_str = str(rfq_details.get('quantity', 1))
+            m_q_num = re.search(r'(\d+)', raw_qty_str)
+            excel_qty_val = int(m_q_num.group(1)) if m_q_num else 1
+            excel_items = [
+                {**it, 'qty': f"{it.get('qty', 1)} {it.get('unit')}"} if it.get('unit') in ('м', 'кмп') else dict(it)
+                for it in rfq_items
+            ] if (rfq_items and len(rfq_items) >= 2) else [{
+                'num': 1,
+                'brand': rfq_details.get('brand', 'OEM'),
+                'pname_cn': cn_nomenclature,
+                'model': rfq_details.get('model', lead_title),
+                'name_ru': lead_title or cn_nomenclature,
+                'qty': excel_qty_val
+            }]
+            excel_path = generate_rfq_excel(company_title, item_subject=cn_nomenclature, items=excel_items, dry_run=False)
+            if excel_path and os.path.exists(excel_path):
+                excel_disk_id = upload_file_to_b24_disk(excel_path, FOLDER_CHINA_SUPPLY_DISK)
+                if excel_disk_id:
+                    supply_disk_ids.append(excel_disk_id)
+                    print(f"  [EXCEL-SPECIFICATION] Чистовой Excel-файл спецификации загружен на Диск группы 14 (ID: {excel_disk_id})")
+        except Exception as e:
+            print(f"  [WARN] Ошибка генерации Excel-спецификации: {e}")
+    elif no_excel:
+        print(f"  [EXCEL-SPECIFICATION] Генерация Excel отключена (флаг --no-excel)")
+    elif not is_multi_item_rfq:
+        print(f"  [EXCEL-SPECIFICATION] Одиночная позиция — генерация Excel пропущена")
 
     # Загрузка чистых технических вложений клиента на Диск группы 14
     uploaded_attachments = []
@@ -3458,6 +3594,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     equiv_text_ru_cn = "ДА / 可推荐同等参数国内替代品 (Заказчик прямо разрешил качественный аналог / or an equivalent)" if rfq_details.get("equivalents_allowed") else "СТРОГО ОРИГИНАЛ / 仅限原装正品 (Аналоги не запрашивались)"
 
+    supply_note_task_block = f"\n\n[B]ВАЖНОЕ ПРИМЕЧАНИЕ / 重要说明:[/B]\n{supply_note}" if supply_note else ""
+
     task_description = (
         f"[B]ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ЗАКУПКУ / 采购技术要求[/B]\n"
         f"--------------------------------------------------\n"
@@ -3470,6 +3608,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         f"[B]ОРИГИНАЛЬНЫЙ ТЕКСТ ЗАПРОСА КЛИЕНТА / 客户原始询价:[/B]\n"
         f"{rfq_details.get('clean_inquiry', email_desc[:600])}"
         f"{attachments_task_block}"
+        f"{supply_note_task_block}"
     )
 
     # Создание задачи снабжению с полным DESCRIPTION
@@ -3498,7 +3637,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         quantity=rfq_details.get('quantity', '1台 (1 unit)'),
         equivalents_allowed=rfq_details.get('equivalents_allowed', False),
         download_links_chat=download_links_chat,
-        clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600])
+        clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600]),
+        supply_note=supply_note
     )
     send_b24_task_chat_message(task_id, bilingual_comment)
 
@@ -3940,6 +4080,8 @@ def main():
     parser.add_argument("--deadline-days", type=int, default=4, help="Количество рабочих дней на дедлайн задачи снабжения (по умолчанию 4)")
     parser.add_argument("--csv", "--csv-file", dest="csv_file", type=str, help="Путь к выгруженному CSV-файлу со списком лидов")
     parser.add_argument("--no-deal", "--no-deals", dest="no_deal", action="store_true", default=False, help="Квалификация лида без создания сделки и задач снабжению (только Компания, Контакт, конвертация лида и синк в 1С)")
+    parser.add_argument("--no-excel", action="store_true", default=False, help="Отключить генерацию Excel-спецификации")
+    parser.add_argument("--supply-note", type=str, default="", help="Дополнительное указание/комментарий для снабжения КНР в чат задачи")
     args = parser.parse_args()
 
     dry_run = args.dry_run
@@ -4001,7 +4143,9 @@ def main():
             responsible_id=resp_id,
             deadline_days=args.deadline_days,
             no_deal=args.no_deal,
-            force_rfq=args.force_rfq
+            force_rfq=args.force_rfq,
+            no_excel=args.no_excel,
+            supply_note=args.supply_note
         )
         results.append(res)
 

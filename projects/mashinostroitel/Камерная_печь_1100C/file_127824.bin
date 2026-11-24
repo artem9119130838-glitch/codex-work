@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html >
+<head>
+	<meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, width=320">
+	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
+	<link href="/favicon.ico" rel="shortcut icon" type="image/x-icon" />
+	<link rel="preload" href="/bitrix/templates/login/images/bg/autumn/cis/horizontal-1920-preview.webp" as="image">
+	<link rel="preload" href="/bitrix/templates/login/images/bg/autumn/cis/horizontal-1024-preview.webp" as="image">
+	<link rel="preload" href="/bitrix/templates/login/images/bg/autumn/cis/vert-1024-preview.webp" as="image">
+	<script data-skip-moving="true">(function() {const canvas = document.createElement('canvas');let gl;try{gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');}catch (e){return;}if (!gl){return;}const result = {vendor: gl.getParameter(gl.VENDOR),renderer: gl.getParameter(gl.RENDERER),};const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');if (debugInfo){result.unmaskedVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);result.unmaskedRenderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);}function isLikelyIntegratedGPU(gpuInfo){const renderer = (gpuInfo.unmaskedRenderer || gpuInfo.renderer || '').toLowerCase();const vendor = (gpuInfo.unmaskedVendor || gpuInfo.vendor || '').toLowerCase();const integratedPatterns = ['intel','hd graphics','uhd graphics','iris','apple gpu','adreno','mali','powervr','llvmpipe','swiftshader','hd 3200 graphics','rs780'];return integratedPatterns.some(pattern => renderer.includes(pattern) || vendor.includes(pattern));}const isLikelyIntegrated = isLikelyIntegratedGPU(result);if (isLikelyIntegrated){const html = document.documentElement;html.classList.add('bx-integrated-gpu', '--ui-reset-bg-blur');}})();</script>
+<script data-skip-moving="true">(function(w, d, n) {var cl = "bx-core";var ht = d.documentElement;var htc = ht ? ht.className : undefined;if (htc === undefined || htc.indexOf(cl) !== -1){return;}var ua = n.userAgent;if (/(iPad;)|(iPhone;)/i.test(ua)){cl += " bx-ios";}else if (/Windows/i.test(ua)){cl += ' bx-win';}else if (/Macintosh/i.test(ua)){cl += " bx-mac";}else if (/Linux/i.test(ua) && !/Android/i.test(ua)){cl += " bx-linux";}else if (/Android/i.test(ua)){cl += " bx-android";}cl += (/(ipad|iphone|android|mobile|touch)/i.test(ua) ? " bx-touch" : " bx-no-touch");cl += w.devicePixelRatio && w.devicePixelRatio >= 2? " bx-retina": " bx-no-retina";if (/Safari/i.test(ua) && !/Chrome/i.test(ua)){cl += " bx-safari";}else if (/AppleWebKit/.test(ua)){cl += " bx-chrome";}else if (/Opera/.test(ua)){cl += " bx-opera";}else if (/Firefox/.test(ua)){cl += " bx-firefox";}ht.className = htc ? htc + " " + cl : cl;})(window, document, navigator);</script>
+
+
+<link href="/bitrix/js/ui/design-tokens/dist/ui.design-tokens.min.css?171327662823463" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/intranet/design-tokens/bitrix24/air-design-tokens.min.css?17539754263744" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/design-tokens/air/dist/air-design-tokens.min.css?1791469719163306" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/fonts/opensans/ui.font.opensans.min.css?16620208132320" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/dist/icon-set.bundle.min.css?17822260101877" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/outline/dist/outline.bundle.min.css?1791469719146392" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/main/popup/dist/main.popup.bundle.min.css?179312550822484" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/base/ui.icons.base.min.css?16692129421067" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/b24/ui.icons.b24.min.css?17495470372396" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/disk/ui.icons.disk.min.css?17533494813322" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/service/ui.icons.service.min.css?179146971861613" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/cnt/ui.cnt.min.css?17473213844259" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/cnt/dist/cnt.bundle.min.css?17495470375784" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/main/dist/main.bundle.min.css?178222601076977" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/switcher/dist/ui.switcher.bundle.min.css?179146971715230" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/buttons/dist/ui.buttons.bundle.min.css?178644324083392" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/fonts/roboto/ui.font.roboto.min.css?16620208134037" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/fonts/montserrat/ui.font.montserrat.min.css?16620208132209" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/actions/dist/actions.bundle.min.css?178222601020123" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/forms/ui.forms.min.css?178644324033986" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/hint/dist/ui.hint.bundle.min.css?17822260104393" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/main/loader/dist/loader.bundle.min.css?17931255081105" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/templates/login/components/bitrix/system.auth.authorize/.default/style.min.css?175992600621312" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/templates/login/components/bitrix/socserv.auth.form/flat/style.min.css?175992600614186" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/templates/login/template_styles.min.css?179198625094792" type="text/css" rel="stylesheet" data-template-style="true"/>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<script data-skip-moving="true">(function() {const canvas = document.createElement('canvas');let gl;try{gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');}catch (e){return;}if (!gl){return;}const result = {vendor: gl.getParameter(gl.VENDOR),renderer: gl.getParameter(gl.RENDERER),};const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');if (debugInfo){result.unmaskedVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);result.unmaskedRenderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);}function isLikelyIntegratedGPU(gpuInfo){const renderer = (gpuInfo.unmaskedRenderer || gpuInfo.renderer || '').toLowerCase();const vendor = (gpuInfo.unmaskedVendor || gpuInfo.vendor || '').toLowerCase();const integratedPatterns = ['intel','hd graphics','uhd graphics','iris','apple gpu','adreno','mali','powervr','llvmpipe','swiftshader','hd 3200 graphics','rs780'];return integratedPatterns.some(pattern => renderer.includes(pattern) || vendor.includes(pattern));}const isLikelyIntegrated = isLikelyIntegratedGPU(result);if (isLikelyIntegrated){const html = document.documentElement;html.classList.add('bx-integrated-gpu', '--ui-reset-bg-blur');}})();</script>
+<script data-skip-moving="true">(function(w, d, n) {var cl = "bx-core";var ht = d.documentElement;var htc = ht ? ht.className : undefined;if (htc === undefined || htc.indexOf(cl) !== -1){return;}var ua = n.userAgent;if (/(iPad;)|(iPhone;)/i.test(ua)){cl += " bx-ios";}else if (/Windows/i.test(ua)){cl += ' bx-win';}else if (/Macintosh/i.test(ua)){cl += " bx-mac";}else if (/Linux/i.test(ua) && !/Android/i.test(ua)){cl += " bx-linux";}else if (/Android/i.test(ua)){cl += " bx-android";}cl += (/(ipad|iphone|android|mobile|touch)/i.test(ua) ? " bx-touch" : " bx-no-touch");cl += w.devicePixelRatio && w.devicePixelRatio >= 2? " bx-retina": " bx-no-retina";if (/Safari/i.test(ua) && !/Chrome/i.test(ua)){cl += " bx-safari";}else if (/AppleWebKit/.test(ua)){cl += " bx-chrome";}else if (/Opera/.test(ua)){cl += " bx-opera";}else if (/Firefox/.test(ua)){cl += " bx-firefox";}ht.className = htc ? htc + " " + cl : cl;})(window, document, navigator);</script>
+
+
+<link href="/bitrix/js/ui/design-tokens/dist/ui.design-tokens.min.css?171327662823463" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/intranet/design-tokens/bitrix24/air-design-tokens.min.css?17539754263744" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/design-tokens/air/dist/air-design-tokens.min.css?1791469719163306" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/fonts/opensans/ui.font.opensans.min.css?16620208132320" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/dist/icon-set.bundle.min.css?17822260101877" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/outline/dist/outline.bundle.min.css?1791469719146392" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/main/popup/dist/main.popup.bundle.min.css?179312550822484" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/base/ui.icons.base.min.css?16692129421067" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/b24/ui.icons.b24.min.css?17495470372396" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/disk/ui.icons.disk.min.css?17533494813322" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icons/service/ui.icons.service.min.css?179146971861613" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/cnt/ui.cnt.min.css?17473213844259" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/cnt/dist/cnt.bundle.min.css?17495470375784" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/main/dist/main.bundle.min.css?178222601076977" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/switcher/dist/ui.switcher.bundle.min.css?179146971715230" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/buttons/dist/ui.buttons.bundle.min.css?178644324083392" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/fonts/roboto/ui.font.roboto.min.css?16620208134037" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/fonts/montserrat/ui.font.montserrat.min.css?16620208132209" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/icon-set/actions/dist/actions.bundle.min.css?178222601020123" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/forms/ui.forms.min.css?178644324033986" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/ui/hint/dist/ui.hint.bundle.min.css?17822260104393" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/js/main/loader/dist/loader.bundle.min.css?17931255081105" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/templates/login/components/bitrix/system.auth.authorize/.default/style.min.css?175992600621312" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/templates/login/components/bitrix/socserv.auth.form/flat/style.min.css?175992600614186" type="text/css" rel="stylesheet"/>
+<link href="/bitrix/templates/login/template_styles.min.css?179198625094792" type="text/css" rel="stylesheet" data-template-style="true"/>
+
+
+<script type="extension/settings" data-extension="main.baseline">{"collectData":true,"helpUrl":"https:\/\/helpdesk.bitrix24.ru\/open\/code_27229654\/","helpCode":"redirect=detail\u0026code=27229654"}</script>
+
+
+
+
+
+
+<script type="extension/registered">{"main.core":"BX"}</script>
+<script type="extension/settings" data-extension="ui.a11y">{"restoreLostFocus":false,"useFocusTrapInDialogs":false}</script>
+<script type="extension/registered">{"ui.a11y":"BX.UI.Accessibility","intranet.design-tokens.bitrix24":"window","ui.design-tokens":"","ui.design-tokens.air":"","ui.fonts.opensans":"window","ui.icon-set":"","ui.icon-set.outline":"","main.popup":"BX.Main","popup":"window"}</script>
+<script type="extension/registered">{"ui.icons.base":"window","ui.icons.b24":"window","ui.icons.disk":"window","ui.icons.service":"window","ui.icons":"window"}</script>
+<script type="extension/registered">{"ui.cnt":"BX.UI","ui.icon-set.api.core":"BX.UI.IconSet","ui.icon-set.main":"","ui.switcher":"BX.UI","ui.buttons":"BX.UI"}</script>
+<script type="extension/registered">{"ui.fonts.roboto":"window"}</script>
+<script type="extension/registered">{"ui.fonts.montserrat":"window"}</script>
+<script type="extension/registered">{"ui.icon-set.actions":""}</script>
+<script type="extension/registered">{"ui.forms":"window"}</script>
+<script type="extension/registered">{"ui.hint":"BX.UI"}</script>
+<script type="extension/registered">{"ui.vue3.bitrixvue":"BX.Vue3","ui.vue3":"BX.Vue3"}</script>
+<script type="extension/registered">{"main.qrcode":"window","qrcode":"window"}</script>
+<script type="extension/registered">{"main.loader":"BX","loader":"window"}</script>
+
+
+
+		<title>Войти в Битрикс24</title>
+</head>
+
+
+<body class="intranet-bg intranet-bg--autumn-cis home ru">
+<div class="intranet-body" id="login-auth-container">
+	<div class="intranet-body__header">
+		<div class="intranet-body__header-left"></div>
+		<div class="intranet-body__header-right">
+			<!-- teleport -->
+		</div>
+	</div>
+
+	<div class="intranet-body__aside intranet-auth-cover">
+		<div class="intranet-auth-cover-top">
+			<div class="intranet-auth-cover-img-block">
+				<a class="intranet-auth-cover__logo" href="">
+					<img
+						src="/bitrix/images/intranet/logo/bitrix24/ru/bitrix24-logo-ru-white.svg"
+						class="intranet-auth-cover__logo-image"
+						alt=""
+					>
+				</a>
+			</div>
+			<div class="intranet-auth-cover-header">
+				Помогает бизнесу работать			</div>
+		</div>
+	</div>
+	<div class="intranet-body__main intranet-auth-form">
+		<div class="intranet-body__main-content">
+
+
+<div data-role="auth-container">
+	<form name="form_auth" method="post" target="_top" action="/bitrix/tools/crm_show_file.php?login=yes&amp;fileId=127824&amp;ownerTypeId=6&amp;ownerId=54198&amp;auth=">
+		<input type="hidden" name="AUTH_FORM" value="Y" />
+		<input type="hidden" name="TYPE" value="AUTH" />
+		<input type="hidden" name="sessid" id="sessid" value="c4ea1e22722a4454e70895552d7907dc" />
+					<input type="hidden" name="backurl" value="/bitrix/tools/crm_show_file.php?fileId=127824&amp;ownerTypeId=6&amp;ownerId=54198&amp;auth=" />
+				
+		<div v-show="isFormBlockVisible">
+			<div class="intranet-logging-in">
+				<div class="intranet-island-with-sidebar">
+					<div class="intranet-island-with-sidebar__island">
+						<div class="intranet-logging-in__island-wrapper intranet-island">
+							<h2 class="intranet-island-title">Войти в Битрикс24</h2>
+							<div class="intranet-login-enter-form intranet-logging-in__login-form">
+								<div class="intranet-login-enter-form__login-wrapper">
+									<div class="intranet-text-input intranet-login-enter-form__login">
+										<input
+											class="ui-ctl-element intranet-text-input__field"
+											type="text"
+											name="USER_LOGIN"
+											placeholder="Логин"
+											value=""
+											maxlength="255"
+											data-testid="user-login"
+										/>
+									</div>
+									<div class="intranet-text-input intranet-login-enter-form__login">
+										<input
+											class="ui-ctl-element intranet-text-input__field"
+											:type="inputPasswordType"
+											name="USER_PASSWORD"
+											placeholder="Пароль"
+											maxlength="255"
+											autocomplete="current-password"
+											data-testid="user-password"
+										/>
+										<i
+											class="ui-icon-set --opened-eye intranet-text-input__eye-icon"
+											@pointerdown="onEyeMouseDown"
+											@pointerup="onEyeMouseUp"
+										></i>
+									</div>
+								</div>
+
+								 <!-- errors -->
+
+								<button
+									class="intranet-text-btn ui-btn ui-btn-lg ui-btn-success"
+									data-role="auth-form-button"
+									type="submit"
+									@click="onButtonClick($event)"
+								>
+									<span class="intranet-text-btn__content-wrapper">Продолжить</span>
+									<div class="intranet-text-btn__spinner" v-show="isWaiting"></div>
+								</button>
+
+								<div class="intranet-password-enter-form__controls-row">
+																			<div class="intranet-password-enter-form__remember-me">
+											<input type="checkbox" id="USER_REMEMBER" name="USER_REMEMBER" value="Y"/>
+											<label for="USER_REMEMBER">Запомнить меня</label>
+										</div>
+																		<a class="intranet-password-enter-form__forgot-pass" href="/bitrix/tools/crm_show_file.php?forgot_password=yes&amp;fileId=127824&amp;ownerTypeId=6&amp;ownerId=54198&amp;auth=">Не помню пароль</a>
+								</div>
+								
+																	<div class="intranet-login-enter-form__social-wrapper">
+										<span class="intranet-login-enter-form__social-title">Войти с помощью</span>
+										<div class="intranet-login-enter-form__social-buttons">
+											<div class="bx-authform-social">
+	<ul>
+			<li>
+			<button
+				id="bx_socserv_icon_GoogleOAuth"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-google					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://accounts.google.com/o/oauth2/auth?client_id=798910771106.apps.googleusercontent.com&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.com%2Fcontroller%2Fredirect.php&amp;scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.readonly&amp;response_type=code&amp;access_type=offline&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Fgoogle.php%3Fstate%3Ds1_0_5d66fe867984c1be955311c0440b9af49f0c52dd76e27df717abef79', 680, 800)"
+				title="Google"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_Facebook"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-facebook					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://www.facebook.com/dialog/oauth?client_id=784044752479538&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.ru%2Fcontroller%2Fredirect.php&amp;scope=email&amp;display=popup&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Ffacebook.php%3Fstate%3Ds1_0_d348b855106c93b16d8afbc959b659715aa5bb549a70dd4aadd1f490', 680, 800)"
+				title="Facebook"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_Twitter"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-twitter					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('/bitrix/tools/oauth/twitter.php?check_key=ff13b79e891eecb9f577c864bdfe01c3&amp;backurl=%252Fbitrix%252Ftools%252Fcrm_show_file.php%253FfileId%253D127824%2526ownerTypeId%253D6%2526ownerId%253D54198%2526auth%253D', 800, 450)"
+				title="X"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_LiveIDOAuth"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-liveid					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://login.live.com/oauth20_authorize.srf?client_id=0000000040103B3B&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.ru%2Fcontroller%2Fredirect.php&amp;scope=wl.signin+wl.basic+wl.offline_access+wl.emails&amp;response_type=code&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Fliveid.php%3Fstate%3Ds1_0_23dce615089f33a147f15bb4a06ff0f085f34a28685d54b564cb65b9', 680, 800)"
+				title="LiveID"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_Bitrix24Net"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-bitrix24					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://auth2.bitrix24.net/oauth/authorize/?user_lang=ru&amp;client_id=b24.698ecec55197d4.97176535&amp;redirect_uri=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Fcrm_show_file.php%3Fauth_service_id%3DBitrix24Net%26fileId%3D127824%26ownerTypeId%3D6%26ownerId%3D54198%26auth%3D&amp;scope=auth,profile&amp;response_type=code&amp;mode=popup&amp;state=s1_0_f3eb3877e0972207c3e71f7f1125dfb1d67befffb874245e4403d460', 800, 600)"
+				title="Битрикс24"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_Dropbox"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-dropbox					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://www.dropbox.com/oauth2/authorize?client_id=gedn92yckyom208&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.ru%2Fcontroller%2Fredirect.php&amp;response_type=code&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Fdropbox.php%3Fstate%3Ds1_0_23dce615089f33a147f15bb4a06ff0f085f34a28685d54b564cb65b9', 680, 600)"
+				title="Dropbox"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_YandexOAuth"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-yandex					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://oauth.yandex.ru/authorize?response_type=code&amp;client_id=f4f27ebfd0e04666b6c74477eeade385&amp;display=popup&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.ru%2Fcontroller%2Fredirect.php&amp;force_confirm=yes&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Fyandex.php%3Fstate%3Ds1_0_23dce615089f33a147f15bb4a06ff0f085f34a28685d54b564cb65b9', 680, 800)"
+				title="Яндекс"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_Box"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-box					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://app.box.com/api/oauth2/authorize?client_id=uinpfo2iwsag0aj4dsaji1l3n3a2eb1w&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.ru%2Fcontroller%2Fredirect.php&amp;response_type=code&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Fbox.php%3Fstate%3Ds1_0_23dce615089f33a147f15bb4a06ff0f085f34a28685d54b564cb65b9', 680, 600)"
+				title="Box.com"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_Office365"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-office365					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=786d7aab-1054-4475-8ec7-d050ffe38ec6&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.com%2Fcontroller%2Fredirect.php&amp;response_type=code&amp;scope=User.Read%20offline_access&amp;prompt=select_account&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Foffice365.php%3Fstate%3Ds1_0_23dce615089f33a147f15bb4a06ff0f085f34a28685d54b564cb65b9', 680, 800)"
+				title="Office365"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_MailRu2"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-mailru2					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://oauth.mail.ru/login?client_id=27f556d275a8498a9b5e5423d18bfe69&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.ru%2Fcontroller%2Fredirect.php&amp;scope=userinfo&amp;response_type=code&amp;state=https%3A%2F%2Fb24-g4wfjq.bitrix24.ru%2Fbitrix%2Ftools%2Foauth%2Fmailru2.php%3Fstate%3Ds1_0_d348b855106c93b16d8afbc959b659715aa5bb549a70dd4aadd1f490&amp;prompt_force=1', 680, 800)"
+				title="Mail.Ru"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+			<li>
+			<button
+				id="bx_socserv_icon_zoom"
+				class="
+					b24net-icon-btn
+					b24net-icon-btn--social-zoom					ui-icon
+					b24net-icon-btn--social-btn
+					b24net-login-enter-form__social-btn
+				"
+				onclick="BX.util.popup('https://zoom.us/oauth/authorize?client_id=TcswkWrGQrA9xtw6Omtw&amp;redirect_uri=https%3A%2F%2Fwww.bitrix24.com%2Fcontroller%2Fredirect.php&amp;response_type=code&amp;response_mode=form_post&amp;state=aHR0cHM6Ly9iMjQtZzR3ZmpxLmJpdHJpeDI0LnJ1L2JpdHJpeC90b29scy9vYXV0aC96b29tLnBocD9zdGF0ZT1zMV8wX2QzNDhiODU1MTA2YzkzYjE2ZDhhZmJjOTU5YjY1OTcxNWFhNWJiNTQ5YTcwZGQ0YWFkZDFmNDkw', 680, 800)"
+				title="Zoom"
+				type="button"
+			>
+				<i class="b24net-icon-btn__icon"></i>
+							</button>
+		</li>
+		</ul>
+</div>
+										</div>
+									</div>
+															</div>
+						</div>
+					</div>
+
+										<div class="intranet-island-with-sidebar__sidebar">
+						<div class="intranet-qr-scan-form --hidden intranet-logging-in__qr-code" style="" data-role="log-popup-form-qr-icon">
+							<div class="log-popup-form-qr-icon-status --loading" data-role="log-popup-form-qr-icon-loader"></div>
+							<div class="intranet-qr-scan-form__title">Вход без логина<br>и пароля</div>
+							<div class="intranet-qr-scan-form__instructions">Наведите камеру<br>на QR-код, чтобы быстро<br>войти в Битрикс24</div>
+							<div class="intranet-qr-scan-form__code-overlay"></div>
+							<div class="intranet-qr-scan-form__code-wrapper" id="bx_auth_qr_code"></div>
+							<div class="intranet-qr-scan-form__mobiles-links">
+								<a href="#"
+								   class="intranet-qr-scan-form__ios-app-link"
+								   data-role="login-ios-app"
+								   data-hint="Если у вас ещё нет мобильного приложения,<br> установите его с помощью этого QR"
+								   data-hint-html
+								   data-hint-no-icon="true"
+								></a>
+								<a href="#"
+								   class="intranet-qr-scan-form__android-app-link"
+								   data-role="login-android-app"
+								   data-hint="Если у вас ещё нет мобильного приложения,<br> установите его с помощью этого QR"
+								   data-hint-html
+								   data-hint-no-icon="true"
+								></a>
+							</div>
+						</div>
+					</div>
+									</div>
+			</div>
+		</div>
+
+		<div v-show="isCaptchaBlockVisible">
+					</div>
+	</form>
+</div>
+
+		</div>
+	</div>
+
+	<div class="intranet-body__footer intranet-auth-cover-footer">
+		<div class="intranet-body__footer-left">
+						<button
+				type="button"
+				id="login-language-selector"
+				class="intranet-backdrop-btn"
+				aria-haspopup="menu"
+				aria-expanded="false"
+				aria-label="Выбрать язык интерфейса, сейчас выбран — Русский"
+			>
+				<span class="intranet-backdrop-btn__content">Русский</span>
+				<i class="intranet-language-selector-btn ui-icon-set --chevron-down"></i>
+			</button>
+					</div>
+		<div class="intranet-body__footer-right">
+			<!-- teleport -->
+		</div>
+	</div>
+</div>
+
+<script>if(!window.BX)window.BX={};if(!window.BX.message)window.BX.message=function(mess){if(typeof mess==='object'){for(let i in mess) {BX.message[i]=mess[i];} return true;}};</script>
+<script>(window.BX||top.BX).message({"pull_server_enabled":"Y","pull_config_timestamp":1795018055,"shared_worker_allowed":"Y","pull_guest_mode":"N","pull_guest_user_id":0,"pull_worker_mtime":1787736685});(window.BX||top.BX).message({"PULL_OLD_REVISION":"Для продолжения корректной работы с сайтом необходимо перезагрузить страницу."});</script>
+<script>(window.BX||top.BX).message({"MAIN_BASELINE_BROWSER_OUTDATED":"Вы используете устаревшую версию браузера. Обновите его для безопасной и стабильной работы","MAIN_BASELINE_DETAILS":"Подробнее","MAIN_BASELINE_CLOSE":"Закрыть"});</script><script src="/bitrix/js/main/baseline/dist/baseline.bundle.min.js?17925788454633"></script><script>(window.BX||top.BX).message({"JS_CORE_LOADING":"Загрузка...","JS_CORE_NO_DATA":"- Нет данных -","JS_CORE_WINDOW_CLOSE":"Закрыть","JS_CORE_WINDOW_EXPAND":"Развернуть","JS_CORE_WINDOW_NARROW":"Свернуть в окно","JS_CORE_WINDOW_SAVE":"Сохранить","JS_CORE_WINDOW_CANCEL":"Отменить","JS_CORE_WINDOW_CONTINUE":"Продолжить","JS_CORE_H":"ч","JS_CORE_M":"м","JS_CORE_S":"с","JSADM_AI_HIDE_EXTRA":"Скрыть лишние","JSADM_AI_ALL_NOTIF":"Показать все","JSADM_AUTH_REQ":"Требуется авторизация!","JS_CORE_WINDOW_AUTH":"Войти","JS_CORE_IMAGE_FULL":"Полный размер"});</script><script src="/bitrix/js/main/core/core.min.js?1793125508234127"></script><script>BX.setJSList(["\/bitrix\/js\/main\/core\/core_ajax.js","\/bitrix\/js\/main\/core\/core_promise.js","\/bitrix\/js\/main\/loadext\/loadext.js","\/bitrix\/js\/main\/loadext\/extension.js","\/bitrix\/js\/main\/polyfill\/find\/js\/find.js","\/bitrix\/js\/main\/polyfill\/includes\/js\/includes.js","\/bitrix\/js\/main\/polyfill\/matches\/js\/matches.js","\/bitrix\/js\/ui\/polyfill\/closest\/js\/closest.js","\/bitrix\/js\/main\/polyfill\/fill\/main.polyfill.fill.js","\/bitrix\/js\/main\/polyfill\/find\/js\/find.js","\/bitrix\/js\/main\/polyfill\/matches\/js\/matches.js","\/bitrix\/js\/main\/polyfill\/core\/dist\/polyfill.bundle.js","\/bitrix\/js\/main\/core\/core.js","\/bitrix\/js\/main\/lazyload\/dist\/lazyload.bundle.js","\/bitrix\/js\/main\/polyfill\/core\/dist\/polyfill.bundle.js","\/bitrix\/js\/main\/parambag\/dist\/parambag.bundle.js","\/bitrix\/js\/main\/core\/core.js","\/bitrix\/js\/main\/fixfontsize\/dist\/fixfontsize.bundle.js"]);
+BX.setCSSList(["\/bitrix\/js\/main\/fixfontsize\/dist\/fixfontsize.bundle.css"]);</script>
+<script>(window.BX||top.BX).message({"MAIN_POPUP_CLOSE":"Закрыть"});</script>
+<script>(window.BX||top.BX).message({"UI_SWITCHER_ON":"вкл","UI_SWITCHER_OFF":"выкл"});(window.BX||top.BX).message({"UI_SWITCHER_ON":"вкл","UI_SWITCHER_OFF":"выкл"});</script>
+<script>(window.BX||top.BX).message({"UI_BUTTONS_SAVE_BTN_TEXT":"Сохранить","UI_BUTTONS_CREATE_BTN_TEXT":"Создать","UI_BUTTONS_ADD_BTN_TEXT":"Добавить","UI_BUTTONS_SEND_BTN_TEXT":"Отправить","UI_BUTTONS_CANCEL_BTN_TEXT":"Отменить","UI_BUTTONS_CLOSE_BTN_TEXT":"Закрыть","UI_BUTTONS_APPLY_BTN_TEXT":"Применить"});</script>
+<script>(window.BX||top.BX).message({"LANGUAGE_ID":"ru","FORMAT_DATE":"DD.MM.YYYY","FORMAT_DATETIME":"DD.MM.YYYY HH:MI:SS","COOKIE_PREFIX":"BITRIX_SM","SERVER_TZ_OFFSET":"10800","UTF_MODE":"Y","SITE_ID":"s1","SITE_DIR":"\/","USER_ID":"","SERVER_TIME":1795411147,"USER_TZ_OFFSET":0,"USER_TZ_AUTO":"Y","bitrix_sessid":"c4ea1e22722a4454e70895552d7907dc"});</script><script src="/bitrix/js/pull/protobuf/protobuf.min.js?178773668523214"></script>
+<script src="/bitrix/js/pull/protobuf/model.min.js?178773668521204"></script>
+<script src="/bitrix/js/main/core/core_promise.min.js?17931255082393"></script>
+<script src="/bitrix/js/rest/client/rest.client.min.js?16015491189240"></script>
+<script src="/bitrix/js/pull/client/pull.client.min.js?174471771449849"></script>
+<script src="/bitrix/js/ui/a11y/dist/a11y.bundle.min.js?179146971832758"></script>
+<script src="/bitrix/js/main/popup/dist/main.popup.bundle.min.js?179060715975890"></script>
+<script src="/bitrix/js/ui/cnt/dist/cnt.bundle.min.js?174954703710460"></script>
+<script src="/bitrix/js/ui/icon-set/api/core/dist/ui.icon-set.core.bundle.min.js?179146972158556"></script>
+<script src="/bitrix/js/ui/switcher/dist/ui.switcher.bundle.min.js?17914697179847"></script>
+<script src="/bitrix/js/ui/buttons/dist/ui.buttons.bundle.min.js?179146971882594"></script>
+<script src="/bitrix/js/ui/hint/dist/ui.hint.bundle.min.js?17914697186557"></script>
+<script src="/bitrix/js/ui/vue3/bitrixvue/dist/bitrixvue.bundle.min.js?173106137915159"></script>
+<script src="/bitrix/js/ui/vue3/vue/prod/dist/vue.bundle.min.js?1776687812167707"></script>
+<script src="/bitrix/js/main/qrcode/qrcode.min.js?142902392720123"></script>
+<script src="/bitrix/js/main/loader/dist/loader.bundle.min.js?17169973954392"></script>
+<script>
+					if (Intl && Intl.DateTimeFormat)
+					{
+						const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+						document.cookie = "BITRIX_SM_TZ=" + timezone + "; path=/; expires=Mon, 01 Nov 2027 00:00:00 +0300";
+						
+					}
+				</script>
+
+
+
+<script src="/bitrix/templates/login/components/bitrix/system.auth.authorize/.default/script.min.js?17731465174444"></script>
+
+<script>
+function BxSocServPopup(id)
+{
+	var content = BX('bx_socserv_form_' + id);
+	if(content)
+	{
+		var popup = BX.PopupWindowManager.create('socServPopup' + id, BX('bx_socserv_icon_' + id), {
+			autoHide: true,
+			closeByEsc: true,
+			angle: {offset: 24},
+			content: content,
+			offsetTop: 3
+		});
+
+		popup.show();
+
+		var input = BX.findChild(content, {'tag':'input', 'attribute':{'type':'text'}}, true);
+		if(input)
+		{
+			input.focus();
+		}
+
+		var button = BX.findChild(content, {'tag':'input', 'attribute':{'type':'submit'}}, true);
+		if(button)
+		{
+			button.className = 'btn btn-primary';
+		}
+	}
+}
+</script>
+
+<script>
+	BX.ready(() => {
+		let params = {
+			authContainerNode: document.querySelector("[data-role='auth-container']"),
+			isQrAvailable: 'Y',
+			isCaptchaAvailable: 'N',
+			isStorePasswordAvailable: 'Y',
+			focusInput: 'USER_LOGIN',
+		};
+
+					params['qrText'] = 'https://b24.to/a/s1/2gxc2JFTfo2t4D6p/WQvmrOKksgmRROkOAURrOT7BwPp6Fvqk/';
+			params['qrConfig'] = {"server":{"version":4,"server_enabled":true,"mode":"personal","hostname":"b24-g4wfjq.bitrix24.ru","long_polling":"https:\/\/rtc-v2-ms7.bitrix24.com\/sub2\/","long_pooling_secure":"https:\/\/rtc-v2-ms7.bitrix24.com\/sub2\/","websocket_enabled":true,"websocket":"wss:\/\/rtc-v2-ms7.bitrix24.com\/subws2\/","websocket_secure":"wss:\/\/rtc-v2-ms7.bitrix24.com\/subws2\/","publish_enabled":true,"publish":"https:\/\/rtc-v2-ms7.bitrix24.com\/rest\/","publish_secure":"https:\/\/rtc-v2-ms7.bitrix24.com\/rest\/","config_timestamp":1795018055},"api":{"revision_web":19,"revision_mobile":3},"channels":{"private":{"id":"a8e55993b0771f8697456cf868351f14:cf5f6b770574843ddf99d49def761da9.d523942cf23b993a860030ec2fe01b0de4d3304b","public_id":"cf5f6b770574843ddf99d49def761da9.eebba7de29182642c708bd02101f6fa7c60655da","start":"2026-11-23T08:19:07+03:00","end":"2027-11-23T08:19:07+03:00","type":"private"}},"exp":1795497547,"publicChannels":false};
+		
+		new BX.Intranet.SystemAuthAuthorize(params);
+	});
+</script>
+<script>
+	(function()
+	{
+		BX.ready(function()
+		{
+			document.querySelector('#login-auth-container').classList.add("intranet-auth-animate");
+
+			var languageSelector = document.querySelector('#login-language-selector');
+			if (!languageSelector)
+			{
+				return;
+			}
+
+			var languageItems = [
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"ru"},
+						text: "Русский"
+					}),
+					attrs: {"aria-current":"true"},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('ru');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"id-ID"},
+						text: "Bahasa Indonesia"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('id');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"ms-MY"},
+						text: "Bahasa Melayu"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('ms');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"de"},
+						text: "Deutsch"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('de');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"en"},
+						text: "English"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('en');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"es"},
+						text: "Español"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('la');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"fr"},
+						text: "Français"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('fr');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"it"},
+						text: "Italiano"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('it');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"uz-UZ"},
+						text: "Oʻzbek tili"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('uz');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"pl"},
+						text: "Polski"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('pl');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"pt-BR"},
+						text: "Português (Brasil)"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('br');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"vi"},
+						text: "Tiếng Việt"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('vn');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"tr"},
+						text: "Türkçe"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('tr');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"kk"},
+						text: "Қазақша"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('kz');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"ar"},
+						text: "اَلْعَرَبِيَّةُ"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('ar');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"th"},
+						text: "ภาษาไทย"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('th');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"zh-CN"},
+						text: "中文（简体）"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('sc');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"zh-TW"},
+						text: "中文（繁體）"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('tc');
+					}
+				},
+								{
+					html: BX.Dom.create('span', {
+						attrs: {"lang":"ja"},
+						text: "日本語"
+					}),
+					attrs: {},
+					onclick: function()
+					{
+						function changeLanguage(langCode)
+						{
+							var url = window.location.href;
+							url = url.replace(/(\?|\&)user_lang=[A-Za-z]{2}/, "");
+							url += (url.indexOf("?") == -1 ? "?" : "&") + "user_lang=" + langCode;
+							window.location.href = url;
+						}
+
+						changeLanguage('ja');
+					}
+				},
+							];
+
+			var languageParams = {
+				offsetTop: 10,
+				offsetLeft: 42,
+				angle: {offset: 45},
+				animationOptions: false,
+				className: 'intranet-language-selector-popup',
+				bindOptions: {
+					position: 'top',
+					forceTop: true,
+				},
+				// The menu gets its role from the platform, but its name only from here.
+				ariaLabel: "Язык интерфейса",
+				// Without a focus trap the keyboard never reaches the items: both MenuItem.focus()
+				// and the initial focus of MenuNavigation move the focus only when the menu has one.
+				focusTrap: {
+					// A click outside moves the focus before the menu hides: the element the user went
+					// to keeps it, and only a focus dying with the menu is handed back to the button.
+					restoreFocus: function()
+					{
+						var activeElement = document.activeElement;
+						// The menu is taken from the registry and not from the closure: one destroyed from
+						// the outside is replaced by the next opening, and its container is already gone.
+						var currentMenu = BX.PopupMenu.getMenuById('lang-popup');
+						var popupContainer = currentMenu ? currentMenu.getPopupWindow().getPopupContainer() : null;
+						if (
+							BX.Type.isElementNode(popupContainer)
+							&& BX.Type.isElementNode(activeElement)
+							&& activeElement !== document.body
+							&& !popupContainer.contains(activeElement)
+						)
+						{
+							return activeElement;
+						}
+
+						return languageSelector;
+					},
+					preventScroll: true,
+				}
+			};
+
+			// Created once so that the options and the subscriptions below belong to the menu the
+			// click handler shows: create caches the menu by its id and returns the same instance.
+			var languageMenu = BX.PopupMenu.create('lang-popup', languageSelector, languageItems, languageParams);
+			languageMenu.getPopupWindow().subscribe('onShow', function()
+			{
+				BX.Dom.attr(languageSelector, 'aria-expanded', 'true');
+
+				// The popup activates the trap only once the opening animation is over, and a menu
+				// left without one until then loses an early Escape or Tab: the focus stays on the
+				// item going away with the menu and falls back to the page.
+				var focusTrap = languageMenu.getFocusTrap();
+				if (focusTrap)
+				{
+					focusTrap.activate();
+				}
+			});
+			languageMenu.getPopupWindow().subscribe('onClose', function()
+			{
+				BX.Dom.attr(languageSelector, 'aria-expanded', 'false');
+			});
+
+			BX.bind(languageSelector, 'click', function()
+			{
+				BX.PopupMenu.show('lang-popup', languageSelector, languageItems, languageParams);
+			});
+		});
+	})();
+</script>
+
+</body>
+</html>
