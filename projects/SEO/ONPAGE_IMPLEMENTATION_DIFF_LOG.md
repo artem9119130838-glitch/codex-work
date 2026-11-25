@@ -437,3 +437,14 @@
 | 10 | `https://longwang.ru/projects/ozon-supply-china/` | Каноничный кейс 200 OK (замена устаревшего 301-редиректа) |
 | 11 | `https://longwang.ru/projects/kitchen-appliances-white-ved/` | Каноничный кейс 200 OK (замена устаревшего 301-редиректа) |
 | 12 | `https://longwang.ru/useful-articles/aviadostavka-gruzov-iz-kitaya/` | Каноничная статья 200 OK по авиадоставке |
+
+
+---
+
+## 3. Спринт 2: Ликвидация каннибализации и B2B перелинковка (24.11.2026)
+
+| № | ID | Тип сущности | URL страницы | Внесенное изменение | Статус внедрения |
+|---|---|---|---|---|---|
+| 7 | `8707` | Статья блога | [kak-kupit-oborudovanie-kitay](https://longwang.ru/useful-articles/kak-kupit-oborudovanie-kitay/) | Врезка B2B Callout-виджета калькулятора, анкорная перелинковка на `/equipment-from-china/` и `#calculator` | `APPLIED_SUCCESS` |
+| 8 | `7704` | Статья блога | [aviadostavka-gruzov-iz-kitaya](https://longwang.ru/useful-articles/aviadostavka-gruzov-iz-kitaya/) | Врезка B2B Callout-виджета, исправление H2 'Структура тарифов...', прямая ссылка на `/aviadostavka-iz-kitaya/` | `APPLIED_SUCCESS` |
+| 9 | `4772` | Статья блога | [payment-methods-china](https://longwang.ru/useful-articles/payment-methods-china/) | Врезка B2B Callout-виджета, анкоры 'перевести деньги в Китай поставщику' на `/platezhi-v-kitai/` | `APPLIED_SUCCESS` |
