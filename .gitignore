@@ -52,3 +52,9 @@ projects/Price creating/**/*.zip
 
 # Local backups
 AI Backups Victus/
+
+# Safeguard VPS backups & envs
+vps_backups/
+*.dump
+*.sqlite
+*.mv.db
