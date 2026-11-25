@@ -32,12 +32,19 @@ if not os.path.exists(template_erf):
 dst_erf = os.path.join(base_dir, "KPIМенеджеров_new_fixed3.erf")
 desktop_erf = os.path.join(r"C:\Users\Артем\Desktop", "KPIМенеджеров_new_fixed3.erf")
 path_sql_fact = os.path.join(base_dir, "Запрос_Факт.sql")
+path_sql_plan = os.path.join(base_dir, "Запрос_План.sql")
 
 print(f"Шаблон отчета: {template_erf}")
 print(f"Файл запроса Факт: {path_sql_fact}")
+print(f"Файл запроса План: {path_sql_plan}")
 
 with open(path_sql_fact, 'r', encoding='utf-8') as f:
     new_query_fact = f.read()
+
+new_query_plan = None
+if os.path.exists(path_sql_plan):
+    with open(path_sql_plan, 'r', encoding='utf-8') as f:
+        new_query_plan = f.read()
 
 # Создаем временную рабочую директорию
 temp_work_dir = tempfile.mkdtemp()
@@ -60,7 +67,17 @@ try:
     doc2_raw = raw_data[p2:p3-3].decode('utf-8')
     doc3_raw = raw_data[p3:].decode('utf-8')
 
-    # 3. Подставляем обновленный SQL-запрос факта
+    # 3. Подставляем обновленный SQL-запрос факта и плана
+    if new_query_plan:
+        escaped_plan = html.escape(new_query_plan)
+        target_plan_name = "<name>НаборДанных_План</name>"
+        idx_plan = doc1_raw.find(target_plan_name)
+        if idx_plan != -1:
+            q_plan_start = doc1_raw.find("<query>", idx_plan)
+            q_plan_end = doc1_raw.find("</query>", q_plan_start)
+            doc1_raw = doc1_raw[:q_plan_start+7] + "\n" + escaped_plan + "\n" + doc1_raw[q_plan_end:]
+            print("НаборДанных_План успешно обновлен.")
+
     escaped_fact = html.escape(new_query_fact)
     target_fact_name = "<name>НаборДанных_Факт</name>"
     idx_fact = doc1_raw.find(target_fact_name)

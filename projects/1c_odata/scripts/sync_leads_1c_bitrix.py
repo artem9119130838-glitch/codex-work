@@ -485,7 +485,19 @@ def sync_lead_record(lead_id: int, dry_run: bool = False) -> dict:
                 if vals:
                     one_c_guid = vals[0]["Ref_Key"]
                     existing_1c_lead_obj = vals[0]
-                    print(f"  [1C] Найден существующий Лид 1С: {vals[0].get('Code', '')} ({one_c_guid})")
+                    vz = existing_1c_lead_obj.get("ВариантЗавершения", "")
+                    lead_code = existing_1c_lead_obj.get("Code", "")
+                    if vz == "НекачественныйЛид":
+                        date_cl = str(existing_1c_lead_obj.get("ДатаЗавершенияРаботы", ""))[:10]
+                        print(f"  [1C] Найден существующий Лид 1С: {lead_code} ({one_c_guid}) — ⚠️ БЫВШИЙ НЕКАЧЕСТВЕННЫЙ ЛИД (забракован {date_cl})")
+                    elif vz == "ПереведенВПокупателя":
+                        print(f"  [1C] Найден существующий Лид 1С: {lead_code} ({one_c_guid}) — ℹ️ БЫВШИЙ ЛИД (переведен в покупателя)")
+                        cp_k = existing_1c_lead_obj.get("Контрагент_Key")
+                        if cp_k and not cp_k.startswith("00000000") and not existing_counterparty_guid:
+                            existing_counterparty_guid = cp_k
+                            print(f"  [1C-LINK] Контрагент увязан из закрытого лида 1С: {cp_k}")
+                    else:
+                        print(f"  [1C] Найден существующий Лид 1С: {lead_code} ({one_c_guid}) — АКТИВНЫЙ В РАБОТЕ")
                     if not dry_run:
                         ld_ci = list(existing_1c_lead_obj.get("КонтактнаяИнформация", []))
                         ci_changed = False

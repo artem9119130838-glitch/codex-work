@@ -434,36 +434,81 @@ def check_1c_counterparty(inn=None, name=None, email=None, phone=None):
     return None
 
 
+def _enrich_lead_metadata(lead_obj):
+    """
+    Классификатор статуса Лида 1С:УНФ (Former Leads Classification Invariant).
+    Фиксирует лиды, переведенные в некачественные или в покупатели, как бывшие лиды.
+    """
+    if not lead_obj or not isinstance(lead_obj, dict):
+        return lead_obj
+    vz = lead_obj.get("ВариантЗавершения", "")
+    code = lead_obj.get("Code", "")
+    date_closed = str(lead_obj.get("ДатаЗавершенияРаботы", ""))[:10]
+    if vz == "НекачественныйЛид":
+        lead_obj["_status_category"] = "JUNK"
+        lead_obj["_is_former_junk"] = True
+        lead_obj["_is_former_buyer"] = False
+        lead_obj["_status_label"] = f"БЫВШИЙ НЕКАЧЕСТВЕННЫЙ ЛИД (забракован {date_closed})" if date_closed else "БЫВШИЙ НЕКАЧЕСТВЕННЫЙ ЛИД (забракован в 1С)"
+    elif vz == "ПереведенВПокупателя":
+        lead_obj["_status_category"] = "BUYER"
+        lead_obj["_is_former_junk"] = False
+        lead_obj["_is_former_buyer"] = True
+        lead_obj["_status_label"] = "БЫВШИЙ ЛИД (успешно переведен в покупателя в 1С)"
+    else:
+        lead_obj["_status_category"] = "IN_PROGRESS"
+        lead_obj["_is_former_junk"] = False
+        lead_obj["_is_former_buyer"] = False
+        lead_obj["_status_label"] = "АКТИВНЫЙ ЛИД В РАБОТЕ 1С"
+    return lead_obj
+
+
 def check_1c_lead(inn=None, name=None, email=None, phone=None):
     """
-    Строгий поиск Лида в 1С:УНФ (Strict Lead Matching Guard).
+    Строгий поиск Лида в 1С:УНФ (Strict Lead Matching Guard & Former Leads Invariant).
     Совпадение строго по точным реквизитам. Ложные срабатывания по коротким подстрокам исключены.
+    Автоматически классифицирует лиды по ВариантЗавершения (некачественный, в покупателя, в работе).
     """
     if not ONEC_BASE or not ONEC_AUTH_READ:
         return None
+    headers_odata = {"Accept": "application/json"}
     try:
         # 1. Приоритет: Точный Email лида (включая список через запятую в АдресЭПДляПоиска)
         if email and "@" in email:
             clean_email = email.strip().lower()
             q = urllib.parse.quote(f"substringof('{clean_email}', АдресЭПДляПоиска)")
-            r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+            r = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q}", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
             if r.status_code == 200:
                 val = r.json().get('value', [])
                 if val:
-                    return val[0]
+                    return _enrich_lead_metadata(val[0])
 
-            # 1.1 Поиск в контактных лицах лидов (Catalog_КонтактыЛидов)
+            # 1.1 Поиск в ТЧ КонтактнаяИнформация Catalog_Лиды_КонтактнаяИнформация
+            try:
+                q_ci = urllib.parse.quote(f"substringof('{clean_email}', АдресЭП)")
+                r_ci = requests.get(f"{ONEC_BASE}/Catalog_Лиды_КонтактнаяИнформация?$filter={q_ci}", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
+                if r_ci.status_code == 200:
+                    ci_items = r_ci.json().get('value', [])
+                    if ci_items:
+                        owner_ref = ci_items[0].get("Ref_Key")
+                        if owner_ref:
+                            r_lead = requests.get(f"{ONEC_BASE}/Catalog_Лиды(guid'{owner_ref}')", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
+                            if r_lead.status_code == 200:
+                                return _enrich_lead_metadata(r_lead.json())
+            except Exception:
+                pass
+
+            # 1.2 Поиск в контактных лицах лидов (Catalog_КонтактыЛидов)
             try:
                 q_cnt = urllib.parse.quote(f"АдресЭПДляПоиска eq '{clean_email}'")
-                r_cnt = requests.get(f"{ONEC_BASE}/Catalog_КонтактыЛидов?$filter={q_cnt}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                r_cnt = requests.get(f"{ONEC_BASE}/Catalog_КонтактыЛидов?$filter={q_cnt}", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
                 if r_cnt.status_code == 200:
                     cnt_items = r_cnt.json().get('value', [])
                     if cnt_items:
                         owner_key = cnt_items[0].get("Owner_Key")
                         if owner_key:
-                            r_lead = requests.get(f"{ONEC_BASE}/Catalog_Лиды(guid'{owner_key}')?$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                            r_lead = requests.get(f"{ONEC_BASE}/Catalog_Лиды(guid'{owner_key}')", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
                             if r_lead.status_code == 200:
-                                return r_lead.json()
+                                return _enrich_lead_metadata(r_lead.json())
             except Exception:
                 pass
 
@@ -473,16 +518,16 @@ def check_1c_lead(inn=None, name=None, email=None, phone=None):
             if len(digits) >= 10:
                 last_10 = digits[-10:]
                 q_ph = urllib.parse.quote(f"substringof('{last_10}', НомерТелефонаДляПоиска)")
-                r_ph = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_ph}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                r_ph = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_ph}", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
                 if r_ph.status_code == 200:
                     val = r_ph.json().get('value', [])
                     if val:
-                        return val[0]
+                        return _enrich_lead_metadata(val[0])
 
         # 3. Точный ИНН (строго как отдельное слово из 10 или 12 цифр)
         if inn and len(str(inn).strip()) in (10, 12):
             q_inn = urllib.parse.quote(f"substringof('{str(inn).strip()}', Тема)")
-            r_inn = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_inn}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+            r_inn = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_inn}", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
             if r_inn.status_code == 200:
                 val = r_inn.json().get('value', [])
                 for lead_cand in val:
@@ -490,25 +535,25 @@ def check_1c_lead(inn=None, name=None, email=None, phone=None):
                     lead_desc = lead_cand.get("Description", "")
                     lead_info = lead_cand.get("ОсновныеСведения", "")
                     if re.search(r'\b' + str(inn).strip() + r'\b', f"{lead_topic} {lead_desc} {lead_info}"):
-                        return lead_cand
+                        return _enrich_lead_metadata(lead_cand)
 
         # 4. По наименованию: только длинные имена (>= 5 символов), совпадение или подстрока
         if name:
             clean_name = clean_company_name_for_match(name)
             if len(clean_name) >= 5:
                 q_nm = urllib.parse.quote(f"Description eq '{clean_name}' or НаименованиеКомпании eq '{clean_name}'")
-                r_nm = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_nm}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                r_nm = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_nm}", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
                 if r_nm.status_code == 200:
                     val = r_nm.json().get('value', [])
                     if val:
-                        return val[0]
+                        return _enrich_lead_metadata(val[0])
                 # Fallback: поиск по подстроке (substringof)
-                q_sub = urllib.parse.quote(f"substringof('{clean_name}', Description) or substringof('{clean_name}', НаименованиеКомпании)")
-                r_sub = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_sub}&$format=json", auth=ONEC_AUTH_READ, timeout=10)
+                q_sub = urllib.parse.quote(f"substringof('{clean_name}', НаименованиеКомпании)")
+                r_sub = requests.get(f"{ONEC_BASE}/Catalog_Лиды?$filter={q_sub}", headers=headers_odata, auth=ONEC_AUTH_READ, timeout=10)
                 if r_sub.status_code == 200:
                     val = r_sub.json().get('value', [])
                     if val:
-                        return val[0]
+                        return _enrich_lead_metadata(val[0])
     except Exception as e:
         print(f"1C Check Lead exception: {e}")
     return None
@@ -626,11 +671,12 @@ def find_b24_contact(email: str = None, phone: str = None, name: str = None) -> 
 def find_b24_contact_by_email(email: str) -> dict:
     return find_b24_contact(email=email)
 
-def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_key=None, email=None) -> dict:
+def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_key=None, email=None, lead_1c=None) -> dict:
     """
     Сбор истории обращений, заказов и отгрузок в 1С:УНФ и Битрикс24:
     - 1С:УНФ: точечный поиск всех входящих событий Document_Событие с OData-фильтром substringof по email
     - 1С:УНФ: аудит реальных отгрузок (Document_РасходнаяНакладная) и заказов (Document_ЗаказПокупателя) по Ref_Key
+    - 1С:УНФ: статус исторического лида (Former Leads Invariant: некачественный / покупатель / в работе)
     - Битрикс24: число выигранных сделок (WON), общее число сделок и активностей
     - Existing Customer Invariant: если есть отгрузки в 1С или выигранные сделки в Б24, клиент признается
       действующим покупателем (is_existing_customer = True), подозрение в перепродаже снимается.
@@ -702,6 +748,10 @@ def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_ke
     # Маркер 1: >= 3 обращений в истории при 0 закрытых сделок и 0 отгрузок
     is_ghost_reseller = bool(total_inquiries >= 3 and not is_existing_customer)
 
+    # Статус исторического лида 1С (Former Leads Invariant)
+    is_former_junk_lead = bool(lead_1c and lead_1c.get("_is_former_junk"))
+    is_former_buyer_lead = bool(lead_1c and lead_1c.get("_is_former_buyer"))
+
     return {
         "onec_other_count": onec_other_count,
         "onec_total_events": onec_events_count,
@@ -713,7 +763,11 @@ def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_ke
         "b24_acts_count": b24_acts_count,
         "total_inquiries": total_inquiries,
         "is_existing_customer": is_existing_customer,
-        "is_ghost_reseller": is_ghost_reseller
+        "is_ghost_reseller": is_ghost_reseller,
+        "is_former_junk_lead": is_former_junk_lead,
+        "is_former_buyer_lead": is_former_buyer_lead,
+        "lead_1c_code": lead_1c.get("Code") if lead_1c else None,
+        "lead_1c_status_label": lead_1c.get("_status_label") if lead_1c else None
     }
 
 
@@ -1395,19 +1449,25 @@ def extract_items_from_xlsx_bytes(content: bytes, default_brand: str = "OEM") ->
     pre_header_texts = []
     for r_i, row in enumerate(ws.iter_rows(max_row=20, values_only=True), start=1):
         vals = [str(c or "").strip().lower() for c in row]
-        if any("наименован" in v or "товар" in v or "продукц" in v for v in vals) and any("колич" in v or "кол-во" in v or "qty" in v for v in vals):
+        is_name_col = any("наименован" in v or "товар" in v or "продукц" in v for v in vals)
+        is_qty_col = any("колич" in v or "кол-во" in v or "кол." in v or "кол " in v or "qty" in v for v in vals)
+        if is_name_col and is_qty_col:
             header_idx = r_i
             for c_i, v in enumerate(vals):
                 if "наименован" in v or "товар" in v or "продукц" in v:
                     col_map.setdefault("name", c_i)
-                elif "колич" in v or "кол-во" in v or "qty" in v:
+                elif "кол. на партию" in v or "на партию" in v:
+                    col_map["qty"] = c_i
+                elif "колич" in v or "кол-во" in v or "кол." in v or "qty" in v:
                     col_map.setdefault("qty", c_i)
                 elif "принадлеж" in v or "оборуд" in v:
                     col_map.setdefault("belong", c_i)
                 elif "характер" in v or "артикул" in v or "модел" in v or "part" in v:
                     col_map.setdefault("chars", c_i)
-                elif "бренд" in v or "производ" in v or "brand" in v:
+                elif "бренд" in v or "производ" in v or "изготов" in v or "brand" in v:
                     col_map.setdefault("brand", c_i)
+                elif "ед." in v and "изм" in v:
+                    col_map.setdefault("unit", c_i)
             break
         row_joined = " ".join(str(c or "").strip() for c in row if c)
         if row_joined:
@@ -1424,13 +1484,15 @@ def extract_items_from_xlsx_bytes(content: bytes, default_brand: str = "OEM") ->
         name_ru = str(row[col_map["name"]] or "").strip()
         if not name_ru or len(name_ru) < 2:
             continue
-        qty_raw = row[col_map["qty"]] if "qty" in col_map and col_map["qty"] < len(row) else 1
+        qty_raw = row[col_map["qty"]] if "qty" in col_map and col_map["qty"] < len(row) else None
+        if qty_raw is None or str(qty_raw).strip() == "" or str(qty_raw).strip().lower() in ("none", "-", "0"):
+            continue
         try:
             qty = int(round(float(str(qty_raw).replace(",", "."))))
             if qty <= 0:
-                qty = 1
+                continue
         except Exception:
-            qty = 1
+            continue
         belong = str(row[col_map["belong"]] or "").strip() if "belong" in col_map and col_map["belong"] < len(row) else ""
         chars = str(row[col_map["chars"]] or "").strip() if "chars" in col_map and col_map["chars"] < len(row) else ""
         brand_val = str(row[col_map["brand"]] or "").strip() if "brand" in col_map and col_map["brand"] < len(row) else ""
@@ -2085,7 +2147,7 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
         "CREATED_BY": USER_ARTEM,          # Артем (1)
         "GROUP_ID": group_id,              # Товары и поставщики Китай (14)
         "PRIORITY": 1,
-        "STATUS": 2,                       # STATE_PENDING (Ждет выполнения)
+        "STATUS": 3,                       # STATE_IN_PROGRESS (Выполняется - статус строго в работе!)
         "TASK_CONTROL": "Y",               # Принять работу после завершения
         "DEADLINE": deadline_str,
         "TAGS": ["Поиск товара - 找货"],
@@ -2102,6 +2164,12 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
         return "PREVIEW_TASK_ID"
     task_res = call_b24("tasks.task.add", {"fields": fields})
     task_id = task_res.get('task', {}).get('id') if isinstance(task_res, dict) else task_res
+    if task_id:
+        try:
+            # Гарантированный запуск задачи в статус Выполняется (In Progress Guard)
+            call_b24("tasks.task.start", {"taskId": task_id})
+        except Exception:
+            pass
     return task_id
 
 def build_supply_task_chat_message(azat_id=None, cn_nomenclature="", brand="", model="", quantity="", equivalents_allowed=False, download_links_chat="", clean_inquiry="", resp_id=None, supply_note=""):
@@ -2502,8 +2570,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             or contact_name.lower() in ('контактное лицо', 'новое лицо')
             or (email_local and contact_name.strip().lower() == email_local)
             or any(ch.isdigit() for ch in contact_name)
-            or any(w in contact_name.lower() for w in ['компания', 'ооо', 'ао', 'зао', 'нпп', 'нпо', 'буровая', 'артем'])
-            or (raw_company_title and raw_company_title.lower() in contact_name.lower())
+            or any(w in contact_name.lower() for w in ['системы', 'компания', 'ооо', 'ао', 'зао', 'нпп', 'нпо', 'буровая', 'артем'])
+            or (raw_company_title and any(w in contact_name.lower() for w in raw_company_title.lower().split() if len(w) > 4))
         )
         if is_bad_contact:
             contact_name = cand_sn
@@ -2622,7 +2690,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                             if tot_rows > 30:
                                 is_huge_excel_bulk = True
                                 print(f"  [BULK-SPECIFICATION] Обнаружена объемная спецификация во вложении '{fname}' ({tot_rows} строк)")
-                            elif not attached_xlsx_items:
+                            if not attached_xlsx_items:
                                 parsed_xl = extract_items_from_xlsx_bytes(r_xl.content)
                                 if parsed_xl:
                                     attached_xlsx_items = parsed_xl
@@ -2853,25 +2921,53 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     ca_1c_guid = ca_1c.get('Ref_Key') if ca_1c else None
     b24_cid_hist = int(existing_company['ID']) if existing_company and existing_company.get('ID') else None
     b24_cnt_hist = int(existing_contact['ID']) if existing_contact and existing_contact.get('ID') else None
-    inquiry_hist = get_client_inquiry_history(b24_company_id=b24_cid_hist, b24_contact_id=b24_cnt_hist, onec_key=ca_1c_guid, email=contact_email)
+    inquiry_hist = get_client_inquiry_history(b24_company_id=b24_cid_hist, b24_contact_id=b24_cnt_hist, onec_key=ca_1c_guid, email=contact_email, lead_1c=lead_1c)
     print(f"  [ИСТОРИЯ ОБРАЩЕНИЙ И ПРОДАЖ]")
     print(f"    • 1С:УНФ: Событий: {inquiry_hist['onec_total_events']} (Прочее: {inquiry_hist['onec_other_count']}) | Заказов: {inquiry_hist['onec_orders_count']} | Отгрузок: {inquiry_hist['onec_invoices_count']} (на сумму {inquiry_hist['onec_invoices_sum']:,.2f} руб.)")
     print(f"    • Битрикс24: Сделок WON: {inquiry_hist['b24_deals_won']} (Всего: {inquiry_hist['b24_deals_total']}) | Активностей: {inquiry_hist['b24_acts_count']}")
+    if inquiry_hist.get('is_former_junk_lead'):
+        print(f"    • 1С:УНФ Лид: ⚠️ {inquiry_hist['lead_1c_status_label']}")
+    elif inquiry_hist.get('is_former_buyer_lead'):
+        print(f"    • 1С:УНФ Лид: ℹ️ {inquiry_hist['lead_1c_status_label']}")
+    elif lead_1c:
+        print(f"    • 1С:УНФ Лид: {lead_1c.get('_status_label', 'В работе')} (Код {lead_1c.get('Code')})")
+
     if inquiry_hist['is_existing_customer']:
         print(f"    • Статус: ДЕЙСТВУЮЩИЙ ПОКУПАТЕЛЬ (Existing Customer - подтверждено отгрузками в 1С)")
     elif inquiry_hist['is_ghost_reseller']:
         print(f"    • Статус: ХРОНИЧЕСКИЙ СБОРЩИК ЦЕН (Ghost Reseller - {inquiry_hist['total_inquiries']} обращений без покупок)")
     else:
         print(f"    • Статус: Новый лид")
+
+    # Если контрагент не найден напрямую, но лид 1С был переведен в покупателя — подтягиваем связанного контрагента
+    if not ca_1c and lead_1c and lead_1c.get('_is_former_buyer'):
+        cp_guid = lead_1c.get('Контрагент_Key')
+        if cp_guid and not cp_guid.startswith('00000000'):
+            try:
+                r_lcp = requests.get(f"{ONEC_BASE}/Catalog_Контрагенты(guid'{cp_guid}')", headers={"Accept": "application/json"}, auth=ONEC_AUTH_READ, timeout=5)
+                if r_lcp.status_code == 200:
+                    ca_1c = r_lcp.json()
+                    is_buyer = bool(ca_1c.get('Покупатель'))
+                    print(f"  [1C-LINK] Контрагент извлечен из лида 1С, переведенного в покупателя: {ca_1c.get('Description')} (ИНН: {ca_1c.get('ИНН')}, Код: {ca_1c.get('Code')})")
+            except Exception:
+                pass
+
     if lead_1c and not inn and lead_1c.get('Тема'):
         m_inn_1c = re.search(r'\b(\d{10}|\d{12})\b', lead_1c.get('Тема', ''))
         if m_inn_1c:
             inn = m_inn_1c.group(1)
             print(f"  [1C-LINK] Из существующего Лида 1С ({lead_1c.get('Code')}) извлечен ИНН: {inn}")
     is_buyer = bool(ca_1c and ca_1c.get('Покупатель'))
+
+    lead_1c_str = "НЕТ"
+    if lead_1c:
+        code_str = f"Код {lead_1c.get('Code', '')}"
+        lbl = lead_1c.get('_status_label', '')
+        lead_1c_str = f"ДА ({code_str} — {lbl})"
+
     print(f"\n3. Сверка с 1С:УНФ:")
     print(f"   - Покупатель 1С: {'ДА (Код ' + ca_1c.get('Code', '') + ')' if is_buyer else 'НЕТ'}")
-    print(f"   - Лид 1С: {'ДА (Код ' + lead_1c.get('Code', '') + ')' if lead_1c else 'НЕТ'}")
+    print(f"   - Лид 1С: {lead_1c_str}")
 
     # 5. Квалификация обращения (Clear RFQ vs Ambiguous vs Reseller & Ghost RFQ Guard)
     is_rfq, rfq_reason = is_clear_rfq(lead_title, lead_comments, email_desc, len(lead_file_ids))
@@ -2906,6 +3002,11 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     if is_hist_marker:
         reseller_signals.append(f"Хронический сборщик цен: {inquiry_hist['total_inquiries']} обращений в 1С/CRM без покупок")
         is_guard_triggered = True
+
+    if inquiry_hist.get("is_former_junk_lead"):
+        reseller_signals.append(f"Ранее забракован в 1С:УНФ: {inquiry_hist['lead_1c_status_label']} (Код {inquiry_hist['lead_1c_code']})")
+    elif inquiry_hist.get("is_former_buyer_lead"):
+        reseller_signals.append(f"Ранее лид в 1С:УНФ успешно переведен в покупатели (Код {inquiry_hist['lead_1c_code']})")
 
     # Решение по перепродажнику (Existing Customer Invariant):
     if is_existing_cust:
@@ -3372,6 +3473,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     supply_note_task_block = f"\n\n[B]ВАЖНОЕ ПРИМЕЧАНИЕ / 重要说明:[/B]\n{supply_note}" if supply_note else ""
 
+    former_lead_warning = ""
+    if inquiry_hist.get("is_former_junk_lead"):
+        former_lead_warning = f"\n\n[B]⚠️ ВНИМАНИЕ ПО КЛИЕНТУ / 客户历史提示:[/B]\nРанее контакт/компания была зафиксирована в 1С:УНФ как НЕКАЧЕСТВЕННЫЙ ЛИД ({inquiry_hist['lead_1c_status_label']}, Код {inquiry_hist['lead_1c_code']}). / 该客户此前在1C系统中被标记为无效询价线索。"
+    elif inquiry_hist.get("is_former_buyer_lead"):
+        former_lead_warning = f"\n\n[B]ℹ️ ИСТОРИЯ КЛИЕНТА / 客户历史提示:[/B]\nВ 1С:УНФ лид ранее был успешно переведен в покупателя (Код {inquiry_hist['lead_1c_code']}). / 该客户此前在线索阶段已成功转化为买家。"
+
     task_description = (
         f"[B]ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ЗАКУПКУ / 采购技术要求[/B]\n"
         f"--------------------------------------------------\n"
@@ -3385,7 +3492,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         f"{rfq_details.get('clean_inquiry', email_desc[:600])}"
         f"{attachments_task_block}"
         f"{supply_note_task_block}"
+        f"{former_lead_warning}"
     )
+
+    combined_supply_note = supply_note or ""
+    if former_lead_warning:
+        combined_supply_note = (combined_supply_note + "\n" + former_lead_warning.strip()).strip() if combined_supply_note else former_lead_warning.strip()
 
     bilingual_comment = build_supply_task_chat_message(
         azat_id=task_resp_id,
@@ -3396,7 +3508,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         equivalents_allowed=rfq_details.get('equivalents_allowed', False),
         download_links_chat=download_links_chat,
         clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600]),
-        supply_note=supply_note
+        supply_note=combined_supply_note
     )
 
     if no_deal and dry_run:
@@ -3423,6 +3535,10 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             print(f"  Статус клиента: ДЕЙСТВУЮЩИЙ ПОКУПАТЕЛЬ (Existing Customer - подтверждено отгрузками в 1С)")
         elif inquiry_hist['is_ghost_reseller']:
             print(f"  Статус клиента: ХРОНИЧЕСКИЙ СБОРЩИК КП (Ghost Reseller - {inquiry_hist['total_inquiries']} обращений без покупок)")
+        if inquiry_hist.get("is_former_junk_lead"):
+            print(f"  Статус лида 1С: ⚠️ {inquiry_hist['lead_1c_status_label']} (Код {inquiry_hist['lead_1c_code']})")
+        elif inquiry_hist.get("is_former_buyer_lead"):
+            print(f"  Статус лида 1С: ℹ️ {inquiry_hist['lead_1c_status_label']} (Код {inquiry_hist['lead_1c_code']})")
         
         # Zero-Hallucination статус
         if not rfq_details.get("positions_extracted_reliably"):
@@ -3455,7 +3571,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             tags_display.add("Перепродажники")
         print(f"     - Теги: {list(tags_display)}")
         print(f"     - Текст сводки СБИС:\n{scoring_summary_text or onec_comment_str or 'Сводка СБИС отсутствует'}")
-        print(f"  6. 1С:УНФ: {'Обновление существующего контрагента' if ca_1c else ('Обновление Лида' if lead_1c else 'Создание Лида + Контакта')}")
+        lead_1c_action = 'Обновление существующего контрагента' if ca_1c else (f"Обновление Лида ({lead_1c.get('_status_label', 'В работе')})" if lead_1c else 'Создание Лида + Контакта')
+        print(f"  6. 1С:УНФ: {lead_1c_action}")
         print(f"     - Запись в ТЧ КонтактнаяИнформация: АдресЭП, АдресЭПДляПоиска, Телефон, ВебСайт")
         print(f"     - Запись в Комментарий Лида 1С: сводка СБИС и номер Сделки")
         print(f"  7. Почтовый автоответ Шаблон № 66: {'ДА (официальное подтверждение)' if (contact_email and send_reply) else 'НЕТ'}")
@@ -3596,6 +3713,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
 
     supply_note_task_block = f"\n\n[B]ВАЖНОЕ ПРИМЕЧАНИЕ / 重要说明:[/B]\n{supply_note}" if supply_note else ""
 
+    former_lead_warning = ""
+    if inquiry_hist.get("is_former_junk_lead"):
+        former_lead_warning = f"\n\n[B]⚠️ ВНИМАНИЕ ПО КЛИЕНТУ / 客户历史提示:[/B]\nРанее контакт/компания была зафиксирована в 1С:УНФ как НЕКАЧЕСТВЕННЫЙ ЛИД ({inquiry_hist['lead_1c_status_label']}, Код {inquiry_hist['lead_1c_code']}). / 该客户此前在1C系统中被标记为无效询价线索。"
+    elif inquiry_hist.get("is_former_buyer_lead"):
+        former_lead_warning = f"\n\n[B]ℹ️ ИСТОРИЯ КЛИЕНТА / 客户历史提示:[/B]\nВ 1С:УНФ лид ранее был успешно переведен в покупателя (Код {inquiry_hist['lead_1c_code']}). / 该客户此前在线索阶段已成功转化为买家。"
+
     task_description = (
         f"[B]ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ЗАКУПКУ / 采购技术要求[/B]\n"
         f"--------------------------------------------------\n"
@@ -3609,6 +3732,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         f"{rfq_details.get('clean_inquiry', email_desc[:600])}"
         f"{attachments_task_block}"
         f"{supply_note_task_block}"
+        f"{former_lead_warning}"
     )
 
     # Создание задачи снабжению с полным DESCRIPTION
@@ -3629,6 +3753,10 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     print(f"  [B24] Создана Задача #{task_id} (Ответственный: {resp_name}, Дедлайн: {deadline_plan})")
 
     # Двуязычный комментарий в чат задачи (China Supply Anonymity Guard)
+    combined_supply_note = supply_note or ""
+    if former_lead_warning:
+        combined_supply_note = (combined_supply_note + "\n" + former_lead_warning.strip()).strip() if combined_supply_note else former_lead_warning.strip()
+
     bilingual_comment = build_supply_task_chat_message(
         azat_id=task_resp_id,
         cn_nomenclature=cn_nomenclature,
@@ -3638,7 +3766,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         equivalents_allowed=rfq_details.get('equivalents_allowed', False),
         download_links_chat=download_links_chat,
         clean_inquiry=rfq_details.get('clean_inquiry', email_desc[:600]),
-        supply_note=supply_note
+        supply_note=combined_supply_note
     )
     send_b24_task_chat_message(task_id, bilingual_comment)
 

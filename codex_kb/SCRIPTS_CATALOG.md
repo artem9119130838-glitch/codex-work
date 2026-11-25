@@ -520,6 +520,7 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Боевой (B24 CRM Sync)** | `test_reactivation_b24_sync.py` | `projects/lead_reactivation/scripts/test_reactivation_b24_sync.py` | Тестовая синхронизация сущностей Битрикс24 (Компания + Контакт) и регистрация исходящих писем в таймлайне CRM перед реанимацией спящих клиентов 1С. Флаги: `--email`, `--company`, `--inn`, `--contact`, `--manager`, `--apply`. | 0 |
+| **Боевой (DWH Ingest 1C)** | `ingest_1c_cold_leads.py` | `projects/lead_reactivation/scripts/ingest_1c_cold_leads.py` | Дозированный импорт спящих лидов из 1С:УНФ в DWH (порциями по 100 лидов). Фильтры: >90 дней, без активных сделок Б24, HR-фильтр, курсор смещения. Флаги: `--dry-run`, `--commit`, `--batch-size`. | 0 |
 | **Базовый** | `2026-10-03_run_daily_reactivation_v1_before_sbis.py` | `projects/lead_reactivation/scripts/archive/2026-10-03_run_daily_reactivation_v1_before_sbis.py` | Setup path | 0 |
 | **Базовый** | `2026-10-04_run_daily_reactivation_v2_before_quote_and_company_fix.py` | `projects/lead_reactivation/scripts/archive/2026-10-04_run_daily_reactivation_v2_before_quote_and_company_fix.py` | Setup path | 1 |
 | **Базовый** | `2026-10-07_llm_service_v1_before_framework_fix.py` | `projects/lead_reactivation/scripts/archive/2026-10-07_llm_service_v1_before_framework_fix.py` | Автоматизация рабочего процесса. | 1 |
