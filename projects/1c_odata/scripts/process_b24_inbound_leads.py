@@ -1074,15 +1074,15 @@ def enrich_or_create_b24_contact(name: str, email: str, phone: str = None, compa
 # ----------------------------------------------------------------------
 def is_prohibited_china_supply_file(filename: str) -> bool:
     """
-    Проверяет, является ли файл юридическим/бухгалтерским документом РФ,
-    который КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО прикреплять к задаче снабженцам КНР.
+    Проверяет, является ли файл юридическим/бухгалтерским документом РФ или карточкой организации,
+    который КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО прикреплять к задаче снабженцам КНР или к файлам сделки.
     """
-    fn = filename.lower()
+    fn = filename.lower().strip()
     prohibited_keywords = [
         "карт", "карта", "карточка", "партнер", "партнера", "реквизит", "реквизиты",
         "инн", "огрн", "устав", "договор", "выписка", "егрюл", "свидетельств",
         "паспорт", "доверенност", "бухгалтер", "счет", "akt", "акт", "счет-фактур",
-        "упд", "upd"
+        "упд", "upd", "card", "requisite", "requisites", "bank"
     ]
     return any(kw in fn for kw in prohibited_keywords)
 
@@ -1531,11 +1531,32 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
         "подшипник": "轴承", "муфта": "联轴器", "преобразователь": "变频器",
         "частотник": "变频器", "реле": "继电器",
         "подогреватель": "加热器", "прокладка": "垫片", "свеча": "火花塞", "свечи": "火花塞",
-        "кольцо": "密封圈", "уплотнение": "密封垫", "фильтр": "滤清器", "кабель": "电缆", "комплект": "维修套件"
+        "кольцо": "密封圈", "уплотнение": "密封垫", "фильтр": "滤清器", "кабель": "电缆", "комплект": "维修套件",
+        "станок": "机床", "обдирочный": "粗磨机", "доводочный": "精磨机", "полировальный": "抛光机"
     }
     text_no_quotes = strip_email_reply_quotes(text)
     # Склейка разорванных переносами артикулов (например, "GP1-\n0013R97F/20N")
     text_no_quotes = re.sub(r'([A-Za-z0-9])-\s*\r?\n+\s*([A-Za-z0-9])', r'\1-\2', text_no_quotes)
+    # Поддержка распознавания многострочных таблиц html: <номер> \n <наименование> \n <количество> \n <производитель>
+    table_reconstructed = []
+    i_ln = 0
+    raw_lines = [l.strip() for l in text_no_quotes.splitlines() if l.strip()]
+    while i_ln < len(raw_lines):
+        if raw_lines[i_ln].isdigit() and i_ln + 2 < len(raw_lines) and raw_lines[i_ln+2].isdigit():
+            t_num = raw_lines[i_ln]
+            t_name = raw_lines[i_ln+1]
+            t_qty = raw_lines[i_ln+2]
+            t_mfg = raw_lines[i_ln+3] if (i_ln + 3 < len(raw_lines) and not raw_lines[i_ln+3].isdigit() and not re.match(r'^\d+[.)]', raw_lines[i_ln+3])) else ''
+            full_item_str = f"{t_num}. {t_name}"
+            if t_mfg and t_mfg.lower() not in t_name.lower():
+                full_item_str += f" ({t_mfg})"
+            full_item_str += f" - {t_qty} шт."
+            table_reconstructed.append(full_item_str)
+            i_ln += 4 if t_mfg else 3
+        else:
+            table_reconstructed.append(raw_lines[i_ln])
+            i_ln += 1
+    text_no_quotes = "\n".join(table_reconstructed)
     # Склейка многострочных нумерованных позиций до строки с количеством ("1.Насос\n...\nМПа-1шт")
     raw_split_lines = [re.sub(r'\s+', ' ', l).strip() for l in text_no_quotes.split('\n')]
     merged_lines = []
@@ -1763,7 +1784,7 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
         "OMRON", "FLENDER", "GEMU", "SKF", "HYDAC", "FESTO", "SIEMENS", "ABB", "DANFOSS",
         "SCHNEIDER", "ENDRESS+HAUSER", "LENZE", "SMC", "YOKOGAWA", "WIKA", "IFM", "SICK",
         "PARKER", "REXROTH", "EATON", "BITZER", "FRONIUS", "WILO", "BREVINI", "AUTONICS", "CATERPILLAR", "CUMMINS", "BAUMER", "HUBNER", "HÜBNER",
-        "EMERSON", "ROSEMOUNT", "MICRO MOTION", "FEDE", "FEDE COLLISION", "DUPLOMATIC"
+        "EMERSON", "ROSEMOUNT", "MICRO MOTION", "FEDE", "FEDE COLLISION", "DUPLOMATIC", "WUXI XIBIN", "XIBIN"
     ]
     detected_brand = ""
     # Приоритет 1: бренд прямо указан в теле запроса клиента
@@ -2121,8 +2142,13 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
             existing_id = tasks_list[0]["id"]
             existing_desc = tasks_list[0].get("description", "")
             print(f"  [Single Task Guard] Для сделки {deal_id} уже найдена активная задача #{existing_id}. Дубль не создается.")
-            # Обеспечиваем строгую привязку задачи ТОЛЬКО к Сделке (Task Deal-Only Guard)
-            upd_fields = {"UF_CRM_TASK": [f"D_{deal_id}"]}
+            # Обеспечиваем строгую привязку задачи ТОЛЬКО к Сделке (Strict Deal-Only Task Guard)
+            upd_fields = {
+                "UF_CRM_TASK": [f"D_{deal_id}"],
+                "TASK_CONTROL": "Y",
+                "SE_PARAMETER": [{"CODE": 2, "VALUE": "Y"}],
+                "ALLOW_CHANGE_DEADLINE": "N"
+            }
             if description and (not existing_desc or "Вложения доступны в карточке задачи" in existing_desc or "showFile" in description):
                 upd_fields["DESCRIPTION"] = description
                 print(f"  [Task Enrichment] В задачу #{existing_id} добавлено подробное ТЗ (ранее было пустым/неполным).")
@@ -2146,12 +2172,16 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
         "RESPONSIBLE_ID": responsible_id,  # Азат (20) или коллега из КНР
         "CREATED_BY": USER_ARTEM,          # Артем (1)
         "GROUP_ID": group_id,              # Товары и поставщики Китай (14)
-        "PRIORITY": 1,
+        "PRIORITY": 2,                     # Высокий приоритет (2)
         "STATUS": 3,                       # STATE_IN_PROGRESS (Выполняется - статус строго в работе!)
-        "TASK_CONTROL": "Y",               # Принять работу после завершения
+        "TASK_CONTROL": "Y",               # Принять работу после завершения (Strict Task Control Invariant)
+        "SE_PARAMETER": [{"CODE": 2, "VALUE": "Y"}],  # Код 2 в Битрикс24: контроль постановщика
+        "ALLOW_CHANGE_DEADLINE": "N",      # Исполнитель не может самостоятельно менять дедлайн
+        "MATCH_WORK_TIME": "N",
+        "ALLOW_TIME_TRACKING": "N",
         "DEADLINE": deadline_str,
         "TAGS": ["Поиск товара - 找货"],
-        "UF_CRM_TASK": [f"D_{deal_id}"]
+        "UF_CRM_TASK": [f"D_{deal_id}"]    # Strict Deal-Only Task Guard: СТРОГО только сделка!
     }
     # Mandatory Auditor Invariant: Азат Денишов (ID: 20) обязан быть наблюдателем во всех задачах коллегам из КНР
     if int(responsible_id) != USER_AZAT:
@@ -2170,6 +2200,21 @@ def create_b24_supply_task(title, deal_id, description="", responsible_id=USER_A
             call_b24("tasks.task.start", {"taskId": task_id})
         except Exception:
             pass
+        # Пост-проверка Strict Task Control и Strict Deal-Only Task Guard
+        try:
+            t_chk = call_b24("tasks.task.get", {"taskId": task_id, "select": ["ID", "TASK_CONTROL", "UF_CRM_TASK"]})
+            t_data = t_chk.get("task", {}) if isinstance(t_chk, dict) else {}
+            needs_upd = {}
+            if str(t_data.get("taskControl", "")).upper() != "Y":
+                needs_upd["TASK_CONTROL"] = "Y"
+                needs_upd["SE_PARAMETER"] = [{"CODE": 2, "VALUE": "Y"}]
+            cur_uf = t_data.get("ufCrmTask") or []
+            if cur_uf != [f"D_{deal_id}"]:
+                needs_upd["UF_CRM_TASK"] = [f"D_{deal_id}"]
+            if needs_upd:
+                call_b24("tasks.task.update", {"taskId": task_id, "fields": needs_upd})
+        except Exception as e:
+            print(f"  [WARN] Ошибка пост-проверки задачи #{task_id}: {e}")
     return task_id
 
 def build_supply_task_chat_message(azat_id=None, cn_nomenclature="", brand="", model="", quantity="", equivalents_allowed=False, download_links_chat="", clean_inquiry="", resp_id=None, supply_note=""):
@@ -2604,35 +2649,47 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         # Поиск компании в lead_title и email_subject (высший приоритет, поддержка вложенных кавычек)
         if not raw_company_title or raw_company_title.strip().lower() in placeholders:
             for src_txt in [lead_title, email_subject]:
-                m_q = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s*([«"\'“”][^"\n\r«»“”]+(?:[«"\'“”][^"\n\r«»“”]+[»"\'“”])?[»"\'”]?|[^\n\r,<>]{2,40})', src_txt)
+                m_q = re.search(r'\b(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК|НИИ|ФГУП|ФНПЦ|ГНЦ)\b\s*([«"\'“”][^"\n\r«»“”]+(?:[«"\'“”][^"\n\r«»“”]+[»"\'“”])?[»"\'”]?|[^\n\r,<>]{2,40})', src_txt)
                 if m_q and is_valid_company_cand(m_q.group(0)):
                     raw_company_title = m_q.group(0).strip()
                     break
-                m_noq = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', src_txt)
+                m_noq = re.search(r'\b(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК|НИИ|ФГУП|ФНПЦ|ГНЦ)\b\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', src_txt)
                 if m_noq and is_valid_company_cand(m_noq.group(0)):
                     raw_company_title = m_noq.group(0).strip()
                     break
 
         # Поиск в общем тексте (за вычетом собственной компании LongWang, поддержка вложенных кавычек)
         if not raw_company_title or raw_company_title.strip().lower() in placeholders:
-            m_quoted = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s*([«"\'“”][^"\n\r«»“”]+(?:[«"\'“”][^"\n\r«»“”]+[»"\'“”])?[»"\'”]?|[^\n\r,<>]{2,40})', f"{clean_comments_text} {full_search_text}")
+            m_quoted = re.search(r'\b(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК|НИИ|ФГУП|ФНПЦ|ГНЦ)\b\s*([«"\'“”][^"\n\r«»“”]+(?:[«"\'“”][^"\n\r«»“”]+[»"\'“”])?[»"\'”]?|[^\n\r,<>]{2,40})', f"{clean_comments_text} {full_search_text}")
             if m_quoted and is_valid_company_cand(m_quoted.group(0)):
                 raw_company_title = m_quoted.group(0).strip()
             else:
-                m_comp = re.search(r'(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК)\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', full_search_text)
+                m_comp = re.search(r'\b(?:ООО|АО|ЗАО|ПАО|ИП|НПО|НПП|ТПК|НПК|НИИ|ФГУП|ФНПЦ|ГНЦ)\b\s+([A-Za-zА-Яа-я0-9\-_]{2,25})\b', full_search_text)
                 if m_comp and is_valid_company_cand(m_comp.group(0)):
                     raw_company_title = m_comp.group(0).strip()
                 else:
                     raw_company_title = ""
 
+        # Корпоративный email domain fallback и нормализация НИИ Полюс
+        inn = None
+        if (contact_email and "niipolyus.ru" in contact_email.lower()) or "нии полюс" in (raw_company_title or "").lower() or "нии полюс" in lead_title.lower():
+            raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
+            inn = "7728816598"
+        elif not raw_company_title or raw_company_title.strip().lower() in placeholders:
+            if contact_email and "@" in contact_email:
+                c_domain = contact_email.split("@")[-1].lower().strip()
+                if c_domain in ("niipolyus.ru", "polyus.ru"):
+                    raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
+                    inn = "7728816598"
+
     # Поиск ИНН в тексте, комментариях или теле письма (с проверкой контрольной суммы ИНН РФ)
     combined_text = f"{lead_title} {raw_company_title} {clean_comments_text} {email_subject} {clean_desc_text}"
-    inn = None
-    explicit_text_inns = re.findall(r'(?:инн|inn)[\s:№]{1,10}(\d{10}|\d{12})\b', combined_text, flags=re.IGNORECASE)
-    for cand_inn in explicit_text_inns:
-        if is_valid_russian_inn(cand_inn):
-            inn = cand_inn
-            break
+    if not inn:
+        explicit_text_inns = re.findall(r'(?:инн|inn)[\s:№]{1,10}(\d{10}|\d{12})\b', combined_text, flags=re.IGNORECASE)
+        for cand_inn in explicit_text_inns:
+            if is_valid_russian_inn(cand_inn):
+                inn = cand_inn
+                break
     if not inn:
         inn_matches = re.findall(r'(?<![A-Za-z0-9:_-])(\d{10}|\d{12})(?![A-Za-z0-9_-])', combined_text)
         for cand_inn in inn_matches:
@@ -3664,6 +3721,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     # Загрузка чистых технических вложений клиента на Диск группы 14
     uploaded_attachments = []
     for fid, fname in clean_attachments:
+        if is_prohibited_china_supply_file(fname):
+            print(f"  [HYGIENE-GUARD] Карточка организации / реквизиты '{fname}' заблокированы от загрузки на Диск и в файлы сделки/задачи!")
+            continue
         df = call_b24("disk.file.get", {"id": fid})
         dl_url = df.get("DOWNLOAD_URL") if df else None
         if dl_url:
