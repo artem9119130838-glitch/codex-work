@@ -1532,30 +1532,50 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
         "частотник": "变频器", "реле": "继电器",
         "подогреватель": "加热器", "прокладка": "垫片", "свеча": "火花塞", "свечи": "火花塞",
         "кольцо": "密封圈", "уплотнение": "密封垫", "фильтр": "滤清器", "кабель": "电缆", "комплект": "维修套件",
-        "станок": "机床", "обдирочный": "粗磨机", "доводочный": "精磨机", "полировальный": "抛光机"
+        "станок": "机床", "обдирочный": "粗磨机", "доводочный": "精磨机", "полировальный": "抛光机",
+        "канат": "钢丝绳", "манжета": "骨架油封", "сальник": "骨架油封", "мотор-редуктор": "减速电机",
+        "каретка": "直线导轨滑块", "гидроцилиндр": "液压油缸", "направляющая": "直线导轨"
     }
     text_no_quotes = strip_email_reply_quotes(text)
     # Склейка разорванных переносами артикулов (например, "GP1-\n0013R97F/20N")
     text_no_quotes = re.sub(r'([A-Za-z0-9])-\s*\r?\n+\s*([A-Za-z0-9])', r'\1-\2', text_no_quotes)
-    # Поддержка распознавания многострочных таблиц html: <номер> \n <наименование> \n <количество> \n <производитель>
+    # Поддержка распознавания многострочных таблиц html:
+    # 1. <номер> \n <наименование> \n <количество> \n <производитель>
+    # 2. <номер> \n <наименование 1> \n <наименование 2> \n <примечание> \n <количество> \n <единица>
     table_reconstructed = []
     i_ln = 0
-    raw_lines = [l.strip() for l in text_no_quotes.splitlines() if l.strip()]
+    raw_lines = [l.strip().replace('\xa0', ' ') for l in text_no_quotes.splitlines() if l.strip()]
     while i_ln < len(raw_lines):
-        if raw_lines[i_ln].isdigit() and i_ln + 2 < len(raw_lines) and raw_lines[i_ln+2].isdigit():
-            t_num = raw_lines[i_ln]
-            t_name = raw_lines[i_ln+1]
-            t_qty = raw_lines[i_ln+2]
-            t_mfg = raw_lines[i_ln+3] if (i_ln + 3 < len(raw_lines) and not raw_lines[i_ln+3].isdigit() and not re.match(r'^\d+[.)]', raw_lines[i_ln+3])) else ''
-            full_item_str = f"{t_num}. {t_name}"
-            if t_mfg and t_mfg.lower() not in t_name.lower():
-                full_item_str += f" ({t_mfg})"
-            full_item_str += f" - {t_qty} шт."
-            table_reconstructed.append(full_item_str)
-            i_ln += 4 if t_mfg else 3
-        else:
-            table_reconstructed.append(raw_lines[i_ln])
-            i_ln += 1
+        line = raw_lines[i_ln]
+        if line.isdigit() and int(line) < 100:
+            row_num = int(line)
+            found_qty = None
+            name_lines = []
+            next_idx = i_ln + 1
+            while next_idx < min(i_ln + 7, len(raw_lines)):
+                l_cand = raw_lines[next_idx]
+                m_q = re.match(r'^(\d+(?:[.,]\d+)?)$', l_cand)
+                if m_q and next_idx + 1 < len(raw_lines) and raw_lines[next_idx+1].lower() in ('шт', 'pcs', 'pc', 'ед', 'м', 'кмп'):
+                    found_qty = m_q.group(1).replace(',', '.')
+                    try:
+                        q_float = float(found_qty)
+                        q_int = int(q_float) if q_float.is_integer() else q_float
+                    except Exception:
+                        q_int = found_qty
+                    found_qty = str(q_int)
+                    i_ln = next_idx + 2
+                    break
+                elif l_cand.isdigit() and int(l_cand) == row_num + 1:
+                    break
+                else:
+                    name_lines.append(l_cand)
+                    next_idx += 1
+            if found_qty and name_lines:
+                best_name = name_lines[0]
+                table_reconstructed.append(f"{row_num}. {best_name} - {found_qty} шт.")
+                continue
+        table_reconstructed.append(line)
+        i_ln += 1
     text_no_quotes = "\n".join(table_reconstructed)
     # Склейка многострочных нумерованных позиций до строки с количеством ("1.Насос\n...\nМПа-1шт")
     raw_split_lines = [re.sub(r'\s+', ' ', l).strip() for l in text_no_quotes.split('\n')]
@@ -1619,9 +1639,9 @@ def parse_rfq_items_from_text(text: str, lead_comments: str = "", default_brand:
                 cn_cat = v
                 break
         brand = default_brand or ""
-        m_b = re.search(r'\b(ABB|Siemens|Schneider|Endress(?:\+Hauser)?|E\+H|Lenze|SMC|Festo|Omron|Danfoss|Yokogawa|WIKA|IFM|Sick|Parker|Rexroth|Eaton|Cummins|康明斯)\b', raw_name, re.IGNORECASE)
+        m_b = re.search(r'\b(ABB|Siemens|Schneider|Endress(?:\+Hauser)?|E\+H|Lenze|SMC|Festo|Omron|Danfoss|Yokogawa|WIKA|IFM|Sick|Parker|Rexroth|Eaton|Cummins|康明斯|Pfeifer|Teufelberger|Redaelli|MiMA|SBC|Presezzi|CFW|SOG|Viton|TSS)\b', raw_name, re.IGNORECASE)
         if m_b:
-            brand = m_b.group(1)
+            brand = m_b.group(1).upper()
         elif not brand:
             m_first_w = re.search(r'\b([A-Za-z0-9\-+]{2,})\b', raw_name)
             brand = m_first_w.group(1) if m_first_w else "OEM"
@@ -2670,22 +2690,31 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                 else:
                     raw_company_title = ""
 
-        # Корпоративный email domain fallback и нормализация НИИ Полюс
+        # Корпоративный email domain fallback и нормализация НИИ Полюс и ПК Реалит
         inn = None
         if (contact_email and "niipolyus.ru" in contact_email.lower()) or "нии полюс" in (raw_company_title or "").lower() or "нии полюс" in lead_title.lower():
             raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
             inn = "7728816598"
+        elif (contact_email and "realit" in contact_email.lower()) or "реалит" in (raw_company_title or "").lower() or "реалит" in lead_title.lower():
+            raw_company_title = 'ООО "ПК "РЕАЛИТ"'
+            inn = "5030091075"
         elif not raw_company_title or raw_company_title.strip().lower() in placeholders:
             if contact_email and "@" in contact_email:
                 c_domain = contact_email.split("@")[-1].lower().strip()
                 if c_domain in ("niipolyus.ru", "polyus.ru"):
                     raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
                     inn = "7728816598"
+                elif "realit" in c_domain:
+                    raw_company_title = 'ООО "ПК "РЕАЛИТ"'
+                    inn = "5030091075"
 
     # Поиск ИНН в тексте, комментариях или теле письма (с проверкой контрольной суммы ИНН РФ)
     combined_text = f"{lead_title} {raw_company_title} {clean_comments_text} {email_subject} {clean_desc_text}"
     if not inn:
         explicit_text_inns = re.findall(r'(?:инн|inn)[\s:№]{1,10}(\d{10}|\d{12})\b', combined_text, flags=re.IGNORECASE)
+        # Также поиск ИНН в идентификаторах ЭДО (например, 2BM-5030091075-...)
+        edo_inns = re.findall(r'\b2BM-(\d{10}|\d{12})-\b', combined_text, flags=re.IGNORECASE)
+        explicit_text_inns.extend(edo_inns)
         for cand_inn in explicit_text_inns:
             if is_valid_russian_inn(cand_inn):
                 inn = cand_inn

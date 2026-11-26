@@ -10,4 +10,6 @@
 | `2026-10-07_llm_service_v1_before_framework_fix.py` | 07.10.2026 | `app/services/llm_service.py` | Снимок перед внедрением Value-Driven B2B Framework, ликвидацией скидок 10% и дедлайнов. |
 | `2026-10-07_run_daily_reactivation_v3_before_framework_fix.py` | 07.10.2026 | `app/run_daily_reactivation.py` | Снимок перед интеграцией Intent Classification Gate и проверки активных заказов. |
 | `2026-10-07_test_pilot_reactivation_v2_before_framework_fix.py` | 07.10.2026 | `scripts/test_pilot_reactivation.py` | Снимок перед ограничением срока КП 45 днями и Quality Gate 3. |
+| `2026-11-26_llm_service_v2_before_cold_leads_overhaul.py` | 26.11.2026 | `app/services/llm_service.py` | Снимок перед модернизацией генерации для старых/холодных лидов 1С (устранение спам-клонов SMC/Danfoss/Caterpillar). |
+| `2026-11-26_run_daily_reactivation_v4_before_cold_leads_overhaul.py` | 26.11.2026 | `app/run_daily_reactivation.py` | Снимок конвейера перед внедрением ротации статей Приоритета 1 и расширением квоты до 10 лидов. |
 | `vps_current_*.py` | 07.10.2026 | VPS production mirror | Зеркальные копии боевых файлов, снятые прямо с контейнера VPS перед деплоем исправлений. |

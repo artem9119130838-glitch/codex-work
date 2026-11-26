@@ -93,11 +93,15 @@ def select_relevant_non_repeating_article(db, email: str, articles: list, query_
     
     if p1_candidates:
         logger.info(f"Выбор из Приоритета 1 (кейсы + 2 статьи): доступно {len(p1_candidates)} неотправленных для {email}.")
-        if query_context:
+        if query_context and any(w in query_context.lower() for w in ["насос", "станок", "завод", "клапан", "датчик", "гидравлик", "пневматик", "электро", "мед", "спорт", "авто", "горн", "бурен"]):
             best = find_best_article(p1_candidates, query_context)
-            logger.info(f"Подобрана статья/кейс Приоритета 1: '{best.get('title')}'")
+            logger.info(f"Подобрана статья/кейс Приоритета 1 по контексту: '{best.get('title')}'")
             return best
-        return p1_candidates[0]
+        # Псевдослучайное распределение по хешу email среди всех неотправленных кандидатов Приоритета 1
+        idx = int(hashlib.md5(email.encode('utf-8')).hexdigest(), 16) % len(p1_candidates)
+        best = p1_candidates[idx]
+        logger.info(f"Подобрана статья/кейс Приоритета 1 по ротации ({idx+1}/{len(p1_candidates)}): '{best.get('title')}'")
+        return best
         
     # 3. Пул Приоритета 2 (только если все материалы Приоритета 1 уже были отправлены)
     p2_candidates = [art for art in articles if not is_priority_1_article(art["url"]) and (art["url"].rstrip('/') + '/') not in sent_urls]
@@ -466,7 +470,8 @@ def process_single_client_funnel_step(db, email, step_num, cand, contact_1c, own
         step_num=step_num,
         force_provider=force_provider,
         has_sent_partnership_prelude=has_sent_partnership_prelude,
-        price_objection_text=price_obj_text
+        price_objection_text=price_obj_text,
+        client_email=email
     )
     
     # Clean double signatures
