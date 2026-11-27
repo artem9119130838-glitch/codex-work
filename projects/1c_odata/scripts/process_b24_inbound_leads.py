@@ -119,11 +119,12 @@ def sanitize_html_email_text(raw_html: str) -> str:
     Глубокая санитизация HTML-текста входящего письма (Clean Text & Anti-CSS Guard):
     1. Полностью вырезает блоки <style>, <xml>, <head>, <script> вместе с их содержимым;
     2. Удаляет условные комментарии Microsoft Office/Word (<!--[if ...]>...<![endif]-->);
-    3. Заменяет теги переносов (<p>, <br>, <div>, <tr>, <li>) на реальные переносы строк;
-    4. Удаляет все оставшиеся HTML-теги;
-    5. Декодирует сущности HTML (unescape);
-    6. Удаляет остаточные висячие CSS-конструкции вида v\\:* {...};
-    7. Нормализует пробелы и пустые строки.
+    3. Структурирует HTML-таблицы (<table>...<tr>...<td>) в аккуратные строки номенклатуры;
+    4. Заменяет теги переносов (<p>, <br>, <div>, <tr>, <li>) на реальные переносы строк;
+    5. Удаляет все оставшиеся HTML-теги;
+    6. Декодирует сущности HTML (unescape);
+    7. Удаляет остаточные висячие CSS-конструкции вида v\\:* {...};
+    8. Нормализует пробелы и пустые строки.
     """
     if not raw_html:
         return ""
@@ -133,6 +134,51 @@ def sanitize_html_email_text(raw_html: str) -> str:
     text = re.sub(r'<head[^>]*>.*?</head>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r'<script[^>]*>.*?</script>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r'<!--.*?-->', ' ', text, flags=re.DOTALL)
+
+    # Умная реконструкция HTML-таблиц спецификаций перед удалением тегов
+    if '<table' in text.lower():
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(text, 'html.parser')
+            for table in soup.find_all('table'):
+                table_lines = []
+                for tr in table.find_all('tr'):
+                    cells = [re.sub(r'\s+', ' ', td.get_text(strip=True)) for td in tr.find_all(['td', 'th']) if td.get_text(strip=True)]
+                    if not cells:
+                        continue
+                    # 4 колонки: [наименование, примечание/чертеж, ед_изм, количество]
+                    if len(cells) == 4:
+                        c0, c1, c2, c3 = cells
+                        if c3.replace(',', '.').replace('.', '').isdigit() and c2.lower() in ('шт', 'шт.', 'pcs', 'ед', 'кмп', 'м'):
+                            table_lines.append(f"{c0} ({c1}) - {c3} {c2}.")
+                        elif c2.replace(',', '.').replace('.', '').isdigit() and c3.lower() in ('шт', 'шт.', 'pcs', 'ед', 'кмп', 'м'):
+                            table_lines.append(f"{c0} ({c1}) - {c2} {c3}.")
+                        elif c0.isdigit():
+                            table_lines.append(f"{c0}. {c1} - {c2} {c3}.")
+                        else:
+                            table_lines.append(" | ".join(cells))
+                    # 3 колонки: [наименование, ед_изм, количество] или [наименование, количество, ед_изм]
+                    elif len(cells) == 3:
+                        c0, c1, c2 = cells
+                        if c2.replace(',', '.').replace('.', '').isdigit() and c1.lower() in ('шт', 'шт.', 'pcs', 'ед', 'кмп', 'м'):
+                            table_lines.append(f"{c0} - {c2} {c1}.")
+                        elif c1.replace(',', '.').replace('.', '').isdigit() and c2.lower() in ('шт', 'шт.', 'pcs', 'ед', 'кмп', 'м'):
+                            table_lines.append(f"{c0} - {c1} {c2}.")
+                        else:
+                            table_lines.append(" | ".join(cells))
+                    # 2 колонки: [наименование, количество с ед_изм]
+                    elif len(cells) == 2:
+                        c0, c1 = cells
+                        table_lines.append(f"{c0} - {c1}")
+                    else:
+                        table_lines.append(" | ".join(cells))
+
+                table_text = "\n" + "\n".join(table_lines) + "\n"
+                table.replace_with(soup.new_string(table_text))
+            text = str(soup)
+        except Exception:
+            pass
+
     text = re.sub(r'</?(?:p|div|tr|br|li|h[1-6])[^>]*>', '\n', text, flags=re.IGNORECASE)
     text = re.sub(r'<[^>]+>', ' ', text)
     text = unescape(text)
@@ -745,8 +791,8 @@ def get_client_inquiry_history(b24_company_id=None, b24_contact_id=None, onec_ke
 
     total_inquiries = max(onec_events_count, b24_acts_count, onec_other_count)
     is_existing_customer = bool(onec_invoices_count > 0 or onec_orders_count > 0 or b24_deals_won > 0)
-    # Маркер 1: >= 3 обращений в истории при 0 закрытых сделок и 0 отгрузок
-    is_ghost_reseller = bool(total_inquiries >= 3 and not is_existing_customer)
+    # Маркер 1: >= 4 обращений в истории при 0 закрытых сделок и 0 отгрузок (Inquiry Threshold Guard)
+    is_ghost_reseller = bool(total_inquiries >= 4 and not is_existing_customer)
 
     # Статус исторического лида 1С (Former Leads Invariant)
     is_former_junk_lead = bool(lead_1c and lead_1c.get("_is_former_junk"))
@@ -3090,10 +3136,9 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         lead_comments=lead_comments
     )
 
-    # 1. 100% перепродажник/трейдер (Kraftmann, дилеры по названию/почте, тег 'Перепродажники' в 1С, либо объективное срабатывание Guard по 2+ факторам)
+    # 1. 100% перепродажник/трейдер по названию/почте (Kraftmann, дилеры по названию/почте)
     reseller_keywords = ["kraftmann", "дилер", "дистрибьютор", "трейдер", "комплектатор"]
-    is_explicit_reseller = ("Перепродажники" in contractor_tags) or \
-                           any(rk in company_title.lower() or rk in (contact_email or "").lower() for rk in reseller_keywords)
+    is_explicit_reseller = any(rk in company_title.lower() or rk in (contact_email or "").lower() for rk in reseller_keywords)
 
     # Детальный расчет маркеров перепродажника и сборщика КП
     is_tender_sbis = bool("Тендеры" in contractor_tags or (saby_info and (saby_info.get("tenders") or saby_info.get("goszakupki"))))
@@ -3113,17 +3158,6 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     elif inquiry_hist.get("is_former_buyer_lead"):
         reseller_signals.append(f"Ранее лид в 1С:УНФ успешно переведен в покупатели (Код {inquiry_hist['lead_1c_code']})")
 
-    # Решение по перепродажнику (Existing Customer Invariant):
-    if is_existing_cust:
-        # Если есть отгрузки в 1С (Расходные накладные), клиент является проверенным действующим покупателем
-        # Подозрение в перепродаже и тендерный штраф за должность снимаются
-        is_reseller_firm = False
-        is_guard_triggered = False
-        reseller_signals = [s for s in reseller_signals if "должность" not in s.lower() and "тендер" not in s.lower()]
-    else:
-        is_reseller_firm = is_hist_marker or is_explicit_reseller or is_guard_triggered
-    is_reseller = is_reseller_firm or ("Перепродажники" in contractor_tags)
-
     # 2. Огромная сборная заявка (> 5-7 позиций или спецификация во вложении)
     gpt_items_count = 0
     m_order_c = re.search(r'(?:заказ|перечень позиций):\s*([^\n\r]+)', lead_comments, flags=re.IGNORECASE)
@@ -3131,6 +3165,24 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
         order_line_c = m_order_c.group(1).strip()
         gpt_items_count = len([x for x in order_line_c.split(',') if x.strip()])
     is_bulk_request = is_huge_excel_bulk or (gpt_items_count >= 6) or any("объемная сборная спецификация" in s.lower() for s in reseller_signals)
+
+    total_inquiries = inquiry_hist.get("total_inquiries", 0)
+
+    # Решение по перепродажнику (Existing Customer & Inquiry Threshold Invariant):
+    if is_existing_cust:
+        # Если есть отгрузки в 1С (Расходные накладные), клиент является проверенным действующим покупателем
+        # Подозрение в перепродаже и тендерный штраф за должность снимаются
+        is_reseller_firm = False
+        is_guard_triggered = False
+        reseller_signals = [s for s in reseller_signals if "должность" not in s.lower() and "тендер" not in s.lower()]
+    elif total_inquiries < 4 and not is_explicit_reseller and not is_bulk_request:
+        # Если у клиента < 4-5 обращений в истории (новый или повторный лид) и запрос конкретный (не солянка > 6-7 позиций):
+        # подозрение по ОКВЭД 46 / тендерам СБИС не блокирует запуск в расчет
+        is_reseller_firm = False
+        is_guard_triggered = False
+    else:
+        is_reseller_firm = is_hist_marker or is_explicit_reseller or is_guard_triggered
+    is_reseller = is_reseller_firm or ("Перепродажники" in contractor_tags)
 
     # Защита производственных предприятий и реального сектора (OEM Real Sector Exemption):
     # Если предприятие подтверждено как Производство/Реальный сектор в СБИС/DaData и не является перепродажником:
