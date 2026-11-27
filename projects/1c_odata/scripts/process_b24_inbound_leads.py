@@ -1212,6 +1212,7 @@ def translate_nomenclature_to_chinese(title: str, email_subject: str = "", email
                     res_data = json.loads(resp.read().decode("utf-8"))
                     text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
                     clean_text = text.replace('"', '').replace("'", "").replace("`", "").strip()
+                    clean_text = re.sub(r'^\(?без\s+бренда\)?\s*', '', clean_text, flags=re.IGNORECASE).strip()
                     clean_text = " / ".join([line.strip() for line in clean_text.splitlines() if line.strip()])
                     if clean_text:
                         # Anti-Hallucination Guard: удаляем алфавитно-цифровые артикулы, отсутствующие в исходной заявке
@@ -1819,7 +1820,8 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
                 detected_brand = kb
                 break
 
-    clean_nom = re.sub(r'^(?:re:\s*|fwd:\s*|запрос(?:\s+на)?\s+|заявка(?:\s+на)?\s+|кп\s+|счет\s+|тз(?:\s+на)?\s+)+', '', cn_nomenclature, flags=re.IGNORECASE).strip()
+    clean_nom = re.sub(r'^(?:re:\s*|fwd:\s*|запрос(?:\s+на)?\s+|заявка(?:\s+на)?\s+|кп\s+|счет\s+|тз(?:\s+на)?\s+|\(?без\s+бренда\)?\s*)+', '', cn_nomenclature, flags=re.IGNORECASE).strip()
+    cn_nomenclature = clean_nom
     parts = clean_nom.split()
 
     if "epm-120" in f"{title} {email_subject} {clean_text}".lower():
@@ -1835,8 +1837,13 @@ def extract_rfq_procurement_details(title: str, email_subject: str = "", email_d
         rem_parts = [p for p in parts if p.upper() != brand.upper()]
         model = " ".join(rem_parts) if rem_parts else clean_nom
     else:
-        brand = parts[0] if parts else "Не указан"
-        model = " ".join(parts[1:]) if len(parts) >= 2 else ""
+        if parts and any(ord(c) > 0x4e00 for c in parts[0]):
+            brand = "OEM"
+            non_cn = [p for p in parts if not any(ord(c) > 0x4e00 for c in p)]
+            model = " ".join(non_cn) if non_cn else clean_nom
+        else:
+            brand = parts[0] if parts else "Не указан"
+            model = " ".join(parts[1:]) if len(parts) >= 2 else ""
 
     # 5. Парсинг позиций заявки с жестким контролем Zero-Hallucination RFQ Positions Guard
     items = parse_rfq_items_from_text(clean_lines_text, lead_comments=lead_comments, default_brand=brand)
@@ -2648,6 +2655,7 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     clean_desc_text = sanitize_html_email_text(email_desc or '')
     clean_comments_text = sanitize_html_email_text(lead_comments or '')
     full_search_text = f"{lead_title} {clean_desc_text} {clean_comments_text}"
+    inn = None
 
     own_company_stopwords = {'лун-ван', 'лун ван', 'longwang', 'long wang', 'longwang.ru'}
     def is_valid_company_cand(c_str):
@@ -2691,22 +2699,22 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
                     raw_company_title = ""
 
         # Корпоративный email domain fallback и нормализация НИИ Полюс и ПК Реалит
-        inn = None
-        if (contact_email and "niipolyus.ru" in contact_email.lower()) or "нии полюс" in (raw_company_title or "").lower() or "нии полюс" in lead_title.lower():
-            raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
-            inn = "7728816598"
-        elif (contact_email and "realit" in contact_email.lower()) or "реалит" in (raw_company_title or "").lower() or "реалит" in lead_title.lower():
-            raw_company_title = 'ООО "ПК "РЕАЛИТ"'
-            inn = "5030091075"
-        elif not raw_company_title or raw_company_title.strip().lower() in placeholders:
-            if contact_email and "@" in contact_email:
-                c_domain = contact_email.split("@")[-1].lower().strip()
-                if c_domain in ("niipolyus.ru", "polyus.ru"):
-                    raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
-                    inn = "7728816598"
-                elif "realit" in c_domain:
-                    raw_company_title = 'ООО "ПК "РЕАЛИТ"'
-                    inn = "5030091075"
+        if not inn:
+            if (contact_email and "niipolyus.ru" in contact_email.lower()) or "нии полюс" in (raw_company_title or "").lower() or "нии полюс" in lead_title.lower():
+                raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
+                inn = "7728816598"
+            elif (contact_email and "realit" in contact_email.lower()) or "реалит" in (raw_company_title or "").lower() or "реалит" in lead_title.lower():
+                raw_company_title = 'ООО "ПК "РЕАЛИТ"'
+                inn = "5030091075"
+            elif not raw_company_title or raw_company_title.strip().lower() in placeholders:
+                if contact_email and "@" in contact_email:
+                    c_domain = contact_email.split("@")[-1].lower().strip()
+                    if c_domain in ("niipolyus.ru", "polyus.ru"):
+                        raw_company_title = 'АО "НИИ "Полюс" им. М.Ф. Стельмаха"'
+                        inn = "7728816598"
+                    elif "realit" in c_domain:
+                        raw_company_title = 'ООО "ПК "РЕАЛИТ"'
+                        inn = "5030091075"
 
     # Поиск ИНН в тексте, комментариях или теле письма (с проверкой контрольной суммы ИНН РФ)
     combined_text = f"{lead_title} {raw_company_title} {clean_comments_text} {email_subject} {clean_desc_text}"
@@ -2902,14 +2910,25 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             dadata_token = os.getenv("DADATA_TOKEN", "")
             if dadata_token:
                 h = {"Authorization": f"Token {dadata_token}", "Content-Type": "application/json"}
-                r_sug = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", json={"query": raw_company_title, "count": 1}, headers=h, timeout=5)
+                m_city = re.search(r'(?:г\.|город)\s*([А-Яа-я\-]{3,30})', combined_text, re.IGNORECASE)
+                cand_city = m_city.group(1).lower().strip() if m_city else ""
+                r_sug = requests.post("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", json={"query": raw_company_title, "count": 10}, headers=h, timeout=5)
                 if r_sug.status_code == 200:
                     suggs = r_sug.json().get("suggestions", [])
-                    if suggs:
-                        sugg_data = suggs[0].get("data", {})
+                    chosen_sugg = None
+                    if cand_city:
+                        for s in suggs:
+                            s_addr = (s.get("data", {}).get("address", {}).get("value", "")).lower()
+                            if cand_city in s_addr:
+                                chosen_sugg = s
+                                break
+                    if not chosen_sugg and suggs:
+                        chosen_sugg = suggs[0]
+                    if chosen_sugg:
+                        sugg_data = chosen_sugg.get("data", {})
                         inn = sugg_data.get("inn") or inn
                         short_name = (sugg_data.get("name") or {}).get("short_with_opf")
-                        found_name = short_name or suggs[0].get("value")
+                        found_name = short_name or chosen_sugg.get("value")
                         if found_name and (not raw_company_title or raw_company_title.lower() in placeholders or len(raw_company_title) < len(found_name)):
                             found_name = found_name.split(",")[0].strip()
                             raw_company_title = found_name
@@ -3504,7 +3523,12 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
     else:
         # Очистка названия от повторов и сырых префиксов почты (Deal & Task Naming Invariant)
         clean_subj = re.sub(r'^(?:re:\s*|fwd:\s*|fw:\s*|запрос(?:\s+на)?\s+|заявка(?:\s+на)?\s+|кп\s+|счет\s+|тз(?:\s+на)?\s+)+', '', str(lead_title or email_subject or ''), flags=re.IGNORECASE).strip()
+        clean_subj = re.sub(r'<[^>]+>', '', clean_subj).strip()
+        if contact_name and len(contact_name) >= 3:
+            clean_subj = re.sub(r'\b' + re.escape(contact_name) + r'\b', '', clean_subj, flags=re.IGNORECASE).strip()
+        clean_subj = re.sub(r'^поставки(?=[А-Яа-яA-Za-z])', 'Поставка ', clean_subj).strip()
         clean_subj = re.sub(r'(?:\s+для\s+[а-яёa-z]+)+$', '', clean_subj, flags=re.IGNORECASE).strip()
+        clean_subj = re.sub(r'\s{2,}', ' ', clean_subj).strip(" ,-")
 
         # Если бренд/модель содержат китайские иероглифы, выделяем чистую латиницу/цифры во 2-ю часть
         if any(ord(c) > 0x4e00 for c in (brand_extracted or '')) or any(ord(c) > 0x4e00 for c in (model_extracted or '')):
@@ -3512,6 +3536,8 @@ def process_single_lead(lead_id: int, dry_run: bool = False, deadline_today: boo
             bm_cand = latin_bm if latin_bm else (brand_extracted or 'OEM')
         else:
             bm_cand = f'{brand_extracted} {model_extracted}'.strip() if (brand_extracted and brand_extracted != 'OEM') else (clean_subj or 'Оборудование')
+        bm_cand = re.sub(r'^\(?без\s+бренда\)?\s*', '', bm_cand, flags=re.IGNORECASE).lstrip(" -").strip()
+        cn_nomenclature = re.sub(r'^\(?без\s+бренда\)?\s*', '', str(cn_nomenclature or ''), flags=re.IGNORECASE).strip()
 
         if brand_extracted == 'Baumer':
             ru_cand = f'Инкрементальный энкодер Baumer ({qty_str})'
