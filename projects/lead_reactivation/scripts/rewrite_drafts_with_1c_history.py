@@ -62,17 +62,111 @@ def get_imap_credentials():
                 pass
     return user, password, imap_host
 
-def create_raw_email(subject: str, body: str, recipient: str, user: str) -> bytes:
+def extract_best_historical_quote(events: list[dict], email: str, client_name: str, company_name: str) -> tuple[str, str]:
+    """
+    Извлекает наиболее репрезентативное предыдущее сообщение из 1С:УНФ и формирует HTML-цитату <blockquote>
+    Возвращает (quote_html, orig_msg_id)
+    """
+    if not events:
+        return "", None
+
+    # Фильтруем события: разделяем на входящие от клиента и наши исходящие
+    client_incoming_events = []
+    outbound_events = []
+
+    for ev in events:
+        content = (ev.get("content") or "").strip()
+        subj = (ev.get("subject") or "").strip()
+        if not content and not subj:
+            continue
+        
+        # Пропускаем шаблонные новогодние рассылки
+        if any(h in subj.lower() or h in content.lower() for h in ["с наступающим новым годом", "команда longwang llc поздравляет"]):
+            continue
+
+        first_line = content[:150].lower()
+        is_our_letter = any(p in first_line for p in [
+            "с уважением, артем", "с уважением, петров", "longwang", "лун-ван",
+            "заказывать будем из китая", "спешим сообщить об открытии", "я проверяю качество работы"
+        ])
+
+        if not is_our_letter and len(content) > 10:
+            client_incoming_events.append(ev)
+        else:
+            outbound_events.append(ev)
+
+    # Приоритет: последнее входящее от клиента
+    chosen_ev = None
+    is_client = True
+    if client_incoming_events:
+        chosen_ev = client_incoming_events[-1]
+    elif outbound_events:
+        chosen_ev = outbound_events[-1]
+        is_client = False
+    else:
+        chosen_ev = events[-1]
+
+    raw_content = chosen_ev.get("content") or chosen_ev.get("subject") or ""
+    # Очищаем подписи LongWang, если попали
+    clean_content = re.sub(r'(?i)(?:с уважением, артем|longwang|лун-ван|тел\.\s*\+7|sales@longwang\.ru).*$', '', raw_content, flags=re.DOTALL).strip()
+    
+    # Очищаем длинные внутренние цепочки цитирования внутри старого письма
+    clean_content = re.split(r'(?i)----------------\s*Кому:|(?:<br\s*/?>|\n)\s*(?:[0-9]{2}\.[0-9]{2}\.[0-9]{4}|[0-9]{1,2}\s+[а-яё]+\s+[0-9]{4}).*?написал\(а\):', clean_content)[0].strip()
+
+    # Дата события
+    raw_date = chosen_ev.get("date", "")
+    try:
+        dt = datetime.datetime.fromisoformat(str(raw_date).replace("Z", ""))
+        date_str = dt.strftime("%d.%m.%Y, %H:%M")
+    except Exception:
+        date_str = str(raw_date)[:16]
+
+    # Имя отправителя
+    if is_client:
+        sender_name = client_name or company_name or email
+        sender_display = f"{sender_name} &lt;{email}&gt;"
+    else:
+        sender_display = "LongWang &lt;sales@longwang.ru&gt;"
+
+    ref_key = chosen_ev.get("ref_key") or "1c_event"
+    orig_msg_id = f"1c_event_{ref_key}@longwang.ru"
+
+    # Формируем строки с префиксом '> '
+    lines = [l.strip() for l in clean_content.split('\n') if l.strip()]
+    quoted_lines = [f"&gt; {l}" for l in lines[:12]]
+    if not quoted_lines:
+        quoted_lines = [f"&gt; {chosen_ev.get('subject', 'Запрос оборудования')}"]
+
+    quote_body = f"{date_str}, {sender_display} написал(а):<br>\n" + "<br>\n".join(quoted_lines)
+
+    quote_html = f"""<br><br>
+<blockquote type="cite" style="border-left: 2px solid #3b82f6; margin-left: 5px; padding-left: 10px; color: #475569; font-style: normal;">
+{quote_body}
+</blockquote>"""
+
+    return quote_html, orig_msg_id
+
+def create_raw_email(subject: str, body: str, recipient: str, user: str, quote_html: str = "", orig_msg_id: str = None) -> bytes:
     normalized = body.strip().replace('\r\n', '\n').replace('\r', '\n')
     normalized = re.sub(r'\n{3,}', '\n\n', normalized)
     paragraphs = normalized.split('\n\n')
     formatted_paragraphs = [p.strip().replace('\n', '<br>') for p in paragraphs if p.strip()]
     html_body = '<br><br>\n'.join(formatted_paragraphs)
 
+    # Прикрепляем цитату переписки снизу
+    if quote_html:
+        html_body += f"\n{quote_html}"
+
     msg = PyEmailMessage()
     msg['Subject'] = subject
     msg['From'] = user
     msg['To'] = recipient
+    
+    if orig_msg_id:
+        clean_id = str(orig_msg_id).strip().strip('<>')
+        msg['In-Reply-To'] = f"<{clean_id}>"
+        msg['References'] = f"<{clean_id}>"
+
     msg.set_content(html_body, subtype='html')
 
     pdf_paths = [
@@ -97,8 +191,8 @@ def create_raw_email(subject: str, body: str, recipient: str, user: str) -> byte
 
     return msg.as_bytes()
 
-def replace_draft_in_imap_with_retries(user, password, imap_host, draft_folder, old_uid, subject, body_with_sig, email, max_retries=3):
-    raw_bytes = create_raw_email(subject, body_with_sig, email, user)
+def replace_draft_in_imap_with_retries(user, password, imap_host, draft_folder, old_uid, subject, body_with_sig, email, quote_html="", orig_msg_id=None, max_retries=3):
+    raw_bytes = create_raw_email(subject, body_with_sig, email, user, quote_html=quote_html, orig_msg_id=orig_msg_id)
     for attempt in range(1, max_retries + 1):
         try:
             with MailBox(imap_host).login(user, password) as mailbox:
@@ -110,9 +204,9 @@ def replace_draft_in_imap_with_retries(user, password, imap_host, draft_folder, 
                     except Exception as del_err:
                         logger.warning(f"Old draft delete notice: {del_err}")
                 
-                logger.info(f"Uploading new draft to IMAP {draft_folder} for {email}...")
+                logger.info(f"Uploading new draft (with quote & threading) to IMAP {draft_folder} for {email}...")
                 mailbox.append(raw_bytes, folder=draft_folder)
-                logger.info(f"Successfully saved draft for {email} to IMAP {draft_folder}")
+                logger.info(f"Successfully saved draft with quote for {email} to IMAP {draft_folder}")
                 return True
         except Exception as e:
             logger.warning(f"IMAP save attempt {attempt} failed for {email}: {e}")
@@ -120,7 +214,7 @@ def replace_draft_in_imap_with_retries(user, password, imap_host, draft_folder, 
     return False
 
 def main():
-    logger.info("=== STARTING ROBUST REWRITE OF 11 DRAFTS WITH 1C HISTORY & ENRICHMENT ===")
+    logger.info("=== STARTING REWRITE OF 11 DRAFTS WITH 1C HISTORY QUOTES & THREADING ===")
     user, password, imap_host = get_imap_credentials()
     db = SessionLocal()
     events_svc = OnecEventsService(db)
@@ -167,18 +261,11 @@ def main():
                     if owner:
                         company_name = owner.owner_name or ""
 
-            # Step A: Fetch 1C Document_Событие events
+            # Fetch 1C events (already synced in previous run or loads from snapshot)
             events = events_svc.fetch_events_for_email(email)
             logger.info(f"Found {len(events)} 1C events for {email}")
-            
-            # Step B: Sync to EmailMessage & EmailMatchResult
-            saved_count = events_svc.sync_events_to_db(email, events)
-            logger.info(f"Synced {saved_count} new events into DB for {email}")
 
-            # Step C: Enrich ClientIntel via LLM
-            intel = events_svc.enrich_client_intel_from_1c_events(email, events, company_name=company_name)
-            
-            # Parse summaries
+            intel = db.query(ClientIntel).filter(ClientIntel.email == email).first()
             contact_summary_dict = {}
             company_summary_dict = {}
             if intel and intel.ai_summary:
@@ -189,12 +276,10 @@ def main():
                 except Exception:
                     pass
 
-            # Determine client name
             extracted_name = contact_summary_dict.get("extracted_person_name") or ""
             if not extracted_name or extracted_name.lower() in ["клиент", "коллега", "менеджер", "не указано"]:
                 extracted_name = contact_raw_name
             
-            # Clean client name
             client_name = extracted_name.strip()
             if client_name and any(x in client_name.lower() for x in ["ооо", "ао", "зао", "ип", "хлеб", "инжиниринг"]):
                 parts = client_name.split()
@@ -203,18 +288,20 @@ def main():
                 else:
                     client_name = ""
 
-            # Check price objection
             price_obj_text = None
             failed_reason = str(contact_summary_dict.get("reason_deal_failed", "")).lower()
             hist_notes = str(contact_summary_dict.get("interaction_history", "")).lower()
             if any(w in failed_reason or w in hist_notes for w in ["дорого", "цена космос", "высокая цена", "превысил бюджет", "по цене не прошли"]):
                 price_obj_text = "предыдущее предложение превышало бюджет / высокая цена"
 
-            # Best article
             skus_str = str(contact_summary_dict.get("skus_and_amounts") or "")
             best_art = find_best_article(articles, f"{skus_str} {hist_notes}")
 
-            # STEP D: Generate draft content
+            # Формируем цитату переписки из 1С
+            quote_html, orig_msg_id = extract_best_historical_quote(events, email, client_name, company_name)
+            logger.info(f"Built quote for {email} (Length: {len(quote_html)}, In-Reply-To: {orig_msg_id})")
+
+            # Генерация текста письма
             if email == "equipment@arzamas-hleb.ru":
                 subject = "КП по коллектору токосъемника Kubler и энкодерам"
                 body = """Здравствуйте, Александр Алексеевич!
@@ -225,63 +312,61 @@ def main():
 
 Если вопрос с токосъемниками или другими комплектующими для линии еще открыт, направьте, пожалуйста, маркировки или требования — сделаем свежий расчет и предложим оптимальные варианты."""
             else:
-                logger.info(f"Generating LLM draft for {email} with enriched 1C context...")
-                gen_body, gen_subj = llm_service.generate_reactivation_draft(
-                    contact_summary=contact_summary_dict,
-                    company_summary=company_summary_dict,
-                    is_buyer=False,
-                    article_title=best_art["title"],
-                    article_url=best_art["url"],
-                    article_desc=best_art["desc"],
-                    style="case_sharing",
-                    client_name=client_name or "Коллега",
-                    company_name=company_name,
-                    previous_email_context=hist_notes,
-                    step_num=1,
-                    force_provider=None,
-                    has_sent_partnership_prelude=False,
-                    price_objection_text=price_obj_text,
-                    client_email=email
-                )
-                
-                # Subject formatting
-                skus_text = str(contact_summary_dict.get("skus_and_amounts") or "")
-                subject = format_b2b_subject("", gen_subj, company_name, client_name or "Коллега", skus_text)
-                body = gen_body
+                # Используем ранее сохраненный текст из истории (чтобы не жечь лимиты LLM без нужды)
+                hist_record = db.query(ClientReactivationHistory).filter(
+                    ClientReactivationHistory.client_email == email
+                ).order_by(ClientReactivationHistory.sent_at.desc()).first()
 
-            # Clean trailing signatures
+                if hist_record and hist_record.body and len(hist_record.body.strip()) > 50:
+                    logger.info(f"Reusing verified high-quality body from ClientReactivationHistory for {email}")
+                    body = hist_record.body
+                    subject = hist_record.subject
+                else:
+                    logger.info(f"Generating LLM draft for {email} with enriched 1C context...")
+                    gen_body, gen_subj = llm_service.generate_reactivation_draft(
+                        contact_summary=contact_summary_dict,
+                        company_summary=company_summary_dict,
+                        is_buyer=False,
+                        article_title=best_art["title"],
+                        article_url=best_art["url"],
+                        article_desc=best_art["desc"],
+                        style="case_sharing",
+                        client_name=client_name or "Коллега",
+                        company_name=company_name,
+                        previous_email_context=hist_notes,
+                        step_num=1,
+                        force_provider=None,
+                        has_sent_partnership_prelude=False,
+                        price_objection_text=price_obj_text,
+                        client_email=email
+                    )
+                    skus_text = str(contact_summary_dict.get("skus_and_amounts") or "")
+                    subject = format_b2b_subject("", gen_subj, company_name, client_name or "Коллега", skus_text)
+                    body = gen_body
+
+            # Чистим подпись
             body = re.sub(r'(?i)<br\s*/?>\s*(?:с уважением|с наилучшими пожеланиями|искренне ваш|с уважением, менеджер по продажам|с уважением, Артем).*$', '', body, flags=re.DOTALL)
             body = re.sub(r'(?i)(?:с уважением|с наилучшими пожеланиями|искренне ваш|с уважением, менеджер по продажам|с уважением, Артем).*$', '', body, flags=re.DOTALL).strip()
             body_with_signature = body + "\n" + SIGNATURE_HTML
 
-            # STEP E: Save draft to IMAP with retries
+            # Сохранение в IMAP с заменой и цитатой
             old_info = drafts_by_email.get(email)
             old_uid = old_info["uid"] if old_info else None
             saved = replace_draft_in_imap_with_retries(
                 user, password, imap_host, draft_folder,
-                old_uid, subject, body_with_signature, email
+                old_uid, subject, body_with_signature, email,
+                quote_html=quote_html, orig_msg_id=orig_msg_id
             )
 
             if saved:
-                logger.info(f"SUCCESS: Draft saved for {email}")
-                hist = ClientReactivationHistory(
-                    client_email=email,
-                    article_url=best_art["url"],
-                    sent_at=datetime.datetime.utcnow(),
-                    template_used="1c_history_enriched_step_1",
-                    subject=subject,
-                    body=body
-                )
-                db.add(hist)
-                db.commit()
-                
+                logger.info(f"SUCCESS: Draft with quote saved for {email}")
                 results.append({
                     "email": email,
                     "client_name": client_name or "Без имени",
                     "company": company_name or "—",
-                    "events_count": len(events),
                     "subject": subject,
-                    "body_preview": body[:180] + "..."
+                    "has_quote": bool(quote_html),
+                    "in_reply_to": orig_msg_id
                 })
             else:
                 logger.error(f"FAILED saving draft for {email}")
@@ -293,16 +378,16 @@ def main():
     db.close()
     
     # Save final report to JSON
-    report_path = "/app/docs/REWRITE_DRAFTS_REPORT.json"
+    report_path = "/app/docs/REWRITE_DRAFTS_WITH_QUOTES_REPORT.json"
     try:
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
-        logger.info(f"Saved rewrite report to {report_path} (Total processed: {len(results)})")
+        logger.info(f"Saved rewrite report with quotes to {report_path} (Total processed: {len(results)})")
     except Exception as e:
         logger.warning(f"Could not save report file: {e}")
 
-    logger.info("=== FINISHED REWRITING ALL DRAFTS ===")
+    logger.info("=== FINISHED REWRITING ALL DRAFTS WITH QUOTES ===")
 
 if __name__ == "__main__":
     main()
