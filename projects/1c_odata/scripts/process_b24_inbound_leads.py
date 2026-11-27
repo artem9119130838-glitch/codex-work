@@ -2469,10 +2469,10 @@ def evaluate_reseller_and_ghost_signals(dadata_info: dict, saby_info: dict, cont
     if (is_trade_okved or has_reseller_tag) and not has_production_tag:
         signals.append(f"Род деятельности: оптовая торговля/посредник без производства (ОКВЭД {okved or '46.xx'})")
 
-    # 2. Участие в торгах и тендерах как поставщик (для непроизводственных организаций)
+    # 2. Участие в торгах и тендерах как поставщик (для непроизводственных организаций, порог >= 100 аукционов)
     p_tenders = (saby_info or {}).get("participant_count", 0) if isinstance(saby_info, dict) else 0
-    if (p_tenders > 0 or "Тендер" in (contractor_tags or [])) and not has_production_tag:
-        signals.append(f"Участие в торгах/тендерах как поставщик ({p_tenders} процедур по СБИС)")
+    if p_tenders >= 100 and not has_production_tag:
+        signals.append(f"Массовое участие в торгах/тендерах как поставщик ({p_tenders} процедур по СБИС >= 100)")
 
     # 3. Должность автора в подписи письма (коммерческая роль: сам продает, а не закупает для завода)
     clean_text = re.sub(r'<[^>]+>', ' ', f"{lead_comments} {email_desc}").lower()
