@@ -567,6 +567,7 @@
 | Уровень / Роль | Скрипт | Расположение | Описание и модификации | Дублей в архивах |
 | :--- | :--- | :--- | :--- | :--- |
 | **Расширенный** | `patch_n8n.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n.py` | Автоматизация рабочего процесса. | 8 |
+| **Боевой / Сторож CRM** | `b24_daily_audit_guard.py` | `projects/1c_odata/scripts/b24_daily_audit_guard.py` | Суточный сторож CRM: аудит массовых модификаций сделок и компаний в Битрикс24 (порог >= 50 сущностей/день), детекция аномальной активности и алерты в чат Б24 и на email (salman@longwang.ru, artem9119130838@gmail.com). | 0 |
 | **Расширенный** | `patch_n8n_mode.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/patch_n8n_mode.py` | Автоматизация рабочего процесса. | 8 |
 | **Интеграционный** | `reconcile_1c_db.py` | `D:/Soft/Codex Backup/migration_snapshot_2026-09-29/Codex_Shared/projects/n8n_email_ai_funnel_version/scripts/reconcile_1c_db.py` | Автоматизация рабочего процесса. | 8 |
 
